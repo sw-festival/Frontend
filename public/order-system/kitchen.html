@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>주방 디스플레이 - MEMORY 주점</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/kitchen.css">
+</head>
+<body class="kitchen-body">
+    <div class="kitchen-container">
+        <header class="kitchen-header">
+            <div class="kitchen-title">
+                <h1>👨‍🍳 MEMORY 주점 주방</h1>
+                <div class="kitchen-time" id="kitchen-clock">--:--:--</div>
+            </div>
+            <div class="kitchen-stats">
+                <div class="kitchen-stat">
+                    <span class="stat-value" id="pending-count">0</span>
+                    <span class="stat-label">대기</span>
+                </div>
+                <div class="kitchen-stat">
+                    <span class="stat-value" id="preparing-count">0</span>
+                    <span class="stat-label">준비중</span>
+                </div>
+                <div class="kitchen-stat urgent">
+                    <span class="stat-value" id="urgent-count">0</span>
+                    <span class="stat-label">긴급</span>
+                </div>
+            </div>
+        </header>
+
+        <main class="kitchen-main">
+            <!-- 긴급 주문 섹션 -->
+            <section class="urgent-orders">
+                <h2>🚨 긴급 주문 (15분 이상)</h2>
+                <div id="urgent-orders-list" class="orders-grid">
+                    <!-- 긴급 주문이 여기에 표시됩니다 -->
+                </div>
+            </section>
+
+            <!-- 일반 주문 섹션 -->
+            <section class="normal-orders">
+                <h2>📋 대기중인 주문</h2>
+                <div id="normal-orders-list" class="orders-grid">
+                    <!-- 일반 주문이 여기에 표시됩니다 -->
+                </div>
+            </section>
+
+            <!-- 준비중 주문 섹션 -->
+            <section class="preparing-orders">
+                <h2>👨‍🍳 준비중인 주문</h2>
+                <div id="preparing-orders-list" class="orders-grid">
+                    <!-- 준비중 주문이 여기에 표시됩니다 -->
+                </div>
+            </section>
+        </main>
+
+        <!-- 주방용 빠른 액션 버튼 -->
+        <div class="kitchen-actions">
+            <button id="refresh-btn" class="action-btn">🔄 새로고침</button>
+            <button id="fullscreen-btn" class="action-btn">📺 전체화면</button>
+            <button id="sound-toggle-btn" class="action-btn">🔔 알림음</button>
+        </div>
+    </div>
+
+    <!-- Firebase SDK (v8) -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    
+    <!-- Firebase 설정 및 주방 로직 -->
+    <script src="js/firebase-config.js"></script>
+    <script src="js/kitchen.js"></script>
+</body>
+</html>
