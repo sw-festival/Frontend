@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="error-message">
                 <h3>❌ 잘못된 접근입니다</h3>
                 <p>주문 ID가 없습니다.</p>
-                <button onclick="window.location.href='index.html'">다시 주문하기</button>
+                <button onclick="window.location.href='order.html'">다시 주문하기</button>
             </div>
         `;
         return;
@@ -41,7 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 버튼 이벤트
     refreshBtn.addEventListener('click', loadWaitingInfo);
-    backBtn.addEventListener('click', () => window.location.href = 'index.html');
+    backBtn.addEventListener('click', () => window.location.href = 'order.html');
 
     // 실시간 대기 순번 정보 로드
     loadWaitingInfo();
@@ -104,7 +104,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="error-message">
                 <h3>❌ 주문을 찾을 수 없습니다</h3>
                 <p>주문 정보가 존재하지 않습니다.</p>
-                <button onclick="window.location.href='index.html'">다시 주문하기</button>
+                <button onclick="window.location.href='order.html'">다시 주문하기</button>
             </div>
         `;
     }
@@ -179,7 +179,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         // 현재 상태까지 활성화
-        const statusOrder = ['Order Received', 'Payment Confirmed', 'Preparing', 'Order Complete'];
+        const statusOrder = ['Payment Pending', 'Order Received', 'Payment Confirmed', 'Preparing', 'Order Complete'];
         const currentIndex = statusOrder.indexOf(status);
 
         statusOrder.forEach((s, index) => {
