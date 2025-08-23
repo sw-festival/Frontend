@@ -1390,3 +1390,88 @@ input[type="text"]:focus, input[type="number"]:focus {
 .hidden {
     display: none;
 }
+
+/* ==== Mobile-first App-like overrides (admin/order/waiting 공통) ==== */
+
+/* iOS safe-area */
+:root { color-scheme: light; }
+body { padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom); }
+
+/* 컨테이너를 '앱 카드'처럼 */
+.container {
+  max-width: 440px; /* 모바일 화면 폭에 맞춤 */
+  border-radius: 18px;
+}
+
+/* 헤더 간격/텍스트 살짝 컴팩트 */
+header { padding: 18px; }
+.header-logo h1 { font-size: 1.8rem; }
+
+/* 점수/상태 바를 모바일 카드처럼 */
+.baseball-scoreboard { padding: 10px; border-radius: 12px; }
+
+/* 공통 섹션 여백 정리 */
+section { padding: 16px; }
+
+/* 버튼 터치 타겟 강화 */
+button,
+input[type="button"],
+input[type="submit"] {
+  height: 48px;
+  border-radius: 12px;
+  font-size: 1rem;
+}
+
+/* 입력 필드 터치 타겟/폰트 */
+input[type="text"],
+input[type="number"] {
+  height: 44px;
+  font-size: 16px; /* iOS 줌 방지 */
+}
+
+/* 메뉴 리스트: 모바일 카드 간격 컴팩트 */
+#menu-list { gap: 12px; }
+.menu-item { padding: 12px; }
+.menu-img, .menu-img-placeholder { width: 64px; height: 64px; }
+.menu-name { font-size: 1.05rem; }
+.quantity { min-width: 28px; }
+
+/* 장바구니 박스 간격 축소 */
+#cart { padding: 16px; }
+
+/* 상태 타임라인(대기 페이지) 한 줄 스크롤로 */
+.status-indicator {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 12px;
+  border: 2px solid #e0e0e0;
+}
+.status-indicator::before { display: none; } /* 가운데 라인 제거 */
+.status-item { min-width: 92px; }
+
+/* 액션 버튼 2개 좌우 배치 시 모바일 간격 */
+.action-buttons { gap: 10px; }
+
+/* 관리자 통계/매출 카드 그리드 (2열 -> 넓어지면 3~4열) */
+.admin-stats .stat-card { flex: 1 1 calc(50% - 12px); }
+.sales-dashboard { gap: 12px; }
+.sales-card { min-width: 160px; }
+
+/* QR 그리드: 좁은 폭에서도 줄바꿈 잘 되도록 */
+#qr-codes-container {
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+}
+
+/* ——— 브레이크포인트: 480+ (작은 태블릿/큰 폰) ——— */
+@media (min-width: 480px) {
+  .container { max-width: 520px; }
+  .admin-stats .stat-card { flex: 1 1 calc(33.33% - 12px); }
+}
+
+/* ——— 브레이크포인트: 768+ (태블릿 이상일 때만 살짝 확대) ——— */
+@media (min-width: 768px) {
+  .container { max-width: 720px; }
+  .admin-stats .stat-card { flex: 1 1 calc(25% - 12px); }
+  .sales-card { min-width: 220px; }
+}
