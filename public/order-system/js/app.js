@@ -1,34 +1,175 @@
+import { createOrder, openSessionBySlug } from './api-session.js';
+import { PRODUCT_ID_MAP } from './product-map.js';
+import { Tokens } from './tokens.js';   // 세션 토큰 관리
+import './config.js';                  // 전역 설정 필요 시
+
+// URL 파라미터 확인 및 세션 오픈
+(async () => {
+  const url = new URL(location.href);
+  const slug = url.searchParams.get('slug'); // ?slug=ezygbX
+  const tableParam = url.searchParams.get('table'); // ?table=5 (레거시)
+  
+  if (slug) {
+    // 새로운 slug 방식
+    try {
+      console.log('Slug 기반 세션 오픈 시도:', slug);
+      const sessionData = await openSessionBySlug(slug);
+      console.log('✅ 세션 오픈 성공:', sessionData);
+      
+      // 테이블 정보 자동 설정
+      if (sessionData.data?.table) {
+        const tableInfo = sessionData.data.table;
+        console.log('테이블 정보 설정:', tableInfo);
+        
+        // 테이블 정보를 JSON으로 저장
+        window.sessionStorage.setItem('auto_table_info', JSON.stringify(tableInfo));
+        
+        // 매장 이용으로 자동 설정
+        window.sessionStorage.setItem('auto_order_type', 'dine-in');
+      }
+    } catch (e) {
+      console.warn('세션 오픈 실패:', e.message);
+      alert('테이블 세션 연결에 실패했습니다. 관리자에게 문의해주세요.');
+    }
+  }
+})();
+
 document.addEventListener('DOMContentLoaded', () => {
     console.log('DOM 로드 완료');
     
-    // Firebase 초기화 (오류가 발생해도 다른 기능은 작동하도록)
-    let db = null;
-    try {
-        if (typeof firebase !== 'undefined' && typeof firebaseConfig !== 'undefined') {
-            firebase.initializeApp(firebaseConfig);
-            db = firebase.database();
-            console.log('Firebase 초기화 성공');
-            
-            // 데이터베이스 연결 테스트
-            db.ref('.info/connected').on('value', (snapshot) => {
-                if (snapshot.val() === true) {
-                    console.log('Firebase 데이터베이스 연결 성공');
-                } else {
-                    console.log('Firebase 데이터베이스 연결 실패');
-                }
-            });
-        } else {
-            console.warn('Firebase 또는 firebaseConfig가 로드되지 않았습니다');
+    // 인기 메뉴 로드 함수 (먼저 정의)
+    function loadPopularMenus() {
+        if (!db) {
+            console.log('Firebase가 연결되지 않아 인기 메뉴를 로드할 수 없습니다');
+            const popularMenuList = document.getElementById('popular-menu-list');
+            if (popularMenuList) {
+                popularMenuList.innerHTML = '<div class="no-data">서버 연결 중...</div>';
+            }
+            return;
         }
-    } catch (error) {
-        console.error('Firebase 초기화 실패:', error);
-        console.log('Firebase 없이 기본 기능은 작동합니다');
+        
+        const ordersRef = db.ref('orders');
+        ordersRef.on('value', (snapshot) => {
+            const orders = snapshot.val();
+            const menuStats = {};
+            
+            if (orders) {
+                // 모든 주문에서 메뉴 통계 계산
+                Object.values(orders).forEach(order => {
+                    if (order.items) {
+                        Object.entries(order.items).forEach(([menuName, item]) => {
+                            if (menuStats[menuName]) {
+                                menuStats[menuName] += item.quantity;
+                            } else {
+                                menuStats[menuName] = item.quantity;
+                            }
+                        });
+                    }
+                });
+                
+                // 상위 3개 메뉴 추출
+                const popularMenus = Object.entries(menuStats)
+                    .sort(([,a], [,b]) => b - a)
+                    .slice(0, 3);
+                
+                displayPopularMenus(popularMenus);
+            } else {
+                const popularMenuList = document.getElementById('popular-menu-list');
+                if (popularMenuList) {
+                    popularMenuList.innerHTML = '<div class="no-data">아직 주문 데이터가 없습니다</div>';
+                }
+            }
+        });
+    }
+    
+    // 인기 메뉴 표시 함수
+    function displayPopularMenus(popularMenus) {
+        const popularMenuList = document.getElementById('popular-menu-list');
+        
+        if (!popularMenuList) return;
+        
+        if (popularMenus.length === 0) {
+            popularMenuList.innerHTML = '<div class="no-data">아직 주문 데이터가 없습니다</div>';
+            return;
+        }
+        
+        let html = '';
+        popularMenus.forEach(([menuName, count], index) => {
+            const medal = ['🥇', '🥈', '🥉'][index];
+            html += `
+                <div class="popular-menu-item">
+                    <span class="popular-rank">${medal}</span>
+                    <span class="popular-name">${menuName}</span>
+                    <span class="popular-count">${count}회 주문</span>
+                </div>
+            `;
+        });
+        
+        popularMenuList.innerHTML = html;
+    }
+    
+    // Firebase 초기화 (안전한 방식으로)
+    let db = null;
+    let isFirebaseConnected = false;
+    
+    // Firebase 로드 대기 및 초기화
+    function initializeFirebase() {
+        try {
+            if (typeof firebase !== 'undefined' && typeof firebaseConfig !== 'undefined') {
+                // Firebase가 이미 초기화되었는지 확인
+                if (firebase.apps.length === 0) {
+                    firebase.initializeApp(firebaseConfig);
+                }
+                
+                db = firebase.database();
+                console.log('✅ Firebase 초기화 성공');
+                
+                // 데이터베이스 연결 상태 모니터링
+                db.ref('.info/connected').on('value', (snapshot) => {
+                    const connected = snapshot.val() === true;
+                    if (connected && !isFirebaseConnected) {
+                        console.log('✅ Firebase 데이터베이스 연결됨');
+                        isFirebaseConnected = true;
+                        
+                        // 연결 성공 후 인기 메뉴 로드
+                        loadPopularMenus();
+                    } else if (!connected && isFirebaseConnected) {
+                        console.warn('⚠️ Firebase 데이터베이스 연결 끊어짐');
+                        isFirebaseConnected = false;
+                    }
+                });
+                
+                return true;
+            } else {
+                return false;
+            }
+        } catch (error) {
+            console.error('❌ Firebase 초기화 실패:', error);
+            return false;
+        }
+    }
+    
+    // Firebase 초기화 시도
+    if (!initializeFirebase()) {
+        console.warn('⚠️ Firebase 로드 대기 중...');
+        // Firebase 로드 대기 (최대 5초)
+        let retryCount = 0;
+        const maxRetries = 10;
+        const retryInterval = setInterval(() => {
+            retryCount++;
+            if (initializeFirebase()) {
+                clearInterval(retryInterval);
+                console.log('✅ Firebase 로드 완료 (재시도 후)');
+            } else if (retryCount >= maxRetries) {
+                clearInterval(retryInterval);
+                console.warn('⚠️ Firebase 로드 실패 - 오프라인 모드로 동작');
+            }
+        }, 500);
     }
 
     // DOM 요소 가져오기
-    const tableSection = document.getElementById('table-section');
+    const welcomeSection = document.getElementById('welcome-section');
     const orderSection = document.getElementById('order-section');
-    const tableNumberInput = document.getElementById('table-number');
     const startOrderBtn = document.getElementById('start-order-btn');
     const cartItemsList = document.getElementById('cart-items');
     const totalPriceEl = document.getElementById('total-price');
@@ -36,13 +177,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const placeOrderBtn = document.getElementById('place-order-btn');
     const dineInBtn = document.getElementById('dine-in-btn');
     const takeoutBtn = document.getElementById('takeout-btn');
-    const tableInputSection = document.getElementById('table-input-section');
     
     // DOM 요소 존재 확인
     console.log('DOM 요소 확인:');
-    console.log('- tableSection:', !!tableSection);
+    console.log('- welcomeSection:', !!welcomeSection);
     console.log('- orderSection:', !!orderSection);
-    console.log('- tableNumberInput:', !!tableNumberInput);
     console.log('- startOrderBtn:', !!startOrderBtn);
     console.log('- cartItemsList:', !!cartItemsList);
     console.log('- totalPriceEl:', !!totalPriceEl);
@@ -54,48 +193,36 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
-    let tableNumber = null;
-    let orderType = null; // 'dine-in' or 'takeout'
+    let orderType = 'dine-in'; // 기본값: 매장 이용
     let discountRate = 0; // 할인율 (포장시 0.1)
     const cart = {};
     
-    // URL 파라미터에서 테이블 번호 확인 (QR코드 지원)
-    const urlParams = new URLSearchParams(window.location.search);
-    const qrTableNumber = urlParams.get('table');
+    // 자동 설정값 확인 (slug 기반 세션)
+    const autoOrderType = sessionStorage.getItem('auto_order_type');
+    const autoTableInfo = sessionStorage.getItem('auto_table_info');
     
-    if (qrTableNumber) {
-        console.log('QR코드로 접속됨 - 테이블:', qrTableNumber);
-        // 자동으로 매장 이용 선택하고 테이블 번호 입력
-        orderType = 'dine-in';
-        discountRate = 0;
-        tableNumber = parseInt(qrTableNumber);
+    if (autoOrderType || autoTableInfo) {
+        console.log('자동 설정 감지:', { autoOrderType, autoTableInfo });
+        
+        // 주문 타입 설정
+        if (autoOrderType) {
+            orderType = autoOrderType;
+            discountRate = autoOrderType === 'takeout' ? 0.1 : 0;
+        }
         
         // UI 자동 설정
-        if (dineInBtn && takeoutBtn && tableNumberInput && orderSection && tableSection) {
-            dineInBtn.classList.add('selected');
-            takeoutBtn.classList.remove('selected');
-            tableNumberInput.value = qrTableNumber;
-            
-            // 바로 주문 페이지로 이동
-            setTimeout(() => {
-                tableSection.classList.add('hidden');
-                orderSection.classList.remove('hidden');
-                
-                const headerTitle = document.querySelector('header h1');
-                if (headerTitle) {
-                    headerTitle.innerText = `⚾ 테이블 #${tableNumber}`;
-                }
-                
-                // QR코드로 접속했다는 안내 표시
-                showQRWelcomeMessage(qrTableNumber);
-            }, 1000);
+        if (dineInBtn && takeoutBtn) {
+            if (orderType === 'dine-in') {
+                dineInBtn.classList.add('selected');
+                takeoutBtn.classList.remove('selected');
+            } else if (orderType === 'takeout') {
+                takeoutBtn.classList.add('selected');
+                dineInBtn.classList.remove('selected');
+            }
         }
-    }
+
     
-    // 인기 메뉴 실시간 업데이트 (Firebase 연결 시에만)
-    if (db) {
-        loadPopularMenus();
-    }
+
 
     // 포장/매장 선택 버튼 이벤트
     dineInBtn.addEventListener('click', () => {
@@ -136,24 +263,10 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         
-        if (orderType === 'dine-in') {
-            const tableNum = parseInt(tableNumberInput.value);
-            console.log('입력된 테이블 번호:', tableNumberInput.value, '→', tableNum);
-            
-            if (isNaN(tableNum) || tableNum <= 0) {
-                alert('올바른 테이블 번호를 입력하세요.');
-                return;
-            }
-            
-            console.log('테이블 번호 설정:', tableNum);
-            tableNumber = tableNum;
-        } else {
-            tableNumber = 0; // 포장은 테이블 번호 없음
-            console.log('포장 주문 - 테이블 번호 없음');
-        }
+        // 포장/매장 이용 설정만 확인 (테이블 번호는 slug로 처리됨)
         
         console.log('화면 전환 시작...');
-        tableSection.classList.add('hidden');
+        welcomeSection.classList.add('hidden');
         orderSection.classList.remove('hidden');
         
         const headerTitle = document.querySelector('header h1');
@@ -198,9 +311,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const headerTitle = document.querySelector('header h1');
         if (headerTitle) {
             if (orderType === 'takeout') {
-                headerTitle.innerText = `⚾ 포장 주문 (10% 할인)`;
+                headerTitle.innerHTML = '<i class="fas fa-baseball-ball"></i> MEMORY 주점 - 포장 주문 (10% 할인)';
             } else {
-                headerTitle.innerText = `⚾ 테이블 #${tableNumber}`;
+                headerTitle.innerHTML = '<i class="fas fa-baseball-ball"></i> MEMORY 주점 - 매장 이용';
             }
         }
     };
@@ -316,7 +429,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const customerName = customerNameInput.value.trim();
         console.log('입금자명:', customerName);
         console.log('장바구니:', cart);
-        console.log('테이블 번호:', tableNumber);
+        console.log('주문 타입:', orderType);
         
         if (Object.keys(cart).length === 0) {
             alert('장바구니가 비어있습니다. 메뉴를 선택해주세요.');
@@ -337,19 +450,69 @@ document.addEventListener('DOMContentLoaded', () => {
         
         console.log('주문 데이터 준비 중...');
         
-        // Firebase 연결이 안 되면 로컬 저장소 사용
-        if (!db) {
-            console.log('Firebase 연결 실패, 로컬 저장소 사용');
-            saveOrderLocally();
-            return;
-        }
+        // API 우선 호출, 실패 시 Firebase 또는 로컬 저장소 사용
+        createOrderViaAPI();
+    });
 
+    // API를 통한 주문 생성 함수
+    async function createOrderViaAPI() {
+        try {
+            console.log('API를 통한 주문 생성 시도');
+            
+            const originalTotal = Object.values(cart).reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            const finalTotal = parseInt(totalPriceEl.innerText.replace(/,/g, ''));
+            
+            // API용 주문 데이터 준비
+            const items = Object.entries(cart).map(([name, item]) => {
+                // 메뉴 이름을 product_id로 매핑 (임시)
+                const productId = PRODUCT_ID_MAP[name] || 1;
+                return {
+                    product_id: productId,
+                    quantity: item.quantity
+                };
+            });
+            
+            const apiOrderData = {
+                order_type: orderType === 'dine-in' ? 'DINE_IN' : 'TAKEOUT',
+                payer_name: customerNameInput.value.trim(),
+                items: items
+            };
+            
+            console.log('API 주문 데이터:', apiOrderData);
+            
+            // API 호출
+            const apiResult = await createOrder(apiOrderData);
+            console.log('✅ API 주문 생성 성공:', apiResult);
+            
+            // API 성공 시 Firebase에 미러링 (설정된 경우)
+            if (window.RUNTIME?.USE_FIREBASE_WRITE_MIRROR && db) {
+                await mirrorOrderToFirebase(apiResult.data.order_id, originalTotal, finalTotal);
+            }
+            
+            // 성공 처리
+            handleOrderSuccess(apiResult.data.order_id, finalTotal);
+            
+        } catch (apiError) {
+            console.warn('API 주문 생성 실패:', apiError);
+            console.log('Firebase 백업 방식으로 진행');
+            
+            // API 실패 시 Firebase 백업
+            if (db) {
+                await createOrderViaFirebase();
+            } else {
+                // Firebase도 없으면 로컬 저장소
+                saveOrderLocally();
+            }
+        }
+    }
+
+    // Firebase 백업 주문 생성
+    async function createOrderViaFirebase() {
         const originalTotal = Object.values(cart).reduce((sum, item) => sum + (item.price * item.quantity), 0);
         const finalTotal = parseInt(totalPriceEl.innerText.replace(/,/g, ''));
         
         const orderData = {
-            tableNumber,
-            customerName,
+            customerName: customerNameInput.value.trim(),
             items: cart,
             orderType,
             originalPrice: originalTotal,
@@ -360,57 +523,71 @@ document.addEventListener('DOMContentLoaded', () => {
             timestamp: firebase.database.ServerValue.TIMESTAMP
         };
 
-        // Firebase에 주문 데이터 저장
-        console.log('Firebase에 데이터 저장 시작');
+        console.log('Firebase에 백업 저장 시작');
         
         const newOrderRef = db.ref('orders').push();
         const orderId = newOrderRef.key;
         console.log('생성된 주문 ID:', orderId);
         
-        newOrderRef.set(orderData)
-            .then(() => {
-                console.log('✅ 주문 저장 성공');
-                
-                try {
-                    const waitingUrl = `waiting.html?orderId=${orderId}`;
-                    console.log('대기 순번 URL 생성:', waitingUrl);
-                    
-                    const totalPriceStr = orderData.totalPrice.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-                    const alertMessage = `🏦 주문이 접수되었습니다!\n\n⚠️ 주의: 입금 확인 후 주문이 시작됩니다\n\n💳 결제 정보:\n은행: 신한은행\n계좌번호: 110-123-456789\n예금주: 소프트웨어융합대학 학생회\n총 금액: ${totalPriceStr}원\n입금자명: ${orderData.customerName}\n\n🔥 반드시 위 계좌로 이체해주세요!\n입금 확인 후 주문 제작이 시작됩니다.`;
-                    console.log('alert 메시지 준비 완료, 길이:', alertMessage.length);
-                    
-                    console.log('alert 메시지 표시 중...');
-                    alert(alertMessage);
-                    console.log('✅ alert 메시지 표시 완료');
-                    
-                    // 대기 순번 페이지로 이동할지 묻기
-                    console.log('confirm 대화상자 표시 중...');
-                    const goToWaiting = confirm('대기 순번 확인 페이지로 이동하시겠습니까?');
-                    console.log('confirm 결과:', goToWaiting);
-                    
-                    if (goToWaiting) {
-                        console.log('대기 순번 페이지로 이동 시도:', waitingUrl);
-                        window.location.href = waitingUrl;
-                    } else {
-                        console.log('페이지 새로고침 시도');
-                        window.location.reload();
-                    }
-                    
-                } catch (error) {
-                    console.error('주문 완료 후 처리 중 오류:', error);
-                    alert('주문은 완료되었지만 페이지 이동 중 오류가 발생했습니다.');
-                    window.location.reload();
-                }
-            })
-            .catch(error => {
-                console.error('주문 저장 실패:', error);
-                alert(`주문 처리 중 오류가 발생했습니다.\n오류 내용: ${error.message}\n\n개발자 도구 콘솔을 확인해주세요.`);
-                // 버튼 상태 복원
-                isOrdering = false;
-                placeOrderBtn.textContent = '주문하기';
-                placeOrderBtn.disabled = false;
-            });
-    });
+        await newOrderRef.set(orderData);
+        console.log('✅ Firebase 백업 저장 성공');
+        
+        // 성공 처리
+        handleOrderSuccess(orderId, finalTotal);
+    }
+
+    // Firebase 미러링 함수
+    async function mirrorOrderToFirebase(apiOrderId, originalTotal, finalTotal) {
+        try {
+            const orderData = {
+                serverOrderId: apiOrderId, // 서버 주문 ID 연결
+                customerName: customerNameInput.value.trim(),
+                items: cart,
+                orderType,
+                originalPrice: originalTotal,
+                discountRate,
+                discountAmount: originalTotal - finalTotal,
+                totalPrice: finalTotal,
+                status: 'Payment Pending',
+                timestamp: firebase.database.ServerValue.TIMESTAMP,
+                source: 'api' // API를 통해 생성됨을 표시
+            };
+
+            const newOrderRef = db.ref('orders').push();
+            await newOrderRef.set(orderData);
+            console.log('✅ Firebase 미러링 성공');
+        } catch (error) {
+            console.warn('Firebase 미러링 실패:', error);
+            // 미러링 실패는 무시 (주문은 이미 API로 성공)
+        }
+    }
+
+    // 주문 성공 처리 공통 함수
+    function handleOrderSuccess(orderId, totalPrice) {
+        try {
+            const waitingUrl = `waiting.html?orderId=${orderId}`;
+            console.log('대기 순번 URL 생성:', waitingUrl);
+            
+            const totalPriceStr = totalPrice.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+            const alertMessage = `🏦 주문이 접수되었습니다!\n\n⚠️ 주의: 입금 확인 후 주문이 시작됩니다\n\n💳 결제 정보:\n은행: 신한은행\n계좌번호: 110-123-456789\n예금주: 소프트웨어융합대학 학생회\n총 금액: ${totalPriceStr}원\n입금자명: ${customerNameInput.value.trim()}\n\n🔥 반드시 위 계좌로 이체해주세요!\n입금 확인 후 주문 제작이 시작됩니다.`;
+            
+            alert(alertMessage);
+            
+            // 대기 순번 페이지로 이동할지 묻기
+            const goToWaiting = confirm('대기 순번 확인 페이지로 이동하시겠습니까?');
+            
+            if (goToWaiting) {
+                window.location.href = waitingUrl;
+            } else {
+                window.location.reload();
+            }
+            
+        } catch (error) {
+            console.error('주문 완료 후 처리 중 오류:', error);
+            alert('주문은 완료되었지만 페이지 이동 중 오류가 발생했습니다.');
+            window.location.reload();
+        }
+    }
 
     // 로컬 저장소에 주문 저장 (Firebase 대체)
     function saveOrderLocally() {
@@ -422,7 +599,6 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const orderData = {
                 id: orderId,
-                tableNumber,
                 customerName: customerNameInput.value.trim(),
                 items: cart,
                 orderType,
@@ -475,68 +651,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // 인기 메뉴 로드 함수
-    function loadPopularMenus() {
-        if (!db) {
-            console.log('Firebase가 연결되지 않아 인기 메뉴를 로드할 수 없습니다');
-            document.getElementById('popular-menu-list').innerHTML = '<div class="no-data">서버 연결 중...</div>';
-            return;
-        }
-        
-        const ordersRef = db.ref('orders');
-        ordersRef.on('value', (snapshot) => {
-            const orders = snapshot.val();
-            const menuStats = {};
-            
-            if (orders) {
-                // 모든 주문에서 메뉴 통계 계산
-                Object.values(orders).forEach(order => {
-                    if (order.items) {
-                        Object.entries(order.items).forEach(([menuName, item]) => {
-                            if (menuStats[menuName]) {
-                                menuStats[menuName] += item.quantity;
-                            } else {
-                                menuStats[menuName] = item.quantity;
-                            }
-                        });
-                    }
-                });
-                
-                // 상위 3개 메뉴 추출
-                const popularMenus = Object.entries(menuStats)
-                    .sort(([,a], [,b]) => b - a)
-                    .slice(0, 3);
-                
-                displayPopularMenus(popularMenus);
-            } else {
-                document.getElementById('popular-menu-list').innerHTML = '<div class="no-data">아직 주문 데이터가 없습니다</div>';
-            }
-        });
-    }
-    
-    // 인기 메뉴 표시 함수
-    function displayPopularMenus(popularMenus) {
-        const popularMenuList = document.getElementById('popular-menu-list');
-        
-        if (popularMenus.length === 0) {
-            popularMenuList.innerHTML = '<div class="no-data">아직 주문 데이터가 없습니다</div>';
-            return;
-        }
-        
-        let html = '';
-        popularMenus.forEach(([menuName, count], index) => {
-            const medal = ['🥇', '🥈', '🥉'][index];
-            html += `
-                <div class="popular-item">
-                    <span class="rank">${medal}</span>
-                    <span class="menu-name">${menuName}</span>
-                    <span class="order-count">${count}회 주문</span>
-                </div>
-            `;
-        });
-        
-        popularMenuList.innerHTML = html;
-    }
+
     
     // QR코드 환영 메시지 함수
     function showQRWelcomeMessage(tableNumber) {
@@ -564,11 +679,13 @@ document.addEventListener('DOMContentLoaded', () => {
             }, 300);
         });
         
-        // 3초 후 자동으로 닫기
+                // 3초 후 자동으로 닫기
         setTimeout(() => {
             if (document.body.contains(welcomeOverlay)) {
                 closeBtn.click();
             }
         }, 3000);
     }
+  }
 });
+

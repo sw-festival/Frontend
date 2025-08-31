@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>관리자 로그인 - MEMORY 주점</title>
+    <link rel="stylesheet" href="css/baseball-theme.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="icon" type="image/png" href="icons/icon.png">
+    <style>
+        .login-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #1a5490 0%, #2c3e50 100%);
+        }
+        
+        .login-card {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            text-align: center;
+            min-width: 300px;
+        }
+        
+        .login-header {
+            margin-bottom: 2rem;
+        }
+        
+        .login-header h1 {
+            color: #1a5490;
+            margin-bottom: 0.5rem;
+        }
+        
+        .login-header p {
+            color: #666;
+            margin: 0;
+        }
+        
+        .login-form {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .pin-input {
+            padding: 1rem;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 1.2rem;
+            text-align: center;
+            letter-spacing: 0.5rem;
+            transition: border-color 0.3s;
+        }
+        
+        .pin-input:focus {
+            border-color: #1a5490;
+            outline: none;
+        }
+        
+        .login-btn {
+            background: #1a5490;
+            color: white;
+            border: none;
+            padding: 1rem;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .login-btn:hover {
+            background: #2c5aa0;
+        }
+        
+        .login-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .error-message {
+            color: #e74c3c;
+            margin-top: 1rem;
+            display: none;
+        }
+        
+        .success-message {
+            color: #27ae60;
+            margin-top: 1rem;
+            display: none;
+        }
+        
+        .back-link {
+            margin-top: 1rem;
+            text-align: center;
+        }
+        
+        .back-link a {
+            color: #1a5490;
+            text-decoration: none;
+        }
+        
+        .back-link a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <div class="login-header">
+                <h1><i class="fas fa-baseball-ball"></i> MEMORY 주점</h1>
+                <p><i class="fas fa-user-shield"></i> 관리자 로그인</p>
+            </div>
+            
+            <form class="login-form" id="login-form">
+                <input 
+                    type="password" 
+                    id="admin-pin" 
+                    class="pin-input" 
+                    placeholder="관리자 PIN 입력"
+                    maxlength="20"
+                    required
+                    autocomplete="off"
+                >
+                <button type="submit" class="login-btn" id="login-btn">
+                    <i class="fas fa-key"></i> 로그인
+                </button>
+            </form>
+            
+            <div class="error-message" id="error-message">
+                잘못된 PIN입니다. 다시 시도해주세요.
+            </div>
+            
+            <div class="success-message" id="success-message">
+                로그인 성공! 관리자 페이지로 이동합니다...
+            </div>
+            
+            <div class="back-link">
+                <a href="/order-system/order.html">← 주문 페이지로 돌아가기</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- 설정 파일 로드 -->
+    <script src="js/config.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const loginForm = document.getElementById('login-form');
+            const pinInput = document.getElementById('admin-pin');
+            const loginBtn = document.getElementById('login-btn');
+            const errorMessage = document.getElementById('error-message');
+            const successMessage = document.getElementById('success-message');
+            
+            // 이미 로그인된 경우 관리자 페이지로 리디렉션
+            if (sessionStorage.getItem('admin_logged_in') === 'true') {
+                window.location.href = '/admin.html';
+                return;
+            }
+            
+            // PIN 입력 시 메시지 숨김
+            pinInput.addEventListener('input', (e) => {
+                hideMessages();
+            });
+            
+            // Enter 키로 로그인
+            pinInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleLogin();
+                }
+            });
+            
+            // 폼 제출 처리
+            loginForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                handleLogin();
+            });
+            
+            // 로그인 처리 함수
+            async function handleLogin() {
+                const pin = pinInput.value.trim();
+                
+                if (!pin) {
+                    showError('PIN을 입력해주세요.');
+                    return;
+                }
+                
+                // 로딩 상태
+                loginBtn.disabled = true;
+                loginBtn.textContent = '로그인 중...';
+                hideMessages();
+                
+                try {
+                    // config.js에서 관리자 PIN 확인
+                    const adminPin = window.RUNTIME?.ADMIN_PIN || '123456'; // 기본값
+                    
+                    if (pin === adminPin) {
+                        // 로그인 성공
+                        sessionStorage.setItem('admin_logged_in', 'true');
+                        sessionStorage.setItem('admin_login_time', Date.now().toString());
+                        
+                        showSuccess('로그인 성공! 관리자 페이지로 이동합니다...');
+                        
+                        // 1초 후 관리자 페이지로 이동
+                        setTimeout(() => {
+                            window.location.href = '/admin.html';
+                        }, 1000);
+                    } else {
+                        // 로그인 실패
+                        showError('잘못된 PIN입니다. 다시 시도해주세요.');
+                        pinInput.value = '';
+                        pinInput.focus();
+                    }
+                } catch (error) {
+                    console.error('로그인 처리 중 오류:', error);
+                    showError('로그인 처리 중 오류가 발생했습니다.');
+                } finally {
+                    loginBtn.disabled = false;
+                    loginBtn.textContent = '로그인';
+                }
+            }
+            
+            function showError(message) {
+                errorMessage.textContent = message;
+                errorMessage.style.display = 'block';
+                successMessage.style.display = 'none';
+            }
+            
+            function showSuccess(message) {
+                successMessage.textContent = message;
+                successMessage.style.display = 'block';
+                errorMessage.style.display = 'none';
+            }
+            
+            function hideMessages() {
+                errorMessage.style.display = 'none';
+                successMessage.style.display = 'none';
+            }
+            
+            // 포커스를 PIN 입력란에 설정
+            pinInput.focus();
+        });
+    </script>
+</body>
+</html>

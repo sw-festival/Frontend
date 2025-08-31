@@ -3,7 +3,7 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import type { Metadata } from 'next';
 import Providers from './provider';
 
-export const metadata: Metadata = {
+export const viewport = {
   title: '코알라 주점',
   description: '소프트웨어융합대학 가을 축제 주점',
   manifest: '/manifest.json',

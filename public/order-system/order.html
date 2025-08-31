@@ -4,13 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MEMORY 주점 주문 시스템</title>
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/baseball-theme.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="icon" type="image/png" href="icons/icon.png">
 </head>
 <body>
     <div class="container">
         <header>
             <div class="header-logo">
-                <h1>⚾ MEMORY 주점</h1>
+                <h1><i class="fas fa-baseball-ball"></i> MEMORY 주점</h1>
                 <div class="subtitle">
                     <span class="kbo-style">여기 회장들 안주만들어 먹다가 둘다 100kg가 넘었대</span>
                     <p>소프트웨어융합대학 학생회</p>
@@ -18,33 +20,33 @@
             </div>
             <div class="baseball-scoreboard">
                 <div class="score-info">
-                    <span class="inning">🏟️ 내용을 입력하세요</span>
-                    <span class="score">내용을 입력하세요</span>
+                    <span class="inning"><i class="fas fa-stadium"></i> 7회말 진행중</span>
+                    <span class="score">홈 5 : 4 원정</span>
                 </div>
             </div>
         </header>
 
         <main>
-            <!-- 포장/매장 선택 섹션 -->
-            <section id="table-section">
-                <h2>주문 방법을 선택해주세요.</h2>
+            <!-- 웰컴 섹션 -->
+            <section id="welcome-section">
+                <div class="welcome-message">
+                    <h2><i class="fas fa-baseball-ball"></i> 스타디움에 오신 것을 환영합니다!</h2>
+                    <p>QR 코드를 통해 접속하신 경우 바로 주문이 가능합니다.</p>
+                    <p>포장 주문을 원하시면 아래 버튼을 클릭해주세요.</p>
+                </div>
+                
                 <div class="order-type-section">
                     <div class="order-type-buttons">
-                        <button type="button" id="dine-in-btn" class="order-type-btn">🍽️ 매장 이용</button>
-                        <button type="button" id="takeout-btn" class="order-type-btn">📦 포장 (10% 할인)</button>
+                        <button type="button" id="dine-in-btn" class="order-type-btn selected"><i class="fas fa-utensils"></i> 매장 이용</button>
+                        <button type="button" id="takeout-btn" class="order-type-btn"><i class="fas fa-shopping-bag"></i> 포장 (10% 할인)</button>
                     </div>
                 </div>
                 
-                <div id="table-input-section" class="hidden">
-                    <h3>테이블 번호를 입력해주세요.</h3>
-                    <input type="number" id="table-number" placeholder="예: 5">
-                </div>
-                
-                <button id="start-order-btn" class="hidden">주문 시작하기</button>
+                <button id="start-order-btn">주문 시작하기</button>
                 
                 <!-- 인기 메뉴 순위 -->
                 <div id="popular-menu-section">
-                    <h3>🔥 실시간 인기 메뉴 TOP 3</h3>
+                    <h3><i class="fas fa-fire"></i> 실시간 인기 메뉴 TOP 3</h3>
                     <div id="popular-menu-list">
                         <div class="loading">인기 메뉴를 불러오는 중...</div>
                     </div>
@@ -53,7 +55,7 @@
 
             <!-- 메뉴판 및 주문 섹션 (처음에는 숨김) -->
             <section id="order-section" class="hidden">
-                <h2>메뉴</h2>
+                <h2><i class="fas fa-utensils"></i> 스타디움 메뉴</h2>
                 <div id="menu-list">
                     <!-- 
                         ********************************
@@ -68,7 +70,7 @@
 
                     -->
                     <div class="menu-item" data-price="6000">
-                        <div class="menu-img-placeholder">🥘</div>
+                        <div class="menu-img-placeholder"><i class="fas fa-fire"></i></div>
                         <div class="menu-details">
                             <h3 class="menu-name">김치전</h3>
                             <p class="menu-price">6,000원</p>
@@ -81,7 +83,7 @@
                     </div>
 
                     <div class="menu-item" data-price="6000">
-                        <div class="menu-img-placeholder">🌿</div>
+                        <div class="menu-img-placeholder"><i class="fas fa-leaf"></i></div>
                         <div class="menu-details">
                             <h3 class="menu-name">부추전</h3>
                             <p class="menu-price">6,000원</p>
@@ -94,7 +96,7 @@
                     </div>
 
                     <div class="menu-item" data-price="8000">
-                        <div class="menu-img-placeholder">🦑</div>
+                        <div class="menu-img-placeholder"><i class="fas fa-fish"></i></div>
                         <div class="menu-details">
                             <h3 class="menu-name">오징어볶음</h3>
                             <p class="menu-price">8,000원</p>
@@ -107,7 +109,7 @@
                     </div>
 
                     <div class="menu-item" data-price="7000">
-                        <div class="menu-img-placeholder">🍗</div>
+                        <div class="menu-img-placeholder"><i class="fas fa-drumstick-bite"></i></div>
                         <div class="menu-details">
                             <h3 class="menu-name">닭꼬치</h3>
                             <p class="menu-price">7,000원</p>
@@ -120,7 +122,7 @@
                     </div>
 
                     <div class="menu-item" data-price="5000">
-                        <div class="menu-img-placeholder">🍶</div>
+                        <div class="menu-img-placeholder"><i class="fas fa-wine-bottle"></i></div>
                         <div class="menu-details">
                             <h3 class="menu-name">소주</h3>
                             <p class="menu-price">5,000원</p>
@@ -133,7 +135,7 @@
                     </div>
 
                     <div class="menu-item" data-price="6000">
-                        <div class="menu-img-placeholder">🍺</div>
+                        <div class="menu-img-placeholder"><i class="fas fa-beer"></i></div>
                         <div class="menu-details">
                             <h3 class="menu-name">맥주</h3>
                             <p class="menu-price">6,000원</p>
@@ -146,7 +148,7 @@
                     </div>
 
                     <div class="menu-item" data-price="3000">
-                        <div class="menu-img-placeholder">🥤</div>
+                        <div class="menu-img-placeholder"><i class="fas fa-glass-whiskey"></i></div>
                         <div class="menu-details">
                             <h3 class="menu-name">콜라</h3>
                             <p class="menu-price">3,000원</p>
@@ -164,7 +166,7 @@
                     -->
                 </div>
 
-                <h2>장바구니</h2>
+                <h2><i class="fas fa-shopping-cart"></i> 주문 내역</h2>
                 <div id="cart">
                     <ul id="cart-items">
                         <!-- 장바구니에 담긴 메뉴가 여기에 추가됩니다. -->
@@ -172,10 +174,10 @@
                     <p>총 금액: <span id="total-price">0</span>원</p>
                 </div>
 
-                <h2>결제 정보</h2>
+                <h2><i class="fas fa-credit-card"></i> 결제 정보</h2>
                 <div id="payment-info">
                     <div class="account-info">
-                        <h3>계좌이체 정보</h3>
+                        <h3><i class="fas fa-university"></i> 계좌이체 정보</h3>
                         <p><strong>은행:</strong> 신한은행</p>
                         <p><strong>계좌번호:</strong> 110-123-456789</p>
                         <p><strong>예금주:</strong> 소프트웨어융합대학 학생회</p>
@@ -184,7 +186,7 @@
                     <input type="text" id="customer-name" placeholder="입금자명을 입력하세요 (반드시 이체할 이름으로!)">
                 </div>
 
-                <button id="place-order-btn">주문하기</button>
+                <button id="place-order-btn"><i class="fas fa-baseball-ball"></i> 주문하기</button>
             </section>
         </main>
     </div>
@@ -195,6 +197,8 @@
     
     <!-- Firebase 설정 및 앱 로직 -->
     <script src="js/firebase-config.js"></script>
-    <script src="js/app.js"></script>
+    <script src="js/config.js"></script>
+    <script type="module" src="js/app.js"></script>
+    
 </body>
 </html>

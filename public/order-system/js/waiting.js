@@ -1,4 +1,13 @@
 document.addEventListener('DOMContentLoaded', () => {
+    if (!window.RUNTIME?.USE_FIREBASE_READ) {
+
+  document.getElementById('waiting-info').innerHTML = `
+    <div class="info-message">
+      <h3>⏳ 잠시만요!</h3>
+      <p>주문 조회 API 준비 중입니다. 새로고침하시거나 잠시 뒤 다시 확인해주세요.</p>
+    </div>`
+    // 이후 백엔드 GET 나오면 setInterval(fetchOrderFromServer, 3000)로 교체;
+    }
     // Firebase 초기화 (안전하게)
     let db = null;
     try {
@@ -271,4 +280,5 @@ document.addEventListener('DOMContentLoaded', () => {
         refreshBtn.textContent = '🔄 새로고침 (상태 확인)';
         refreshBtn.style.background = 'linear-gradient(135deg, #ffa502, #ff6348)';
     }
-});
+  }
+);

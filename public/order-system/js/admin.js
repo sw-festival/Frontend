@@ -1,14 +1,64 @@
+import { adminLogin, patchOrderStatus, ensureTable } from './api-admin.js';
+
+// window.RUNTIME이 로드되기를 기다림
+function waitForRuntime() {
+    return new Promise((resolve) => {
+        if (window.RUNTIME) {
+            resolve();
+        } else {
+            const checkRuntime = () => {
+                if (window.RUNTIME) {
+                    resolve();
+                } else {
+                    setTimeout(checkRuntime, 10);
+                }
+            };
+            checkRuntime();
+        }
+    });
+}
+
+// 관리자 인증 확인
+function checkAdminAuth() {
+    const isLoggedIn = sessionStorage.getItem('admin_logged_in') === 'true';
+    const loginTime = sessionStorage.getItem('admin_login_time');
+    
+    // 로그인되지 않았거나 12시간 이상 지난 경우
+    if (!isLoggedIn || !loginTime || (Date.now() - parseInt(loginTime)) > (12 * 60 * 60 * 1000)) {
+        // 세션 정리
+        sessionStorage.removeItem('admin_logged_in');
+        sessionStorage.removeItem('admin_login_time');
+        
+        // 로그인 페이지로 리디렉션
+        window.location.href = '/admin-login.html';
+        return false;
+    }
+    
+    return true;
+}
+
+// 로그아웃 처리
+function logout() {
+    sessionStorage.removeItem('admin_logged_in');
+    sessionStorage.removeItem('admin_login_time');
+    window.location.href = '/admin-login.html';
+}
+
+// 전역 Firebase 변수
+let db = null;
+
 document.addEventListener('DOMContentLoaded', () => {
+    // 관리자 인증 확인
+    if (!checkAdminAuth()) {
+        return; // 인증 실패시 여기서 종료
+    }
     // Firebase 초기화
     firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
+    db = firebase.database();
     const ordersRef = db.ref('orders');
 
     const adminDashboard = document.getElementById('admin-dashboard');
     const inventoryList = document.getElementById('inventory-list');
-    const qrCodesContainer = document.getElementById('qr-codes-container');
-    const generateQRBtn = document.getElementById('generate-qr-btn');
-    const printQRBtn = document.getElementById('print-qr-btn');
     const notificationToggleBtn = document.getElementById('notification-toggle');
     const testSoundBtn = document.getElementById('test-sound-btn');
     let allOrdersCache = {}; // 전체 주문 데이터 캐시
@@ -367,22 +417,7 @@ ${orderData.orderType === 'takeout' ? '<h3>📦 포장 주문</h3>' : `<h3>🍽�
         });
     }
 
-    // 주문 상태 업데이트 함수
-    function updateOrderStatus(orderId, status) {
-        db.ref('orders/' + orderId).update({ status: status })
-            .then(() => {
-                // 성공적으로 업데이트되면 UI도 즉시 업데이트
-                const card = document.querySelector(`[data-order-id="${orderId}"]`).closest('.order-card');
-                if (card) {
-                    card.setAttribute('data-status', status);
-                    card.querySelector('.order-status p').innerHTML = `<strong>상태:</strong> ${status}`;
-                }
-            })
-            .catch(error => {
-                console.error('상태 업데이트 실패:', error);
-                alert('상태 업데이트 중 오류가 발생했습니다.');
-            });
-    }
+    // 주문 상태 업데이트 함수는 파일 하단의 전역 함수 사용
 
     // 통계 업데이트 함수
     function updateStatistics(orders) {
@@ -605,59 +640,9 @@ ${orderData.orderType === 'takeout' ? '<h3>📦 포장 주문</h3>' : `<h3>🍽�
         return position + 1; // 1부터 시작
     }
 
-    // QR코드 생성 함수
-    function generateQRCodes() {
-        const startTable = parseInt(document.getElementById('table-range-start').value);
-        const endTable = parseInt(document.getElementById('table-range-end').value);
-        
-        if (startTable > endTable) {
-            alert('시작 번호가 끝 번호보다 클 수 없습니다.');
-            return;
-        }
-        
-        if (endTable - startTable > 50) {
-            alert('한 번에 최대 50개까지만 생성할 수 있습니다.');
-            return;
-        }
-        
-        qrCodesContainer.innerHTML = '';
-        
-        const currentUrl = window.location.origin + window.location.pathname.replace('admin.html', 'index.html');
-        
-        for (let tableNum = startTable; tableNum <= endTable; tableNum++) {
-            const qrUrl = `${currentUrl}?table=${tableNum}`;
-            const qrCodeDiv = createQRCodeElement(tableNum, qrUrl);
-            qrCodesContainer.appendChild(qrCodeDiv);
-        }
-        
-        // 인쇄 버튼 활성화
-        printQRBtn.disabled = false;
-    }
+
     
-    // QR코드 요소 생성 함수
-    function createQRCodeElement(tableNumber, url) {
-        const qrDiv = document.createElement('div');
-        qrDiv.className = 'qr-code-item';
-        
-        // Google Charts QR API 사용
-        const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}`;
-        
-        qrDiv.innerHTML = `
-            <div class="qr-code-header">
-                <h3>테이블 #${tableNumber}</h3>
-                <p class="qr-instruction">휴대폰으로 스캔하여 주문하세요</p>
-            </div>
-            <div class="qr-code-image">
-                <img src="${qrImageUrl}" alt="Table ${tableNumber} QR Code" />
-            </div>
-            <div class="qr-code-footer">
-                <p class="store-name">⚾ MEMORY 주점</p>
-                <p class="qr-url">${url}</p>
-            </div>
-        `;
-        
-        return qrDiv;
-    }
+
     
     // 인쇄 함수
     function printQRCodes() {
@@ -740,16 +725,7 @@ ${orderData.orderType === 'takeout' ? '<h3>📦 포장 주문</h3>' : `<h3>🍽�
         }, 1000);
     }
     
-    // QR코드 생성 버튼 이벤트
-    if (generateQRBtn) {
-        generateQRBtn.addEventListener('click', generateQRCodes);
-    }
-    
-    // 인쇄 버튼 이벤트
-    if (printQRBtn) {
-        printQRBtn.addEventListener('click', printQRCodes);
-        printQRBtn.disabled = true; // 초기에는 비활성화
-    }
+
     
     // 알림 설정 버튼 이벤트
     if (notificationToggleBtn) {
@@ -782,4 +758,58 @@ ${orderData.orderType === 'takeout' ? '<h3>📦 포장 주문</h3>' : `<h3>🍽�
     setTimeout(() => {
         requestNotificationPermission();
     }, 2000); // 2초 후 권한 요청
+    // 로그아웃 버튼 이벤트 리스너 추가
+    const logoutBtn = document.getElementById('admin-logout-btn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', () => {
+            if (confirm('로그아웃하시겠습니까?')) {
+                logout();
+            }
+        });
+    }
 });
+
+// 주문 상태 업데이트 함수 (Firebase 기반)
+async function updateOrderStatus(orderId, status) {
+    try {
+        // 현재 데이터 확인
+        const snapshot = await db.ref('orders/' + orderId).once('value');
+        if (!snapshot.exists()) {
+            throw new Error('주문을 찾을 수 없습니다.');
+        }
+
+        // Firebase에서 상태 업데이트
+        await db.ref('orders/' + orderId).update({ 
+            status: status,
+            lastUpdated: Date.now()
+        });
+        
+        console.log(`주문 ${orderId} 상태가 "${status}"로 변경됨`);
+        
+        // 선택적으로 서버 API도 호출 (설정된 경우)
+        if (window.RUNTIME?.USE_FIREBASE_WRITE_MIRROR) {
+            try {
+                await patchOrderStatus(orderId, decideAction(status));
+            } catch(serverError) {
+                console.warn('서버 상태 동기화 실패:', serverError);
+                // 서버 실패는 무시하고 Firebase 업데이트는 유지
+            }
+        }
+        
+        // 성공 시 소리 및 알림
+        playNotificationSound('status-change');
+        showSystemNotification('상태 변경 완료', `주문이 "${getStatusDisplayText(status)}" 상태로 변경되었습니다.`);
+        
+    } catch(error) { 
+        console.error('상태 변경 실패:', error);
+        alert(error.message || '상태 변경 중 오류가 발생했습니다.'); 
+    }
+}
+
+function decideAction(status) { 
+    // 서버 API 액션 매핑 (선택적 사용)
+    if (status === 'Payment Confirmed') return 'confirm';
+    if (status === 'Preparing') return 'ready';
+    if (status === 'Order Complete') return 'complete';
+    return 'confirm';
+}
