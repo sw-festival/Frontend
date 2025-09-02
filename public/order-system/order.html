@@ -6,7 +6,7 @@
     <title>MEMORY 주점 주문 시스템</title>
     <link rel="stylesheet" href="css/baseball-theme.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="icon" type="image/png" href="icons/icon.png">
+    <link rel="icon" type="image/png" href="../icons/icon.png">
 </head>
 <body>
     <div class="container">
@@ -53,6 +53,18 @@
                 </div>
             </section>
 
+            <!-- order.html의 <main> 내부: 주문 섹션 위에 '세션 게이트' 섹션 추가 -->
+            <section id="session-gate" style="display:none; margin:12px 0;">
+                <h2>테이블 접속 확인</h2>
+                <p id="gate-table-label" style="margin:4px 0;color:#666;"></p>
+                <label for="openCode">난수(테이블 스티커의 코드)를 입력하세요</label>
+                <div style="margin:8px 0; display:flex; gap:8px;">
+                    <input id="openCode" type="text" placeholder="예: test123" autocomplete="one-time-code" />
+                    <button id="openSessionBtn">접속하기</button>
+                </div>
+                <p id="gate-msg" style="color:#c00;font-size:0.9rem;"></p>
+            </section>
+
             <!-- 메뉴판 및 주문 섹션 (처음에는 숨김) -->
             <section id="order-section" class="hidden">
                 <h2><i class="fas fa-utensils"></i> 스타디움 메뉴</h2>
@@ -67,13 +79,26 @@
                         - .menu-img: 메뉴 이미지 경로
                         - .menu-name: 메뉴 이름
                         - .menu-price: 표시될 메뉴 가격 (원화 표시 등)
-
+                        
+                        실제 메뉴
+                        - SSG 문학철판구이 25,900
+                        - NC 빙하기공룡고기 19,900원
+                        - KIA 호랑이 생고기 (기아 타이거즈 고추장 범벅) 21,900원
+                        - 라팍 김치말이국수 7,900원
+                        - 키움쫄?쫄면 5,900원
+                        - LG라면 5,900원
+                        - 롯데 자이언츠 화채 6,900원
+                        - 두산 B볶음s 8,900원
+                        - 후리카케 크봉밥 2,500
+                        - 캔음료(제로콜라, 사이다) 3,000
+                        - 물 2,000
+                        - 팀 컬러 칵테일 3,500
                     -->
                     <div class="menu-item" data-price="6000">
                         <div class="menu-img-placeholder"><i class="fas fa-fire"></i></div>
                         <div class="menu-details">
-                            <h3 class="menu-name">김치전</h3>
-                            <p class="menu-price">6,000원</p>
+                            <h3 class="menu-name">NC 빙하기공룡고기</h3>
+                            <p class="menu-price">19,900원</p>
                         </div>
                         <div class="menu-quantity">
                             <button class="quantity-btn minus-btn">-</button>
@@ -85,8 +110,8 @@
                     <div class="menu-item" data-price="6000">
                         <div class="menu-img-placeholder"><i class="fas fa-leaf"></i></div>
                         <div class="menu-details">
-                            <h3 class="menu-name">부추전</h3>
-                            <p class="menu-price">6,000원</p>
+                            <h3 class="menu-name">SSG 문학철판구이</h3>
+                            <p class="menu-price">25,900원</p>
                         </div>
                         <div class="menu-quantity">
                             <button class="quantity-btn minus-btn">-</button>
@@ -98,8 +123,8 @@
                     <div class="menu-item" data-price="8000">
                         <div class="menu-img-placeholder"><i class="fas fa-fish"></i></div>
                         <div class="menu-details">
-                            <h3 class="menu-name">오징어볶음</h3>
-                            <p class="menu-price">8,000원</p>
+                            <h3 class="menu-name">KIA 호랑이 생고기 (기아 타이거즈 고추장 범벅)</h3>
+                            <p class="menu-price">21,900원원</p>
                         </div>
                         <div class="menu-quantity">
                             <button class="quantity-btn minus-btn">-</button>
@@ -111,8 +136,8 @@
                     <div class="menu-item" data-price="7000">
                         <div class="menu-img-placeholder"><i class="fas fa-drumstick-bite"></i></div>
                         <div class="menu-details">
-                            <h3 class="menu-name">닭꼬치</h3>
-                            <p class="menu-price">7,000원</p>
+                            <h3 class="menu-name">라팍 김치말이국수</h3>
+                            <p class="menu-price">7,900원</p>
                         </div>
                         <div class="menu-quantity">
                             <button class="quantity-btn minus-btn">-</button>
@@ -124,8 +149,8 @@
                     <div class="menu-item" data-price="5000">
                         <div class="menu-img-placeholder"><i class="fas fa-wine-bottle"></i></div>
                         <div class="menu-details">
-                            <h3 class="menu-name">소주</h3>
-                            <p class="menu-price">5,000원</p>
+                            <h3 class="menu-name">키움쫄?쫄면</h3>
+                            <p class="menu-price">5,900원</p>
                         </div>
                         <div class="menu-quantity">
                             <button class="quantity-btn minus-btn">-</button>
@@ -137,8 +162,8 @@
                     <div class="menu-item" data-price="6000">
                         <div class="menu-img-placeholder"><i class="fas fa-beer"></i></div>
                         <div class="menu-details">
-                            <h3 class="menu-name">맥주</h3>
-                            <p class="menu-price">6,000원</p>
+                            <h3 class="menu-name">LG라면</h3>
+                            <p class="menu-price">5,900원</p>
                         </div>
                         <div class="menu-quantity">
                             <button class="quantity-btn minus-btn">-</button>
@@ -150,8 +175,71 @@
                     <div class="menu-item" data-price="3000">
                         <div class="menu-img-placeholder"><i class="fas fa-glass-whiskey"></i></div>
                         <div class="menu-details">
-                            <h3 class="menu-name">콜라</h3>
+                            <h3 class="menu-name">롯데 자이언츠 화채</h3>
+                            <p class="menu-price">6,900원</p>
+                        </div>
+                        <div class="menu-quantity">
+                            <button class="quantity-btn minus-btn">-</button>
+                            <span class="quantity">0</span>
+                            <button class="quantity-btn plus-btn">+</button>
+                        </div>
+                    </div>
+                                        <div class="menu-item" data-price="7000">
+                        <div class="menu-img-placeholder"><i class="fas fa-drumstick-bite"></i></div>
+                        <div class="menu-details">
+                            <h3 class="menu-name">두산 B볶음s</h3>
+                            <p class="menu-price">8,900원</p>
+                        </div>
+                        <div class="menu-quantity">
+                            <button class="quantity-btn minus-btn">-</button>
+                            <span class="quantity">0</span>
+                            <button class="quantity-btn plus-btn">+</button>
+                        </div>
+                    </div>
+
+                    <div class="menu-item" data-price="5000">
+                        <div class="menu-img-placeholder"><i class="fas fa-wine-bottle"></i></div>
+                        <div class="menu-details">
+                            <h3 class="menu-name">후리카케 크봉밥</h3>
+                            <p class="menu-price">2,500원</p>
+                        </div>
+                        <div class="menu-quantity">
+                            <button class="quantity-btn minus-btn">-</button>
+                            <span class="quantity">0</span>
+                            <button class="quantity-btn plus-btn">+</button>
+                        </div>
+                    </div>
+
+                    <div class="menu-item" data-price="6000">
+                        <div class="menu-img-placeholder"><i class="fas fa-beer"></i></div>
+                        <div class="menu-details">
+                            <h3 class="menu-name">캔음료(제로콜라, 사이다)</h3>
                             <p class="menu-price">3,000원</p>
+                        </div>
+                        <div class="menu-quantity">
+                            <button class="quantity-btn minus-btn">-</button>
+                            <span class="quantity">0</span>
+                            <button class="quantity-btn plus-btn">+</button>
+                        </div>
+                    </div>
+                                        <div class="menu-item" data-price="7000">
+                        <div class="menu-img-placeholder"><i class="fas fa-drumstick-bite"></i></div>
+                        <div class="menu-details">
+                            <h3 class="menu-name">물</h3>
+                            <p class="menu-price">2,000원</p>
+                        </div>
+                        <div class="menu-quantity">
+                            <button class="quantity-btn minus-btn">-</button>
+                            <span class="quantity">0</span>
+                            <button class="quantity-btn plus-btn">+</button>
+                        </div>
+                    </div>
+
+                    <div class="menu-item" data-price="5000">
+                        <div class="menu-img-placeholder"><i class="fas fa-wine-bottle"></i></div>
+                        <div class="menu-details">
+                            <h3 class="menu-name">팀 컬러 칵테일</h3>
+                            <p class="menu-price">3,500원</p>
                         </div>
                         <div class="menu-quantity">
                             <button class="quantity-btn minus-btn">-</button>
@@ -198,6 +286,16 @@
     <!-- Firebase 설정 및 앱 로직 -->
     <script src="js/firebase-config.js"></script>
     <script src="js/config.js"></script>
+    <script type="module" src="js/app.js"></script>
+
+    <!-- order.html의 body 마지막 스크립트 로드 순서 (게이트 js 추가) -->
+    <script src="js/firebase-config.js"></script>
+    <script src="js/config.js"></script>
+
+    <!-- 게이트 전용(일반 스크립트) -->
+    <script src="js/session-gate.js" defer></script>
+
+    <!-- 기존: 앱 로직(ES Module) -->
     <script type="module" src="js/app.js"></script>
     
 </body>

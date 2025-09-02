@@ -22,6 +22,17 @@
                     <p>실시간 주문 현황 관리</p>
                 </div>
             </div>
+
+            <section style="margin:16px 0; padding:12px; border:1px solid #ddd; border-radius:8px;">
+                <h3>테이블 QR 슬러그 발급</h3>
+                <div style="display:flex; gap:8px; align-items:center;">
+                    <input id="ensure-label" placeholder="예: A-10" />
+                    <label><input id="ensure-active" type="checkbox" checked> 활성화</label>
+                    <button id="ensure-btn">발급</button>
+                </div>
+                <p id="ensure-result" style="margin-top:8px; font-size:0.9rem;"></p>
+            </section>
+
             <div class="baseball-scoreboard">
                 <div class="score-info">
                     <span class="inning"><i class="fas fa-stadium"></i> 운영 상황</span>
@@ -87,8 +98,6 @@
                 </div>
             </div>
         </header>
-
-
 
         <!-- 재고 관리 섹션 -->
         <section class="inventory-section">

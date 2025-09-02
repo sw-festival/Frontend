@@ -5,32 +5,33 @@ import './config.js';                  // 전역 설정 필요 시
 
 // URL 파라미터 확인 및 세션 오픈
 (async () => {
-  const url = new URL(location.href);
-  const slug = url.searchParams.get('slug'); // ?slug=ezygbX
-  const tableParam = url.searchParams.get('table'); // ?table=5 (레거시)
-  
-  if (slug) {
+  try {
+    const url = new URL(location.href);
+    const slug = url.searchParams.get('slug');
+    if (slug) {
     // 새로운 slug 방식
     try {
-      console.log('Slug 기반 세션 오픈 시도:', slug);
-      const sessionData = await openSessionBySlug(slug);
-      console.log('✅ 세션 오픈 성공:', sessionData);
-      
-      // 테이블 정보 자동 설정
-      if (sessionData.data?.table) {
-        const tableInfo = sessionData.data.table;
-        console.log('테이블 정보 설정:', tableInfo);
+        console.log('Slug 기반 세션 오픈 시도:', slug);
+        const sessionData = await openSessionBySlug(slug);
+        console.log('✅ 세션 오픈 성공:', sessionData);
         
-        // 테이블 정보를 JSON으로 저장
-        window.sessionStorage.setItem('auto_table_info', JSON.stringify(tableInfo));
-        
-        // 매장 이용으로 자동 설정
-        window.sessionStorage.setItem('auto_order_type', 'dine-in');
+        // 테이블 정보 자동 설정
+        if (sessionData.data?.table) {
+          const tableInfo = sessionData.data.table;
+          console.log('테이블 정보 설정:', tableInfo);
+          
+          // 테이블 정보를 JSON으로 저장
+          window.sessionStorage.setItem('auto_table_info', JSON.stringify(tableInfo));
+          
+          // 매장 이용으로 자동 설정
+          window.sessionStorage.setItem('auto_order_type', 'dine-in');
+        }
+      } catch (err) {
+        console.warn('Slug 기반 세션 오픈 실패:', err);
       }
-    } catch (e) {
-      console.warn('세션 오픈 실패:', e.message);
-      alert('테이블 세션 연결에 실패했습니다. 관리자에게 문의해주세요.');
     }
+  } catch (e) {
+    console.warn('URL 파싱 실패:', e);
   }
 })();
 
@@ -42,6 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             console.log('📊 인기 메뉴 로드 중...');
             // API가 준비되면 여기서 인기 메뉴를 가져올 수 있습니다
+            
             // 현재는 기본 메뉴 표시
             const popularMenuList = document.getElementById('popular-menu-list');
             if (popularMenuList) {
@@ -373,15 +375,10 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // API 서버 연결 상태는 실제 주문 API 호출 시에만 확인
             
-            // API용 주문 데이터 준비
+            // API용 주문 데이터 준비 (unit_price 제거 - 스펙 맞추기)
             const items = Object.entries(cart).map(([name, item]) => {
-                // 메뉴 이름을 product_id로 매핑 (임시)
-                const productId = PRODUCT_ID_MAP[name] || 1;
-                return {
-                    product_id: productId,
-                    quantity: item.quantity,
-                    unit_price: item.price
-                };
+              const productId = PRODUCT_ID_MAP[name] || 1;
+              return { product_id: productId, quantity: item.quantity };
             });
             
             const apiOrderData = {
