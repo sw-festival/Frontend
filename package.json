@@ -1,27 +1,20 @@
 {
-  "name": "sw-festival-booth",
+  "name": "memory-restaurant-test-api",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "MEMORY 주점 테스트용 API 서버",
+  "main": "test-api-server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start -p 3000"
+    "start": "node test-api-server.js",
+    "dev": "nodemon test-api-server.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
   "dependencies": {
-    "bootstrap": "^5.3.7",
-    "next": "15",
-    "react": "18.3.1",
-    "react-dom": "18.3.1"
+    "express": "^4.18.2",
+    "cors": "^2.8.5"
   },
   "devDependencies": {
-    "@types/node": "24.1.0",
-    "@types/react": "19.1.9",
-    "typescript": "5.9.2"
-  }
+    "nodemon": "^3.0.1"
+  },
+  "keywords": ["restaurant", "order", "api", "test"],
+  "author": "MEMORY Restaurant",
+  "license": "MIT"
 }

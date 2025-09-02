@@ -1,4 +1,4 @@
-// Public 세션/주문
+// Public 세션/주문 0902 버그 수정 전
 import { Tokens } from './tokens.js';
 
 // window.RUNTIME이 로드되기를 기다림
@@ -52,4 +52,17 @@ export async function createOrder({ order_type, payer_name, items }) {
   const data = await res.json();
   if (!res.ok || !data?.success) throw new Error(data?.message || '주문 생성 실패');
   return data; // { data: { order_id, ... } }
+}
+
+export async function getUserOrderDetails(orderId) {
+  await waitForRuntime();
+  const res = await fetch(`${API_BASE}/orders/${orderId}`, {
+    method: 'GET',
+    headers: {
+      'x-session-token': Tokens.getSession(),
+    },
+  });
+  const data = await res.json();
+  if (!res.ok || !data?.success) throw new Error(data?.message || '주문 조회 실패');
+  return data;
 }

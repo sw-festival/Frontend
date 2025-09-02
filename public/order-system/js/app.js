@@ -1,4 +1,4 @@
-import { createOrder, openSessionBySlug } from './api-session.js';
+import { createOrder, openSessionBySlug, getUserOrderDetails } from './api-session.js';
 import { PRODUCT_ID_MAP } from './product-map.js';
 import { Tokens } from './tokens.js';   // 세션 토큰 관리
 import './config.js';                  // 전역 설정 필요 시
@@ -37,135 +37,48 @@ import './config.js';                  // 전역 설정 필요 시
 document.addEventListener('DOMContentLoaded', () => {
     console.log('DOM 로드 완료');
     
-    // 인기 메뉴 로드 함수 (먼저 정의)
-    function loadPopularMenus() {
-        if (!db) {
-            console.log('Firebase가 연결되지 않아 인기 메뉴를 로드할 수 없습니다');
+    // 인기 메뉴 로드 함수 (API 기반으로 변경)
+    async function loadPopularMenus() {
+        try {
+            console.log('📊 인기 메뉴 로드 중...');
+            // API가 준비되면 여기서 인기 메뉴를 가져올 수 있습니다
+            // 현재는 기본 메뉴 표시
             const popularMenuList = document.getElementById('popular-menu-list');
             if (popularMenuList) {
-                popularMenuList.innerHTML = '<div class="no-data">서버 연결 중...</div>';
-            }
-            return;
-        }
-        
-        const ordersRef = db.ref('orders');
-        ordersRef.on('value', (snapshot) => {
-            const orders = snapshot.val();
-            const menuStats = {};
-            
-            if (orders) {
-                // 모든 주문에서 메뉴 통계 계산
-                Object.values(orders).forEach(order => {
-                    if (order.items) {
-                        Object.entries(order.items).forEach(([menuName, item]) => {
-                            if (menuStats[menuName]) {
-                                menuStats[menuName] += item.quantity;
-                            } else {
-                                menuStats[menuName] = item.quantity;
-                            }
-                        });
-                    }
-                });
-                
-                // 상위 3개 메뉴 추출
-                const popularMenus = Object.entries(menuStats)
-                    .sort(([,a], [,b]) => b - a)
-                    .slice(0, 3);
-                
-                displayPopularMenus(popularMenus);
-            } else {
-                const popularMenuList = document.getElementById('popular-menu-list');
-                if (popularMenuList) {
-                    popularMenuList.innerHTML = '<div class="no-data">아직 주문 데이터가 없습니다</div>';
-                }
-            }
-        });
-    }
-    
-    // 인기 메뉴 표시 함수
-    function displayPopularMenus(popularMenus) {
-        const popularMenuList = document.getElementById('popular-menu-list');
-        
-        if (!popularMenuList) return;
-        
-        if (popularMenus.length === 0) {
-            popularMenuList.innerHTML = '<div class="no-data">아직 주문 데이터가 없습니다</div>';
-            return;
-        }
-        
-        let html = '';
-        popularMenus.forEach(([menuName, count], index) => {
-            const medal = ['🥇', '🥈', '🥉'][index];
-            html += `
-                <div class="popular-menu-item">
-                    <span class="popular-rank">${medal}</span>
-                    <span class="popular-name">${menuName}</span>
-                    <span class="popular-count">${count}회 주문</span>
-                </div>
-            `;
-        });
-        
-        popularMenuList.innerHTML = html;
-    }
-    
-    // Firebase 초기화 (안전한 방식으로)
-    let db = null;
-    let isFirebaseConnected = false;
-    
-    // Firebase 로드 대기 및 초기화
-    function initializeFirebase() {
-        try {
-            if (typeof firebase !== 'undefined' && typeof firebaseConfig !== 'undefined') {
-                // Firebase가 이미 초기화되었는지 확인
-                if (firebase.apps.length === 0) {
-                    firebase.initializeApp(firebaseConfig);
-                }
-                
-                db = firebase.database();
-                console.log('✅ Firebase 초기화 성공');
-                
-                // 데이터베이스 연결 상태 모니터링
-                db.ref('.info/connected').on('value', (snapshot) => {
-                    const connected = snapshot.val() === true;
-                    if (connected && !isFirebaseConnected) {
-                        console.log('✅ Firebase 데이터베이스 연결됨');
-                        isFirebaseConnected = true;
-                        
-                        // 연결 성공 후 인기 메뉴 로드
-                        loadPopularMenus();
-                    } else if (!connected && isFirebaseConnected) {
-                        console.warn('⚠️ Firebase 데이터베이스 연결 끊어짐');
-                        isFirebaseConnected = false;
-                    }
-                });
-                
-                return true;
-            } else {
-                return false;
+                popularMenuList.innerHTML = `
+                    <div class="popular-menu-item">
+                        <span class="medal">🥇</span>
+                        <span class="menu-name">김치전</span>
+                        <span class="order-count">인기 메뉴</span>
+                    </div>
+                    <div class="popular-menu-item">
+                        <span class="medal">🥈</span>
+                        <span class="menu-name">부추전</span>
+                        <span class="order-count">맛있는 메뉴</span>
+                    </div>
+                    <div class="popular-menu-item">
+                        <span class="medal">🥉</span>
+                        <span class="menu-name">오징어볶음</span>
+                        <span class="order-count">추천 메뉴</span>
+                    </div>
+                `;
             }
         } catch (error) {
-            console.error('❌ Firebase 초기화 실패:', error);
-            return false;
+            console.error('인기 메뉴 로드 실패:', error);
+            const popularMenuList = document.getElementById('popular-menu-list');
+            if (popularMenuList) {
+                popularMenuList.innerHTML = '<div class="no-data">인기 메뉴를 불러올 수 없습니다</div>';
+            }
         }
     }
     
-    // Firebase 초기화 시도
-    if (!initializeFirebase()) {
-        console.warn('⚠️ Firebase 로드 대기 중...');
-        // Firebase 로드 대기 (최대 5초)
-        let retryCount = 0;
-        const maxRetries = 10;
-        const retryInterval = setInterval(() => {
-            retryCount++;
-            if (initializeFirebase()) {
-                clearInterval(retryInterval);
-                console.log('✅ Firebase 로드 완료 (재시도 후)');
-            } else if (retryCount >= maxRetries) {
-                clearInterval(retryInterval);
-                console.warn('⚠️ Firebase 로드 실패 - 오프라인 모드로 동작');
-            }
-        }, 500);
-    }
+    // 인기 메뉴 표시 함수는 loadPopularMenus에서 직접 처리
+    
+    // Firebase 초기화 제거 (API 기반으로 변경)
+    console.log('🚀 API 기반 주문 시스템 초기화');
+    
+    // 인기 메뉴 로드
+    loadPopularMenus();
 
     // DOM 요소 가져오기
     const welcomeSection = document.getElementById('welcome-section');
@@ -220,36 +133,41 @@ document.addEventListener('DOMContentLoaded', () => {
                 dineInBtn.classList.remove('selected');
             }
         }
-
-    
-
+        
+        // 자동 설정이 있으면 주문 시작 버튼 표시
+        if (startOrderBtn) {
+            startOrderBtn.classList.remove('hidden');
+        }
+    }
 
     // 포장/매장 선택 버튼 이벤트
-    dineInBtn.addEventListener('click', () => {
-        orderType = 'dine-in';
-        discountRate = 0;
-        
-        dineInBtn.classList.add('selected');
-        takeoutBtn.classList.remove('selected');
-        
-        tableInputSection.classList.remove('hidden');
-        startOrderBtn.classList.remove('hidden');
-        
-        console.log('매장 이용 선택됨');
-    });
+    if (dineInBtn) {
+        dineInBtn.addEventListener('click', () => {
+            orderType = 'dine-in';
+            discountRate = 0;
+            
+            dineInBtn.classList.add('selected');
+            takeoutBtn.classList.remove('selected');
+            
+            startOrderBtn.classList.remove('hidden');
+            
+            console.log('매장 이용 선택됨');
+        });
+    }
     
-    takeoutBtn.addEventListener('click', () => {
-        orderType = 'takeout';
-        discountRate = 0.1;
-        
-        takeoutBtn.classList.add('selected');
-        dineInBtn.classList.remove('selected');
-        
-        tableInputSection.classList.add('hidden');
-        startOrderBtn.classList.remove('hidden');
-        
-        console.log('포장 선택됨 (10% 할인)');
-    });
+    if (takeoutBtn) {
+        takeoutBtn.addEventListener('click', () => {
+            orderType = 'takeout';
+            discountRate = 0.1;
+            
+            takeoutBtn.classList.add('selected');
+            dineInBtn.classList.remove('selected');
+            
+            startOrderBtn.classList.remove('hidden');
+            
+            console.log('포장 선택됨 (10% 할인)');
+        });
+    }
 
     // 주문 시작 버튼 클릭 이벤트
     console.log('주문 시작하기 버튼에 이벤트 리스너 추가');
@@ -274,7 +192,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (orderType === 'takeout') {
                 headerTitle.innerText = `⚾ 포장 주문 (10% 할인)`;
             } else {
-                headerTitle.innerText = `⚾ 테이블 #${tableNumber}`;
+                headerTitle.innerText = `⚾ 매장 이용`;
             }
             console.log('헤더 제목 변경됨');
         } else {
@@ -294,18 +212,9 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         
-        if (orderType === 'dine-in') {
-            const tableNum = parseInt(tableNumberInput.value);
-            if (isNaN(tableNum) || tableNum <= 0) {
-                alert('올바른 테이블 번호를 입력하세요.');
-                return;
-            }
-            tableNumber = tableNum;
-        } else {
-            tableNumber = 0; // 포장은 테이블 번호 없음
-        }
-        
-        tableSection.classList.add('hidden');
+        // 테이블 번호는 slug로 자동 처리됨
+        console.log('화면 전환 시작...');
+        welcomeSection.classList.add('hidden');
         orderSection.classList.remove('hidden');
         
         const headerTitle = document.querySelector('header h1');
@@ -462,13 +371,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const originalTotal = Object.values(cart).reduce((sum, item) => sum + (item.price * item.quantity), 0);
             const finalTotal = parseInt(totalPriceEl.innerText.replace(/,/g, ''));
             
+            // API 서버 연결 상태는 실제 주문 API 호출 시에만 확인
+            
             // API용 주문 데이터 준비
             const items = Object.entries(cart).map(([name, item]) => {
                 // 메뉴 이름을 product_id로 매핑 (임시)
                 const productId = PRODUCT_ID_MAP[name] || 1;
                 return {
                     product_id: productId,
-                    quantity: item.quantity
+                    quantity: item.quantity,
+                    unit_price: item.price
                 };
             });
             
@@ -485,7 +397,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('✅ API 주문 생성 성공:', apiResult);
             
             // API 성공 시 Firebase에 미러링 (설정된 경우)
-            if (window.RUNTIME?.USE_FIREBASE_WRITE_MIRROR && db) {
+            if (window.RUNTIME?.USE_FIREBASE_WRITE_MIRROR && typeof firebase !== 'undefined' && firebase.database) {
                 await mirrorOrderToFirebase(apiResult.data.order_id, originalTotal, finalTotal);
             }
             
@@ -494,68 +406,51 @@ document.addEventListener('DOMContentLoaded', () => {
             
         } catch (apiError) {
             console.warn('API 주문 생성 실패:', apiError);
-            console.log('Firebase 백업 방식으로 진행');
             
-            // API 실패 시 Firebase 백업
-            if (db) {
-                await createOrderViaFirebase();
+            // API 실패 시 사용자에게 알림
+            if (apiError.message.includes('연결할 수 없습니다')) {
+                alert('주문 서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.');
+            } else if (apiError.message.includes('Unexpected token')) {
+                alert('서버 응답에 문제가 있습니다. 관리자에게 문의해주세요.');
             } else {
-                // Firebase도 없으면 로컬 저장소
-                saveOrderLocally();
+                alert(`주문 생성에 실패했습니다: ${apiError.message}`);
             }
+            
+            console.error('주문 생성 실패 상세:', apiError);
+            return;
         }
     }
 
-    // Firebase 백업 주문 생성
+    // Firebase 백업 주문 생성 (현재 사용하지 않음)
     async function createOrderViaFirebase() {
-        const originalTotal = Object.values(cart).reduce((sum, item) => sum + (item.price * item.quantity), 0);
-        const finalTotal = parseInt(totalPriceEl.innerText.replace(/,/g, ''));
-        
-        const orderData = {
-            customerName: customerNameInput.value.trim(),
-            items: cart,
-            orderType,
-            originalPrice: originalTotal,
-            discountRate,
-            discountAmount: originalTotal - finalTotal,
-            totalPrice: finalTotal,
-            status: 'Payment Pending',
-            timestamp: firebase.database.ServerValue.TIMESTAMP
-        };
-
-        console.log('Firebase에 백업 저장 시작');
-        
-        const newOrderRef = db.ref('orders').push();
-        const orderId = newOrderRef.key;
-        console.log('생성된 주문 ID:', orderId);
-        
-        await newOrderRef.set(orderData);
-        console.log('✅ Firebase 백업 저장 성공');
-        
-        // 성공 처리
-        handleOrderSuccess(orderId, finalTotal);
+        console.warn('Firebase 백업 기능은 현재 비활성화되어 있습니다.');
+        alert('주문 서버에 문제가 있습니다. 잠시 후 다시 시도해주세요.');
+        return;
     }
 
-    // Firebase 미러링 함수
+    // Firebase 미러링 함수 (API 성공 시에만 사용)
     async function mirrorOrderToFirebase(apiOrderId, originalTotal, finalTotal) {
         try {
-            const orderData = {
-                serverOrderId: apiOrderId, // 서버 주문 ID 연결
-                customerName: customerNameInput.value.trim(),
-                items: cart,
-                orderType,
-                originalPrice: originalTotal,
-                discountRate,
-                discountAmount: originalTotal - finalTotal,
-                totalPrice: finalTotal,
-                status: 'Payment Pending',
-                timestamp: firebase.database.ServerValue.TIMESTAMP,
-                source: 'api' // API를 통해 생성됨을 표시
-            };
+            // Firebase가 설정되어 있는 경우에만 미러링
+            if (typeof firebase !== 'undefined' && firebase.database) {
+                const orderData = {
+                    serverOrderId: apiOrderId, // 서버 주문 ID 연결
+                    customerName: customerNameInput.value.trim(),
+                    items: cart,
+                    orderType,
+                    originalPrice: originalTotal,
+                    discountRate,
+                    discountAmount: originalTotal - finalTotal,
+                    totalPrice: finalTotal,
+                    status: 'Payment Pending',
+                    timestamp: firebase.database.ServerValue.TIMESTAMP,
+                    source: 'api' // API를 통해 생성됨을 표시
+                };
 
-            const newOrderRef = db.ref('orders').push();
-            await newOrderRef.set(orderData);
-            console.log('✅ Firebase 미러링 성공');
+                const newOrderRef = firebase.database().ref('orders').push();
+                await newOrderRef.set(orderData);
+                console.log('✅ Firebase 미러링 성공');
+            }
         } catch (error) {
             console.warn('Firebase 미러링 실패:', error);
             // 미러링 실패는 무시 (주문은 이미 API로 성공)
@@ -563,13 +458,35 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // 주문 성공 처리 공통 함수
-    function handleOrderSuccess(orderId, totalPrice) {
+    async function handleOrderSuccess(orderId, totalPrice) {
         try {
+            console.log(`✅ 주문 완료: ID ${orderId}`);
+            
+            // API로부터 주문 상세 정보 가져오기
+            let orderDetails = null;
+            try {
+                const response = await getUserOrderDetails(orderId);
+                orderDetails = response.data;
+                console.log('주문 상세 정보:', orderDetails);
+            } catch (apiError) {
+                console.warn('주문 상세 정보 로드 실패:', apiError);
+                // API 실패 시 기본 정보 사용
+            }
+            
             const waitingUrl = `waiting.html?orderId=${orderId}`;
             console.log('대기 순번 URL 생성:', waitingUrl);
             
-            const totalPriceStr = totalPrice.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-            const alertMessage = `🏦 주문이 접수되었습니다!\n\n⚠️ 주의: 입금 확인 후 주문이 시작됩니다\n\n💳 결제 정보:\n은행: 신한은행\n계좌번호: 110-123-456789\n예금주: 소프트웨어융합대학 학생회\n총 금액: ${totalPriceStr}원\n입금자명: ${customerNameInput.value.trim()}\n\n🔥 반드시 위 계좌로 이체해주세요!\n입금 확인 후 주문 제작이 시작됩니다.`;
+            // 주문 상세 정보가 있으면 더 정확한 정보 표시
+            let totalPriceStr, customerName;
+            if (orderDetails) {
+                totalPriceStr = orderDetails.amounts.total.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+                customerName = orderDetails.payer_name;
+            } else {
+                totalPriceStr = totalPrice.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+                customerName = customerNameInput.value.trim();
+            }
+            
+            const alertMessage = `🏦 주문이 접수되었습니다!\n\n⚠️ 주의: 입금 확인 후 주문이 시작됩니다\n\n💳 결제 정보:\n은행: 신한은행\n계좌번호: 110-123-456789\n예금주: 소프트웨어융합대학 학생회\n총 금액: ${totalPriceStr}원\n입금자명: ${customerName}\n\n🔥 반드시 위 계좌로 이체해주세요!\n입금 확인 후 주문 제작이 시작됩니다.`;
             
             alert(alertMessage);
             
@@ -686,6 +603,5 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }, 3000);
     }
-  }
 });
 

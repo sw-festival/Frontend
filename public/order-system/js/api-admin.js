@@ -49,3 +49,24 @@ export async function forceCloseSession(sessionId){
   if (!res.ok || !data?.success) throw new Error(data?.message || '세션 강제 종료 실패');
   return data;
 }
+
+// 주문 관련 API들
+export async function getOrderDetails(orderId) {
+  const res = await fetch(`${API_BASE}/orders/admin/${orderId}`, {
+    method: 'GET',
+    headers: {...authHeader()},
+  });
+  const data = await res.json();
+  if (!res.ok || !data?.success) throw new Error(data?.message || '주문 조회 실패');
+  return data;
+}
+
+export async function getActiveOrders() {
+  const res = await fetch(`${API_BASE}/orders/active`, {
+    method: 'GET',
+    headers: {...authHeader()},
+  });
+  const data = await res.json();
+  if (!res.ok || !data?.success) throw new Error(data?.message || '진행중 주문 조회 실패');
+  return data;
+}

@@ -1,4 +1,4 @@
-import { adminLogin, patchOrderStatus, ensureTable } from './api-admin.js';
+import { adminLogin, patchOrderStatus, ensureTable, getOrderDetails, getActiveOrders } from './api-admin.js';
 
 // window.RUNTIME이 로드되기를 기다림
 function waitForRuntime() {
@@ -267,6 +267,96 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // 실시간으로 주문 데이터 가져오기
+    // API 기반 주문 데이터 로드 함수
+    async function loadActiveOrders() {
+        try {
+            console.log('📊 진행중 주문 데이터 로드 중...');
+            const response = await getActiveOrders();
+            const { urgent, waiting, preparing } = response.data;
+            const meta = response.meta;
+            
+            // 대시보드 초기화
+            adminDashboard.innerHTML = '';
+            
+            // 모든 주문을 하나의 배열로 합치기
+            const allActiveOrders = [...urgent, ...waiting, ...preparing];
+            
+            console.log(`✅ 활성 주문 로드 완료: ${meta.total}건`);
+            
+            // API 응답을 Firebase 형태로 변환하여 기존 로직 재사용
+            const ordersForDisplay = {};
+            allActiveOrders.forEach(order => {
+                ordersForDisplay[order.id] = {
+                    id: order.id,
+                    status: mapAPIStatusToFirebase(order.status),
+                    tableNumber: order.table,
+                    customerName: order.payer_name,
+                    timestamp: new Date(order.placed_at).getTime(),
+                    items: {},
+                    totalPrice: 0,
+                    orderType: 'dine-in'
+                };
+            });
+            
+            // 기존 로직 재사용
+            if (Object.keys(ordersForDisplay).length > 0) {
+                allOrdersCache = ordersForDisplay;
+                const sortedOrders = Object.entries(ordersForDisplay).sort(([, a], [, b]) => b.timestamp - a.timestamp);
+                
+                updateStatistics(ordersForDisplay);
+                updateInventory(ordersForDisplay);
+                updateSalesDashboard(ordersForDisplay);
+                
+                for (const [orderId, orderData] of sortedOrders) {
+                    const orderCard = createOrderCard(orderId, orderData);
+                    adminDashboard.appendChild(orderCard);
+                }
+            } else {
+                adminDashboard.innerHTML = '<p>아직 접수된 주문이 없습니다.</p>';
+                updateStatistics({});
+                updateInventory({});
+                updateSalesDashboard({});
+            }
+            
+            isFirstLoad = false;
+        } catch (error) {
+            console.error('❌ 주문 데이터 로드 실패:', error);
+            adminDashboard.innerHTML = '<p>주문 데이터를 불러오는데 실패했습니다.</p>';
+        }
+    }
+    
+    // API 상태를 Firebase 상태로 매핑
+    function mapAPIStatusToFirebase(apiStatus) {
+        switch(apiStatus) {
+            case 'CONFIRMED': return 'Payment Confirmed';
+            case 'IN_PROGRESS': return 'Preparing';
+            case 'COMPLETED': return 'Order Complete';
+            default: return 'Payment Pending';
+        }
+    }
+    
+    // Firebase 상태를 API 액션으로 매핑
+    function mapFirebaseStatusToAPIAction(firebaseStatus) {
+        switch(firebaseStatus) {
+            case 'Payment Confirmed': return 'confirm';
+            case 'Preparing': return 'start_preparing';
+            case 'Order Complete': return 'complete';
+            default: return 'confirm';
+        }
+    }
+    
+    // 주문 새로고침 함수
+    function refreshOrders() {
+        loadActiveOrders();
+    }
+    
+    // 초기 로드 및 주기적 새로고침
+    loadActiveOrders();
+    setInterval(refreshOrders, 30000); // 30초마다 새로고침
+    
+    // Firebase 백업 - 실시간 주문 데이터 감시 (주석 처리)
+    // Firebase 백업 주석 처리됨
+    /*
     ordersRef.on('value', (snapshot) => {
         adminDashboard.innerHTML = ''; // 대시보드 초기화
         const orders = snapshot.val();
@@ -769,32 +859,34 @@ ${orderData.orderType === 'takeout' ? '<h3>📦 포장 주문</h3>' : `<h3>🍽�
     }
 });
 
-// 주문 상태 업데이트 함수 (Firebase 기반)
+// 주문 상태 업데이트 함수 (API 기반)
 async function updateOrderStatus(orderId, status) {
     try {
-        // 현재 데이터 확인
-        const snapshot = await db.ref('orders/' + orderId).once('value');
-        if (!snapshot.exists()) {
-            throw new Error('주문을 찾을 수 없습니다.');
-        }
-
-        // Firebase에서 상태 업데이트
-        await db.ref('orders/' + orderId).update({ 
-            status: status,
-            lastUpdated: Date.now()
-        });
+        // Firebase 상태를 API 액션으로 매핑
+        const action = mapFirebaseStatusToAPIAction(status);
         
-        console.log(`주문 ${orderId} 상태가 "${status}"로 변경됨`);
+        console.log(`주문 ${orderId} 상태 변경 시도: ${status} -> ${action}`);
         
-        // 선택적으로 서버 API도 호출 (설정된 경우)
-        if (window.RUNTIME?.USE_FIREBASE_WRITE_MIRROR) {
+        // API 우선 호출
+        await patchOrderStatus(orderId, action);
+        console.log(`✅ 주문 ${orderId} 상태가 API에서 "${status}"로 변경됨`);
+        
+        // Firebase 백업 (설정된 경우)
+        if (window.RUNTIME?.USE_FIREBASE_WRITE_MIRROR && db) {
             try {
-                await patchOrderStatus(orderId, decideAction(status));
-            } catch(serverError) {
-                console.warn('서버 상태 동기화 실패:', serverError);
-                // 서버 실패는 무시하고 Firebase 업데이트는 유지
+                await db.ref('orders/' + orderId).update({ 
+                    status: status,
+                    lastUpdated: Date.now()
+                });
+                console.log(`📁 Firebase 백업 동기화 완료`);
+            } catch(firebaseError) {
+                console.warn('Firebase 백업 실패:', firebaseError);
+                // Firebase 실패는 무시하고 API 업데이트는 유지
             }
         }
+        
+        // 상태 변경 후 주문 목록 새로고침
+        refreshOrders();
         
         // 성공 시 소리 및 알림
         playNotificationSound('status-change');
@@ -806,10 +898,14 @@ async function updateOrderStatus(orderId, status) {
     }
 }
 
-function decideAction(status) { 
-    // 서버 API 액션 매핑 (선택적 사용)
-    if (status === 'Payment Confirmed') return 'confirm';
-    if (status === 'Preparing') return 'ready';
-    if (status === 'Order Complete') return 'complete';
-    return 'confirm';
-}
+    // Firebase 백업용 함수들
+    function decideAction(status) { 
+        // 서버 API 액션 매핑 (선택적 사용)
+        if (status === 'Payment Confirmed') return 'confirm';
+        if (status === 'Preparing') return 'ready';
+        if (status === 'Order Complete') return 'complete';
+        return 'confirm';
+    }
+    
+    */
+});
