@@ -27,7 +27,7 @@ function checkAdminAuth() {
     sessionStorage.removeItem('admin_logged_in');
     sessionStorage.removeItem('admin_login_time');
     // 로그인 페이지로 리디렉션
-    window.location.href = '/admin-login.html';
+    window.location.href = '/order-system/admin-login.html';
     return false;
   }
   return true;
@@ -37,7 +37,7 @@ function checkAdminAuth() {
 function logout() {
   sessionStorage.removeItem('admin_logged_in');
   sessionStorage.removeItem('admin_login_time');
-  window.location.href = '/admin-login.html';
+  window.location.href = '/order-system/admin-login.html';
 }
 
 // 전역 Firebase 변수
@@ -115,23 +115,25 @@ document.addEventListener('DOMContentLoaded', async () => {
         notificationsEnabled = permission === 'granted';
         if (notificationsEnabled) {
           console.log('✅ 브라우저 알림 권한이 허용되었습니다.');
-          showSystemNotification('MEMORY 주점 관리자', '실시간 알림이 활성화되었습니다! 🎉');
+          // showSystemNotification('MEMORY 주점 관리자', '실시간 알림이 활성화되었습니다! 🎉');
         } else {
           console.log('❌ 브라우저 알림 권한이 거부되었습니다.');
         }
       });
     }
   }
-  function showSystemNotification(title, body, icon = '⚾') {
-    if (notificationsEnabled && 'Notification' in window) {
-      const notification = new Notification(title, {
-        body: body,
-        icon: 'data:text/plain;base64,' + btoa(icon),
-        tag: 'memory-pub-order'
-      });
-      setTimeout(() => notification.close(), 5000);
-    }
-  }
+
+  // function showSystemNotification(title, body) {
+  //  if (notificationsEnabled && 'Notification' in window) {
+  //    const notification = new Notification(title, {
+  //      body: body,
+  //      icon: '../../icons/icon.png', 
+  //      tag: 'memory-pub-order'
+  //    });
+  //    setTimeout(() => notification.close(), 5000);
+  //   } 
+  // }
+
   function playNotificationSound(type = 'new-order') {
     if (!soundEnabled) return;
     try {
@@ -379,6 +381,57 @@ document.addEventListener('DOMContentLoaded', async () => {
   loadActiveOrders();
   setInterval(refreshOrders, 30000); // 30초마다 새로고침
 });
+
+(function(){
+  const FR = () => window.RUNTIME?.FRONT_BASE || location.origin;
+  const $ = (id) => document.getElementById(id);
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const btn = $('bulk-ensure-btn');
+    if (!btn) return;
+
+    btn.addEventListener('click', async () => {
+      const prefix = ($('bulk-prefix')?.value || '').trim();   // 예: "A-"
+      const start  = parseInt($('bulk-start')?.value || '1', 10);
+      const end    = parseInt($('bulk-end')?.value || '50', 10);
+      const active = !!$('bulk-active')?.checked;
+      const out    = $('bulk-result');
+      const dl     = $('bulk-download');
+
+      if (!prefix || isNaN(start) || isNaN(end) || start > end) {
+        out.textContent = '입력 값을 확인하세요.'; return;
+      }
+
+      const rows = [['label','slug','qr_url']]; // CSV 헤더
+      out.textContent = '발급 중...\n';
+
+      for (let n = start; n <= end; n++) {
+        const label = `${prefix}${n}`;
+        try {
+          const data = await ensureTable(label, active);
+          const slug = data?.table?.slug || '';
+          // 리라이트 사용 시
+          const qrUrl = `${FR()}/t/${slug}`;
+          // 정적 경로 직접 접근이면 다음 라인으로 교체:
+          // const qrUrl = `${FR()}/order-system/order.html?slug=${slug}`;
+
+          rows.push([label, slug, qrUrl]);
+          out.textContent += `✅ ${label} → ${slug}\n`;
+        } catch (e) {
+          out.textContent += `❌ ${label} 발급 실패: ${e?.message || '알 수 없는 오류'}\n`;
+        }
+      }
+
+      // CSV 파일 생성/다운로드
+      const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      dl.href = url;
+      dl.style.display = 'inline-block';
+      dl.click(); // 자동 다운로드
+    });
+  });
+})();
 
 // import { adminLogin, patchOrderStatus, ensureTable, getOrderDetails, getActiveOrders } from './api-admin.js';
 

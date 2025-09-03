@@ -8,13 +8,19 @@
     "dev": "nodemon test-api-server.js"
   },
   "dependencies": {
+    "cors": "^2.8.5",
     "express": "^4.18.2",
-    "cors": "^2.8.5"
+    "jsonwebtoken": "^9.0.2"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
   },
-  "keywords": ["restaurant", "order", "api", "test"],
+  "keywords": [
+    "restaurant",
+    "order",
+    "api",
+    "test"
+  ],
   "author": "MEMORY Restaurant",
   "license": "MIT"
 }
