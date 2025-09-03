@@ -18,15 +18,18 @@ function waitForRuntime() {
   });
 }
 
-// 관리자 인증 확인
+// 관리자 인증 확인 (수정)
 function checkAdminAuth() {
   const isLoggedIn = sessionStorage.getItem('admin_logged_in') === 'true';
-  const loginTime = sessionStorage.getItem('admin_login_time');
-  // 로그인되지 않았거나 12시간 이상 지난 경우
-  if (!isLoggedIn || !loginTime || (Date.now() - parseInt(loginTime, 10)) > (12 * 60 * 60 * 1000)) {
+  const loginTime  = Number(sessionStorage.getItem('admin_login_time') || 0);
+  const hasToken   = !!(sessionStorage.getItem('admin_token') || localStorage.getItem('accesstoken'));
+
+  const expired = !loginTime || (Date.now() - loginTime) > (12 * 60 * 60 * 1000);
+
+  if (!isLoggedIn || !hasToken || expired) {
     sessionStorage.removeItem('admin_logged_in');
     sessionStorage.removeItem('admin_login_time');
-    // 로그인 페이지로 리디렉션
+    sessionStorage.removeItem('admin_token');
     window.location.href = '/order-system/admin-login.html';
     return false;
   }

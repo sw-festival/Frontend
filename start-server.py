@@ -14,8 +14,8 @@ import sys
 PORT = 8000
 HANDLER = http.server.SimpleHTTPRequestHandler
 
-# public/order-system 디렉토리로 이동
-os.chdir('public/order-system')
+# order-system 디렉토리로 이동
+os.chdir('order-system')
 
 print(f"""
 🏟️ MEMORY 주점 서버 시작! ⚾
