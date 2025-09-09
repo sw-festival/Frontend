@@ -64,7 +64,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const notificationToggleBtn = document.getElementById('notification-toggle');
   const testSoundBtn = document.getElementById('test-sound-btn');
 
-  // ✅ 슬러그 발급 UI 요소 (없으면 자동 무시)
+  // 슬러그 발급 UI 요소 (없으면 자동 무시)
   const ensureLabelInput  = document.getElementById('ensure-label');   // ex) A-10
   const ensureActiveCheck = document.getElementById('ensure-active');  // 체크박스
   const ensureBtn         = document.getElementById('ensure-btn');     // 발급 버튼
@@ -347,8 +347,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         const slug = data?.table?.slug;
         // QR URL은 배포 구성에 맞춰 선택
         const FRONT_BASE = window.RUNTIME?.FRONT_BASE || location.origin;
-        const qrUrl = `${FRONT_BASE}/t/${slug}`; // Next rewrites 사용 시
-        // const qrUrl = `${FRONT_BASE}/order-system/order.html?slug=${slug}`; // 정적 직접 접근 시
+        // const qrUrl = `${FRONT_BASE}/t/${slug}`; // Next rewrites 사용 시
+        const qrUrl = `${FRONT_BASE}/order-system/order.html?slug=${slug}`; // 정적 직접 접근 시
 
         ensureResult.innerHTML =
           `✅ 발급 완료<br>

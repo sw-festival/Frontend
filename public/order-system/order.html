@@ -64,6 +64,25 @@
                 </div>
                 <p id="gate-msg" style="color:#c00;font-size:0.9rem;"></p>
             </section>
+            
+            <!-- slug 추출 코드 -->
+            <script>
+            (function () {
+                const url = new URL(window.location.href);
+                let slug = url.searchParams.get('slug');
+
+                if (!slug) {
+                // 경로가 /t/xxxxx 형태인지 검사
+                // 예: /t/3ho2ov, /order-system/t/3ho2ov 모두 지원
+                const m = location.pathname.match(/\/t\/([^\/?#]+)/);
+                if (m) slug = m[1];
+                }
+
+                window.__TABLE_SLUG__ = slug || null;
+                // 이후 기존 로직에서 window.__TABLE_SLUG__ 를 사용해 세션 오픈 호출
+                // ex) openSessionBySlug(window.__TABLE_SLUG__)
+            })();
+            </script>
 
             <!-- 메뉴판 및 주문 섹션 (처음에는 숨김) -->
             <section id="order-section" class="hidden">
@@ -124,7 +143,7 @@
                         <div class="menu-img-placeholder"><i class="fas fa-fish"></i></div>
                         <div class="menu-details">
                             <h3 class="menu-name">KIA 호랑이 생고기 (기아 타이거즈 고추장 범벅)</h3>
-                            <p class="menu-price">21,900원원</p>
+                            <p class="menu-price">21,900원</p>
                         </div>
                         <div class="menu-quantity">
                             <button class="quantity-btn minus-btn">-</button>

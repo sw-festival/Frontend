@@ -12,7 +12,7 @@ import './config.js';                  // 전역 설정 필요 시
     // 새로운 slug 방식
     try {
         console.log('Slug 기반 세션 오픈 시도:', slug);
-        const sessionData = await openSessionBySlug(slug);
+        // const sessionData = await openSessionBySlug(slug);
         console.log('✅ 세션 오픈 성공:', sessionData);
         
         // 테이블 정보 자동 설정
@@ -73,7 +73,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     }
-    
+
     // 인기 메뉴 표시 함수는 loadPopularMenus에서 직접 처리
     
     // Firebase 초기화 제거 (API 기반으로 변경)
@@ -82,7 +82,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // 인기 메뉴 로드
     loadPopularMenus();
 
-    // DOM 요소 가져오기
+    const url = new URL(location.href);
+    const slug = url.searchParams.get('slug');
+
+    // DOM 요소
+    const codeInput  = document.getElementById('code-input');   // 입력창
+    const verifyBtn  = document.getElementById('verify-btn');   // 접속하기 버튼
     const welcomeSection = document.getElementById('welcome-section');
     const orderSection = document.getElementById('order-section');
     const startOrderBtn = document.getElementById('start-order-btn');
@@ -103,104 +108,118 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('- customerNameInput:', !!customerNameInput);
     console.log('- placeOrderBtn:', !!placeOrderBtn);
     
+    // 자동 세션 오픈 제거 → slug만으로는 주문 불가
+    // sessionStorage.removeItem('code_verified'); // 새로고침 시 초기화 원한다면 추가
+
+    // 초기엔 버튼들 비활성화
+    if (dineInBtn) dineInBtn.disabled = true;
+    if (takeoutBtn) takeoutBtn.disabled = true;
+    if (startOrderBtn) startOrderBtn.disabled = true;
+
+    // ────────────────────────────────
+    // 접속 코드 인증
+    // ────────────────────────────────
+    if (verifyBtn) {
+        verifyBtn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        const code = (codeInput?.value || '').trim();
+        if (!slug) { alert('잘못된 접근입니다. (slug 없음)'); return; }
+        if (!code) { alert('접속 코드를 입력하세요.'); return; }
+
+        try {
+            const result = await openSessionBySlug(slug, code);
+            console.log('세션 오픈 성공:', result);
+
+            // 인증 성공 플래그
+            sessionStorage.setItem('code_verified', 'true');
+
+            // 버튼들 활성화
+            if (dineInBtn) dineInBtn.disabled = false;
+            if (takeoutBtn) takeoutBtn.disabled = false;
+            if (startOrderBtn) startOrderBtn.disabled = false;
+
+            alert('인증 완료! 주문을 시작하실 수 있습니다.');
+        } catch (err) {
+            console.warn('코드 인증 실패:', err);
+            sessionStorage.removeItem('code_verified');
+            alert(err.message || '코드 인증에 실패했습니다.');
+        }
+        });
+    }
+
+    // 기존 로직 (매장/포장 → 주문 시작)
     if (!startOrderBtn) {
         console.error('❌ 주문 시작하기 버튼을 찾을 수 없습니다!');
         return;
     }
 
     let orderType = 'dine-in'; // 기본값: 매장 이용
-    let discountRate = 0; // 할인율 (포장시 0.1)
+    let discountRate = 0;      // 할인율 (포장시 0.1)
     const cart = {};
-    
-    // 자동 설정값 확인 (slug 기반 세션)
-    const autoOrderType = sessionStorage.getItem('auto_order_type');
-    const autoTableInfo = sessionStorage.getItem('auto_table_info');
-    
-    if (autoOrderType || autoTableInfo) {
-        console.log('자동 설정 감지:', { autoOrderType, autoTableInfo });
-        
-        // 주문 타입 설정
-        if (autoOrderType) {
-            orderType = autoOrderType;
-            discountRate = autoOrderType === 'takeout' ? 0.1 : 0;
-        }
-        
-        // UI 자동 설정
-        if (dineInBtn && takeoutBtn) {
-            if (orderType === 'dine-in') {
-                dineInBtn.classList.add('selected');
-                takeoutBtn.classList.remove('selected');
-            } else if (orderType === 'takeout') {
-                takeoutBtn.classList.add('selected');
-                dineInBtn.classList.remove('selected');
-            }
-        }
-        
-        // 자동 설정이 있으면 주문 시작 버튼 표시
-        if (startOrderBtn) {
-            startOrderBtn.classList.remove('hidden');
-        }
-    }
 
     // 포장/매장 선택 버튼 이벤트
     if (dineInBtn) {
         dineInBtn.addEventListener('click', () => {
-            orderType = 'dine-in';
-            discountRate = 0;
-            
-            dineInBtn.classList.add('selected');
-            takeoutBtn.classList.remove('selected');
-            
-            startOrderBtn.classList.remove('hidden');
-            
-            console.log('매장 이용 선택됨');
+        if (sessionStorage.getItem('code_verified') !== 'true') {
+            alert('먼저 접속 코드를 인증해주세요.');
+            return;
+        }
+        orderType = 'dine-in';
+        discountRate = 0;
+
+        dineInBtn.classList.add('selected');
+        takeoutBtn.classList.remove('selected');
+        startOrderBtn.classList.remove('hidden');
+
+        console.log('매장 이용 선택됨');
         });
     }
-    
+
     if (takeoutBtn) {
         takeoutBtn.addEventListener('click', () => {
-            orderType = 'takeout';
-            discountRate = 0.1;
-            
-            takeoutBtn.classList.add('selected');
-            dineInBtn.classList.remove('selected');
-            
-            startOrderBtn.classList.remove('hidden');
-            
-            console.log('포장 선택됨 (10% 할인)');
+        if (sessionStorage.getItem('code_verified') !== 'true') {
+            alert('먼저 접속 코드를 인증해주세요.');
+            return;
+        }
+        orderType = 'takeout';
+        discountRate = 0.1;
+
+        takeoutBtn.classList.add('selected');
+        dineInBtn.classList.remove('selected');
+        startOrderBtn.classList.remove('hidden');
+
+        console.log('포장 선택됨 (10% 할인)');
         });
     }
 
     // 주문 시작 버튼 클릭 이벤트
     console.log('주문 시작하기 버튼에 이벤트 리스너 추가');
-    
+
     startOrderBtn.addEventListener('click', (e) => {
         e.preventDefault();
-        console.log('주문 시작하기 버튼 클릭됨!');
-        
-        if (!orderType) {
-            alert('포장 또는 매장 이용을 선택해주세요.');
-            return;
+
+        if (sessionStorage.getItem('code_verified') !== 'true') {
+        alert('먼저 접속 코드를 인증해주세요.');
+        return;
         }
-        
-        // 포장/매장 이용 설정만 확인 (테이블 번호는 slug로 처리됨)
-        
+        if (!orderType) {
+        alert('포장 또는 매장 이용을 선택해주세요.');
+        return;
+        }
+
         console.log('화면 전환 시작...');
         welcomeSection.classList.add('hidden');
         orderSection.classList.remove('hidden');
-        
+
         const headerTitle = document.querySelector('header h1');
         if (headerTitle) {
-            if (orderType === 'takeout') {
-                headerTitle.innerText = `⚾ 포장 주문 (10% 할인)`;
-            } else {
-                headerTitle.innerText = `⚾ 매장 이용`;
-            }
-            console.log('헤더 제목 변경됨');
+        if (orderType === 'takeout') {
+            headerTitle.innerText = `⚾ 포장 주문 (10% 할인)`;
         } else {
-            console.warn('헤더 제목 요소를 찾을 수 없습니다');
+            headerTitle.innerText = `⚾ 매장 이용`;
         }
-        
+        console.log('헤더 제목 변경됨');
+        }
         console.log('주문 페이지로 전환 완료!');
     });
     
@@ -367,31 +386,38 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // API를 통한 주문 생성 함수
     async function createOrderViaAPI() {
-        try {
-            console.log('API를 통한 주문 생성 시도');
-            
-            const originalTotal = Object.values(cart).reduce((sum, item) => sum + (item.price * item.quantity), 0);
-            const finalTotal = parseInt(totalPriceEl.innerText.replace(/,/g, ''));
-            
-            // API 서버 연결 상태는 실제 주문 API 호출 시에만 확인
-            
-            // API용 주문 데이터 준비 (unit_price 제거 - 스펙 맞추기)
-            const items = Object.entries(cart).map(([name, item]) => {
-              const productId = PRODUCT_ID_MAP[name] || 1;
-              return { product_id: productId, quantity: item.quantity };
-            });
-            
-            const apiOrderData = {
-                order_type: orderType === 'dine-in' ? 'DINE_IN' : 'TAKEOUT',
-                payer_name: customerNameInput.value.trim(),
-                items: items
-            };
-            
-            console.log('API 주문 데이터:', apiOrderData);
-            
-            // API 호출
-            const apiResult = await createOrder(apiOrderData);
-            console.log('✅ API 주문 생성 성공:', apiResult);
+      try {
+        console.log('API를 통한 주문 생성 시도');
+
+        // 1) 세션 토큰 있는지 먼저 확인
+        const hasSession = !!Tokens.getSession?.();
+        console.log('[createOrderViaAPI] hasSessionToken:', hasSession);
+        if (!hasSession) {
+          alert('세션이 열리지 않았습니다. QR로 접속했는지 확인 후 새로고침 해주세요.');
+          return;
+        }
+
+        // 2) 상품ID 매핑 검증 (없는 항목 있으면 바로 알림)
+        const unmapped = [];
+        const items = Object.entries(cart).map(([name, item]) => {
+          const productId = PRODUCT_ID_MAP[name];
+          if (!productId) unmapped.push(name);
+          return { product_id: productId, quantity: item.quantity };
+        });
+        if (unmapped.length) {
+          alert(`다음 메뉴의 상품ID가 누락되어 주문을 진행할 수 없습니다:\n- ${unmapped.join('\n- ')}\n\nproduct-map.js를 확인해주세요.`);
+          return;
+        }
+
+        const apiOrderData = {
+          order_type: (orderType === 'dine-in' ? 'DINE_IN' : 'TAKEOUT'),
+          payer_name: customerNameInput.value.trim(),
+          items
+        };
+        console.log('API 주문 데이터:', apiOrderData);
+
+        const apiResult = await createOrder(apiOrderData);
+        console.log('✅ API 주문 생성 성공:', apiResult);
             
             // API 성공 시 Firebase에 미러링 (설정된 경우)
             if (window.RUNTIME?.USE_FIREBASE_WRITE_MIRROR && typeof firebase !== 'undefined' && firebase.database) {
@@ -402,21 +428,16 @@ document.addEventListener('DOMContentLoaded', () => {
             handleOrderSuccess(apiResult.data.order_id, finalTotal);
             
         } catch (apiError) {
-            console.warn('API 주문 생성 실패:', apiError);
-            
-            // API 실패 시 사용자에게 알림
-            if (apiError.message.includes('연결할 수 없습니다')) {
-                alert('주문 서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.');
-            } else if (apiError.message.includes('Unexpected token')) {
-                alert('서버 응답에 문제가 있습니다. 관리자에게 문의해주세요.');
-            } else {
-                alert(`주문 생성에 실패했습니다: ${apiError.message}`);
-            }
-            
-            console.error('주문 생성 실패 상세:', apiError);
-            return;
+          console.warn('API 주문 생성 실패:', apiError);
+          alert(`주문 생성에 실패했습니다: ${apiError.message}`);
+          console.error('주문 생성 실패 상세:', apiError);
+        } finally {
+          // 버튼 상태 원복이 필요하면 여기서 처리
+          isOrdering = false;
+          placeOrderBtn.textContent = '주문하기';
+          placeOrderBtn.disabled = false;
         }
-    }
+      }
 
     // Firebase 백업 주문 생성 (현재 사용하지 않음)
     async function createOrderViaFirebase() {

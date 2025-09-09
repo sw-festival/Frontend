@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/t/:slug",
+      "destination": "/order-system/order.html?slug=:slug"
+    }
+  ]
+}

@@ -1,3 +1,7 @@
+const PRICE_TABLE = {
+  'SSG 문학철판구이': 25900, 'NC 빙하기공룡고기': 19900, 'KIA 호랑이 생고기 (기아 타이거즈 고추장 범벅)': 21900, '라팍 김치말이국수': 7900, '키움쫄?쫄면': 5900, 'LG라면': 5900, '롯데 자이언츠 화채': 6900, '두산 B볶음s': 8900, '후리카케 크봉밥': 2500, '캔음료(제로콜라, 사이다)': 3000, '물': 2000, '팀 컬러 칵테일': 3500
+};
+
 const path = require('path');
 const express = require('express');
 const cors = require('cors');
@@ -11,6 +15,11 @@ const ADMIN_PIN = '2025';
 // 미들웨어 설정
 app.use(cors());
 app.use(express.json());
+
+app.use((err, req, res, next) => {
+  console.error('[UNCAUGHT ERROR]', err);
+  res.status(500).json({ success: false, message: err.message || 'Internal Server Error' });
+});
 
 // 정적 파일 서빙: localhost:3000/order-system/index.html 접근 가능하게 설정
 app.use('/order-system', express.static(path.join(__dirname, 'public/order-system')));
@@ -123,57 +132,100 @@ app.post('/sessions/open-by-slug', (req, res) => {
   });
 });
 
-// 주문 생성
+// 주문 생성 (수정본)
 app.post('/orders', (req, res) => {
-  const token = readSessionToken(req);
-  if (!token) return res.status(401).json({ success:false, message:'Unauthorized' });
-
-  const { order_type, payer_name, items } = req.body || {};
-  if (!payer_name || !Array.isArray(items) || items.length === 0) {
-    return res.status(400).json({ success:false, message:'Bad Request' });
-  }
-
-  let subtotal = 0;
-  const normalized = items.map(it => {
-    const qty = Number(it.quantity || 0);
-    const unit = PRICE_TABLE[it.product_id] ?? 0;
-    subtotal += unit * qty;
-    return {
-      product_id: it.product_id,
-      qty,
-      unit_price: unit,
-      line_total: unit * qty
-    };
-  });
-  const discount = 0;
-  const total = subtotal - discount;
-
-  const order = {
-    id: orders.length + 1,
-    session_token: token,
-    order_type,
-    payer_name,
-    items: normalized,
-    status: 'CONFIRMED',
-    created_at: nowISO(),
-    table: { id: 1, label: 'A-10' },
-    amounts: { subtotal, discount, total }
-  };
-  orders.push(order);
-
-  res.status(201).json({
-    success: true,
-    message: 'Created',
-    data: {
-      order_id: order.id,
-      order_type,
-      status: order.status,
-      subtotal_amount: subtotal,
-      discount_amount: discount,
-      total_amount: total
+  try {
+    // 1) 인증
+    const token = readSessionToken(req);
+    if (!token) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
     }
-  });
+
+    // 2) 바디 파싱 & 1차 검증
+    const { order_type, payer_name, items } = req.body || {};
+
+    if (!['DINE_IN', 'TAKEOUT'].includes(order_type)) {
+      return res.status(400).json({ success: false, message: 'invalid order_type' });
+    }
+    if (!payer_name || typeof payer_name !== 'string' || payer_name.trim().length === 0) {
+      return res.status(400).json({ success: false, message: 'payer_name required' });
+    }
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ success: false, message: 'items required' });
+    }
+
+    // 3) 품목 검증 + 가격 계산
+    let subtotal = 0;
+    const normalized = [];
+
+    for (const it of items) {
+      const pid = it?.product_id;
+      const qty = Number(it?.quantity ?? 0);
+
+      if (!Number.isFinite(pid) || PRICE_TABLE[pid] === undefined) {
+        return res.status(400).json({ success: false, message: `unknown product_id: ${pid}` });
+      }
+      if (!Number.isInteger(qty) || qty <= 0) {
+        return res.status(400).json({ success: false, message: `invalid quantity for product_id ${pid}` });
+      }
+
+      const unit = PRICE_TABLE[pid];
+      const line = unit * qty;
+      subtotal += line;
+
+      normalized.push({
+        product_id: pid,
+        qty,
+        unit_price: unit,
+        line_total: line,
+      });
+    }
+
+    // 4) 할인(포장 10% 예시) — 필요 없으면 0 유지
+    let discount = 0;
+    if (order_type === 'TAKEOUT') {
+      discount = Math.round(subtotal * 0.10);
+    }
+    const total = subtotal - discount;
+
+    // 5) 테이블 정보: 세션에 저장해 둔게 있으면 꺼내기(없으면 null)
+    //   open-by-slug 시 세션에 { table:{id,label,slug} } 저장해뒀다는 가정
+    const session = getSessionByToken?.(token); // 없다면 기존대로 null/하드코딩
+    const tableInfo = session?.table ?? null;
+
+    // 6) 주문 객체 구성 & 저장
+    const order = {
+      id: orders.length + 1,
+      session_token: token,
+      order_type,
+      payer_name: payer_name.trim(),
+      items: normalized,
+      status: 'CONFIRMED',
+      created_at: nowISO(),
+      table: tableInfo, // { id, label, slug } or null
+      amounts: { subtotal, discount, total },
+    };
+    orders.push(order);
+
+    // 7) 응답(JSON)
+    return res.status(201).json({
+      success: true,
+      message: 'Created',
+      data: {
+        order_id: order.id,
+        order_type,
+        status: order.status,
+        amounts: { subtotal, discount, total },
+        payer_name: order.payer_name,
+        table: order.table,
+      },
+    });
+  } catch (err) {
+    console.error('[POST /orders] error:', err);
+    return res.status(500).json({ success: false, message: err.message || 'Internal Server Error' });
+  }
 });
+
 
 // (관리자) 진행중 주문 버킷
 app.get('/orders/active', (req, res) => {
