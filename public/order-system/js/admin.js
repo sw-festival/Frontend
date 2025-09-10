@@ -1,45 +1,45 @@
-import { adminLogin, patchOrderStatus, ensureTable, getOrderDetails, getActiveOrders } from './api-admin.js';
+import { adminLogin, patchOrderStatus, ensureTable, getOrderDetails, getActiveOrders, getAdminMenu, createOrderStream, forceCloseSession } from './api-admin.js';
 
 // window.RUNTIME이 로드되기를 기다림
 function waitForRuntime() {
-  return new Promise((resolve) => {
-    if (window.RUNTIME) {
-      resolve();
-    } else {
-      const checkRuntime = () => {
+    return new Promise((resolve) => {
         if (window.RUNTIME) {
-          resolve();
+            resolve();
         } else {
-          setTimeout(checkRuntime, 10);
+            const checkRuntime = () => {
+                if (window.RUNTIME) {
+                    resolve();
+                } else {
+                    setTimeout(checkRuntime, 10);
+                }
+            };
+            checkRuntime();
         }
-      };
-      checkRuntime();
-    }
-  });
+    });
 }
 
 // 관리자 인증 확인 (수정)
 function checkAdminAuth() {
-  const isLoggedIn = sessionStorage.getItem('admin_logged_in') === 'true';
+    const isLoggedIn = sessionStorage.getItem('admin_logged_in') === 'true';
   const loginTime  = Number(sessionStorage.getItem('admin_login_time') || 0);
   const hasToken   = !!(sessionStorage.getItem('admin_token') || localStorage.getItem('accesstoken'));
 
   const expired = !loginTime || (Date.now() - loginTime) > (12 * 60 * 60 * 1000);
 
   if (!isLoggedIn || !hasToken || expired) {
-    sessionStorage.removeItem('admin_logged_in');
-    sessionStorage.removeItem('admin_login_time');
+        sessionStorage.removeItem('admin_logged_in');
+        sessionStorage.removeItem('admin_login_time');
     sessionStorage.removeItem('admin_token');
     window.location.href = '/order-system/admin-login.html';
-    return false;
-  }
-  return true;
+        return false;
+    }
+    return true;
 }
 
 // 로그아웃 처리
 function logout() {
-  sessionStorage.removeItem('admin_logged_in');
-  sessionStorage.removeItem('admin_login_time');
+    sessionStorage.removeItem('admin_logged_in');
+    sessionStorage.removeItem('admin_login_time');
   window.location.href = '/order-system/admin-login.html';
 }
 
@@ -47,22 +47,22 @@ function logout() {
 let db = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
-  // 관리자 인증 확인
+    // 관리자 인증 확인
   if (!checkAdminAuth()) return;
 
   // RUNTIME 준비 (API_BASE 등)
   await waitForRuntime();
 
-  // Firebase 초기화
+    // Firebase 초기화
   if (typeof firebase !== 'undefined' && window.firebaseConfig) {
     firebase.initializeApp(firebaseConfig);
     db = firebase.database();
   }
 
-  const adminDashboard = document.getElementById('admin-dashboard');
-  const inventoryList = document.getElementById('inventory-list');
-  const notificationToggleBtn = document.getElementById('notification-toggle');
-  const testSoundBtn = document.getElementById('test-sound-btn');
+    const adminDashboard = document.getElementById('admin-dashboard');
+    const inventoryList = document.getElementById('inventory-list');
+    const notificationToggleBtn = document.getElementById('notification-toggle');
+    const testSoundBtn = document.getElementById('test-sound-btn');
 
   // 슬러그 발급 UI 요소 (없으면 자동 무시)
   const ensureLabelInput  = document.getElementById('ensure-label');   // ex) A-10
@@ -70,13 +70,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   const ensureBtn         = document.getElementById('ensure-btn');     // 발급 버튼
   const ensureResult      = document.getElementById('ensure-result');  // 결과 출력 <p>
 
-  let allOrdersCache = {}; // 전체 주문 데이터 캐시
+    let allOrdersCache = {}; // 전체 주문 데이터 캐시
   let isFirstLoad = true;  // 첫 로드 확인
   let notificationsEnabled = false; // 브라우저 알림 권한 상태
-  let soundEnabled = true; // 소리 활성화 상태
-
-  // 메뉴별 초기 재고 (관리자가 설정 가능)
-  const menuInventory = {
+    let soundEnabled = true; // 소리 활성화 상태
+  let sseConnection = null; // SSE 연결 객체
+  let adminMenuData = []; // 관리자용 메뉴 데이터
+    
+    // 메뉴별 초기 재고 (관리자가 설정 가능)
+    const menuInventory = {
     'SSG 문학철판구이' : 25900,
     'NC 빙하기공룡고기' : 19900,
     'KIA 호랑이 생고기 (기아 타이거즈 고추장 범벅)' : 21900,
@@ -92,40 +94,40 @@ document.addEventListener('DOMContentLoaded', async () => {
   };
 
   // ===== 유틸 =====
-  function getStatusText(status) {
+    function getStatusText(status) {
     switch (status) {
-      case 'pending': return '대기중';
-      case 'preparing': return '준비중';
-      case 'ready': return '완료';
-      case 'served': return '서빙완료';
-      default: return '대기중';
-    }
-  }
-  function getStatusDisplayText(status) {
-    switch (status) {
-      case 'Payment Pending': return '💰 입금 대기중';
-      case 'Payment Confirmed': return '💳 입금 확인됨';
-      case 'Preparing': return '👨‍🍳 준비중';
-      case 'Order Complete': return '✅ 완료';
-      default: return status;
-    }
-  }
-
-  // ===== 알림 =====
-  function requestNotificationPermission() {
-    if ('Notification' in window) {
-      Notification.requestPermission().then(permission => {
-        notificationsEnabled = permission === 'granted';
-        if (notificationsEnabled) {
-          console.log('✅ 브라우저 알림 권한이 허용되었습니다.');
-          // showSystemNotification('MEMORY 주점 관리자', '실시간 알림이 활성화되었습니다! 🎉');
-        } else {
-          console.log('❌ 브라우저 알림 권한이 거부되었습니다.');
+            case 'pending': return '대기중';
+            case 'preparing': return '준비중';
+            case 'ready': return '완료';
+            case 'served': return '서빙완료';
+            default: return '대기중';
         }
-      });
     }
-  }
-
+    function getStatusDisplayText(status) {
+    switch (status) {
+            case 'Payment Pending': return '💰 입금 대기중';
+            case 'Payment Confirmed': return '💳 입금 확인됨';
+            case 'Preparing': return '👨‍🍳 준비중';
+            case 'Order Complete': return '✅ 완료';
+            default: return status;
+        }
+    }
+    
+  // ===== 알림 =====
+    function requestNotificationPermission() {
+        if ('Notification' in window) {
+            Notification.requestPermission().then(permission => {
+                notificationsEnabled = permission === 'granted';
+                if (notificationsEnabled) {
+                    console.log('✅ 브라우저 알림 권한이 허용되었습니다.');
+          // showSystemNotification('MEMORY 주점 관리자', '실시간 알림이 활성화되었습니다! 🎉');
+                } else {
+                    console.log('❌ 브라우저 알림 권한이 거부되었습니다.');
+                }
+            });
+        }
+    }
+    
   // function showSystemNotification(title, body) {
   //  if (notificationsEnabled && 'Notification' in window) {
   //    const notification = new Notification(title, {
@@ -137,10 +139,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   //   } 
   // }
 
-  function playNotificationSound(type = 'new-order') {
+    function playNotificationSound(type = 'new-order') {
     if (!soundEnabled) return;
-    try {
-      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        try {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
       const playBeep = (frequency, duration) => {
         const oscillator = audioContext.createOscillator();
         const gainNode = audioContext.createGain();
@@ -153,45 +155,45 @@ document.addEventListener('DOMContentLoaded', async () => {
         oscillator.start(audioContext.currentTime);
         oscillator.stop(audioContext.currentTime + duration / 1000);
       };
-      if (type === 'new-order') {
+            if (type === 'new-order') {
         playBeep(800, 200);
         setTimeout(() => playBeep(1000, 200), 300);
-      } else if (type === 'status-change') {
+            } else if (type === 'status-change') {
         playBeep(600, 300);
-      } else if (type === 'payment-pending') {
+            } else if (type === 'payment-pending') {
         playBeep(500, 150);
         setTimeout(() => playBeep(700, 150), 200);
         setTimeout(() => playBeep(900, 150), 400);
-      }
-    } catch (error) {
-      console.warn('소리 재생 실패:', error);
+            }
+        } catch (error) {
+            console.warn('소리 재생 실패:', error);
+        }
     }
-  }
-  function toggleNotifications() {
+    function toggleNotifications() {
     soundEnabled = !soundEnabled;
     if (notificationToggleBtn) {
       notificationToggleBtn.innerHTML = soundEnabled ? '🔔 알림 ON' : '🔕 알림 OFF';
       notificationToggleBtn.style.opacity = soundEnabled ? '1' : '0.6';
     }
     if (soundEnabled) playNotificationSound('status-change');
-    localStorage.setItem('memory-pub-sound-enabled', soundEnabled);
-  }
-  function testNotificationSound() {
-    playNotificationSound('new-order');
-    setTimeout(() => {
-      showSystemNotification('🔊 소리 테스트', '소리가 잘 들리시나요?');
-    }, 500);
-  }
-  function loadNotificationSettings() {
+        localStorage.setItem('memory-pub-sound-enabled', soundEnabled);
+    }
+    function testNotificationSound() {
+        playNotificationSound('new-order');
+        setTimeout(() => {
+            showSystemNotification('🔊 소리 테스트', '소리가 잘 들리시나요?');
+        }, 500);
+    }
+    function loadNotificationSettings() {
     const saved = localStorage.getItem('memory-pub-sound-enabled');
     if (saved !== null) {
       soundEnabled = saved === 'true';
     }
-    if (notificationToggleBtn) {
-      notificationToggleBtn.innerHTML = soundEnabled ? '🔔 알림 ON' : '🔕 알림 OFF';
-      notificationToggleBtn.style.opacity = soundEnabled ? '1' : '0.6';
-    }
-  }
+            if (notificationToggleBtn) {
+                notificationToggleBtn.innerHTML = soundEnabled ? '🔔 알림 ON' : '🔕 알림 OFF';
+                notificationToggleBtn.style.opacity = soundEnabled ? '1' : '0.6';
+            }
+        }
 
   // ===== 새 주문/상태 변경 감지 =====
   function checkForNewOrders(newOrders) {
@@ -228,38 +230,251 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // ===== API 기반 주문 로드 =====
-  async function loadActiveOrders() {
+  // ===== SSE 연결 관리 =====
+  async function initSSEConnection() {
     try {
-      console.log('📊 진행중 주문 데이터 로드 중...');
-      const response = await getActiveOrders();
+      console.log('🔗 SSE 연결 초기화 중...');
+      
+      if (sseConnection) {
+        sseConnection.close();
+        sseConnection = null;
+      }
+
+      sseConnection = await createOrderStream(
+        (eventType, data) => {
+          console.log(`📨 SSE 이벤트 수신: ${eventType}`, data);
+          
+          switch (eventType) {
+            case 'snapshot':
+              // 초기 스냅샷 수신 시 주문 목록 업데이트
+              updateOrdersFromSSE(data);
+              break;
+              
+            case 'orders_changed':
+              // 주문 변경 시 목록 새로고침
+              console.log('🔄 주문 변경 감지, 목록 새로고침');
+              loadActiveOrders();
+              break;
+              
+            case 'ping':
+              // 연결 유지 확인
+              console.log('🏓 SSE 연결 유지됨');
+              break;
+          }
+        },
+        (error) => {
+          console.error('❌ SSE 연결 오류:', error);
+          // 5초 후 재연결 시도
+          setTimeout(() => {
+            console.log('🔄 SSE 재연결 시도...');
+            initSSEConnection();
+          }, 5000);
+        }
+      );
+
+      console.log('✅ SSE 연결 성공');
+      
+    } catch (error) {
+      console.error('❌ SSE 연결 실패:', error);
+      // 폴백: 주기적 폴링으로 대체
+      console.log('📊 폴링 모드로 전환');
+      setInterval(loadActiveOrders, 10000); // 10초마다 새로고침
+    }
+  }
+
+  function updateOrdersFromSSE(sseData) {
+    try {
+      const { data: { urgent = [], waiting = [], preparing = [] } = {}, meta = {} } = sseData;
+      
+      // 대시보드 초기화
+      if (adminDashboard) adminDashboard.innerHTML = '';
+
+      // SSE 데이터를 Firebase 형태로 변환
+      const allActive = [...urgent, ...waiting, ...preparing];
+      const ordersForDisplay = {};
+      
+      allActive.forEach(order => {
+        ordersForDisplay[order.id] = {
+          id: order.id,
+          status: getFirebaseStatus(order.status),
+          customerName: order.payer_name,
+          tableNumber: extractTableNumber(order.table),
+          orderType: order.status === 'TAKEOUT' ? 'takeout' : 'dine-in',
+          totalPrice: 0, // SSE에서는 가격 정보가 없으므로 0으로 설정
+          timestamp: new Date(order.placed_at).getTime(),
+          items: {}
+        };
+      });
+
+      // 기존 displayOrders 함수 재사용
+      displayOrders(ordersForDisplay);
+      
+      // 통계 업데이트
+      updateOrderStats(meta);
+      
+    } catch (error) {
+      console.error('SSE 데이터 처리 오류:', error);
+    }
+  }
+
+  function getFirebaseStatus(apiStatus) {
+    switch (apiStatus) {
+      case 'CONFIRMED': return 'Payment Confirmed';
+      case 'IN_PROGRESS': return 'Preparing';
+      case 'COMPLETED': return 'Order Complete';
+      case 'CANCELLED': return 'Cancelled';
+      default: return 'Payment Pending';
+    }
+  }
+
+  function extractTableNumber(tableLabel) {
+    if (!tableLabel) return 1;
+    const match = tableLabel.match(/(\d+)/);
+    return match ? parseInt(match[1]) : 1;
+  }
+
+  function updateOrderStats(meta) {
+    const statsEl = document.getElementById('order-stats');
+    if (statsEl && meta) {
+      statsEl.innerHTML = `
+        <div class="stats-item">
+          <span class="stats-label">긴급:</span>
+          <span class="stats-value urgent">${meta.counts?.urgent || 0}</span>
+        </div>
+        <div class="stats-item">
+          <span class="stats-label">대기:</span>
+          <span class="stats-value waiting">${meta.counts?.waiting || 0}</span>
+        </div>
+        <div class="stats-item">
+          <span class="stats-label">준비중:</span>
+          <span class="stats-value preparing">${meta.counts?.preparing || 0}</span>
+        </div>
+        <div class="stats-item">
+          <span class="stats-label">총계:</span>
+          <span class="stats-value total">${meta.total || 0}</span>
+        </div>
+      `;
+    }
+  }
+
+  // ===== 관리자용 메뉴 관리 =====
+  async function loadAdminMenu() {
+    try {
+      console.log('📋 관리자용 메뉴 로드 중...');
+      adminMenuData = await getAdminMenu();
+      displayMenuInventory(adminMenuData);
+      console.log('✅ 메뉴 로드 완료:', adminMenuData.length, '개 항목');
+    } catch (error) {
+      console.error('❌ 메뉴 로드 실패:', error);
+      // 폴백: 기존 하드코딩된 메뉴 사용
+      displayMenuInventory([]);
+    }
+  }
+
+  function displayMenuInventory(menuData) {
+    if (!inventoryList) return;
+
+    let inventoryHTML = '<h3>📋 메뉴 재고 관리</h3>';
+    
+    if (menuData && menuData.length > 0) {
+      // API에서 받은 메뉴 데이터 사용
+      menuData.forEach(item => {
+        const soldOutClass = item.is_sold_out ? 'sold-out' : '';
+        const stockStatus = item.is_sold_out ? '품절' : `재고 ${item.stock}개`;
+        
+        inventoryHTML += `
+          <div class="inventory-item ${soldOutClass}">
+            <div class="menu-info">
+              <span class="menu-name">${item.name}</span>
+              <span class="menu-price">${item.price.toLocaleString()}원</span>
+            </div>
+            <div class="inventory-controls">
+              <span class="stock-info">${stockStatus}</span>
+              <button class="toggle-stock-btn" data-menu-id="${item.id}" data-sold-out="${item.is_sold_out}">
+                ${item.is_sold_out ? '재입고' : '품절처리'}
+              </button>
+            </div>
+          </div>
+        `;
+      });
+    } else {
+      // 폴백: 기존 하드코딩된 메뉴 사용
+      Object.entries(menuInventory).forEach(([name, price]) => {
+        inventoryHTML += `
+          <div class="inventory-item">
+            <div class="menu-info">
+              <span class="menu-name">${name}</span>
+              <span class="menu-price">${price.toLocaleString()}원</span>
+            </div>
+            <div class="inventory-controls">
+              <span class="stock-info">재고 관리 중</span>
+              <button class="toggle-stock-btn" data-menu-name="${name}">
+                재고 관리
+              </button>
+            </div>
+          </div>
+        `;
+      });
+    }
+
+    inventoryList.innerHTML = inventoryHTML;
+
+    // 재고 관리 버튼 이벤트 리스너 추가
+    inventoryList.querySelectorAll('.toggle-stock-btn').forEach(btn => {
+      btn.addEventListener('click', handleStockToggle);
+    });
+  }
+
+  function handleStockToggle(event) {
+    const btn = event.target;
+    const menuId = btn.dataset.menuId;
+    const menuName = btn.dataset.menuName;
+    const isSoldOut = btn.dataset.soldOut === 'true';
+
+    if (menuId) {
+      // API 기반 재고 관리
+      console.log(`재고 상태 변경: 메뉴 ID ${menuId}, 현재 품절: ${isSoldOut}`);
+      // TODO: 실제 재고 상태 변경 API 호출
+      alert(`${isSoldOut ? '재입고' : '품절처리'} 기능은 추후 구현 예정입니다.`);
+    } else if (menuName) {
+      // 폴백 모드
+      console.log(`재고 관리: ${menuName}`);
+      alert(`${menuName} 재고 관리 기능은 추후 구현 예정입니다.`);
+    }
+  }
+
+  // ===== API 기반 주문 로드 =====
+    async function loadActiveOrders() {
+        try {
+            console.log('📊 진행중 주문 데이터 로드 중...');
+            const response = await getActiveOrders();
       const { urgent = [], waiting = [], preparing = [] } = response.data || {};
       const meta = response.meta || {};
-
-      // 대시보드 초기화
+            
+            // 대시보드 초기화
       if (adminDashboard) adminDashboard.innerHTML = '';
 
       // 모든 주문을 배열로 합치고 Firebase형태 유사객체로 변환
       const allActive = [...urgent, ...waiting, ...preparing];
-      const ordersForDisplay = {};
+            const ordersForDisplay = {};
       allActive.forEach(order => {
-        ordersForDisplay[order.id] = {
-          id: order.id,
-          status: mapAPIStatusToFirebase(order.status),
-          tableNumber: order.table,
-          customerName: order.payer_name,
-          timestamp: new Date(order.placed_at).getTime(),
-          items: {},
-          totalPrice: 0,
-          orderType: 'dine-in'
-        };
-      });
-
+                ordersForDisplay[order.id] = {
+                    id: order.id,
+                    status: mapAPIStatusToFirebase(order.status),
+                    tableNumber: order.table,
+                    customerName: order.payer_name,
+                    timestamp: new Date(order.placed_at).getTime(),
+                    items: {},
+                    totalPrice: 0,
+                    orderType: 'dine-in'
+                };
+            });
+            
       // 기존 렌더링 로직 재사용 (createOrderCard / updateStatistics / updateInventory / updateSalesDashboard 등)
-      if (Object.keys(ordersForDisplay).length > 0) {
+            if (Object.keys(ordersForDisplay).length > 0) {
         // 변경 감지/알림
         checkForNewOrders(ordersForDisplay);
-        allOrdersCache = ordersForDisplay;
+                allOrdersCache = ordersForDisplay;
 
         const sorted = Object.entries(ordersForDisplay).sort(([, a], [, b]) => b.timestamp - a.timestamp);
 
@@ -280,26 +495,26 @@ document.addEventListener('DOMContentLoaded', async () => {
               adminDashboard.appendChild(div);
             }
           }
-        }
-      } else {
+                }
+            } else {
         if (adminDashboard) {
-          adminDashboard.innerHTML = '<p>아직 접수된 주문이 없습니다.</p>';
+                adminDashboard.innerHTML = '<p>아직 접수된 주문이 없습니다.</p>';
         }
         if (typeof updateStatistics === 'function') updateStatistics({});
         if (typeof updateInventory === 'function') updateInventory({});
         if (typeof updateSalesDashboard === 'function') updateSalesDashboard({});
-      }
-
-      isFirstLoad = false;
+            }
+            
+            isFirstLoad = false;
       console.log(`✅ 활성 주문 로드 완료: ${meta.total ?? Object.keys(ordersForDisplay).length}건`);
-    } catch (error) {
-      console.error('❌ 주문 데이터 로드 실패:', error);
+        } catch (error) {
+            console.error('❌ 주문 데이터 로드 실패:', error);
       if (adminDashboard) adminDashboard.innerHTML = '<p>주문 데이터를 불러오는데 실패했습니다.</p>';
+        }
     }
-  }
-
+    
   // API 상태 → Firebase 상태로 매핑
-  function mapAPIStatusToFirebase(apiStatus) {
+    function mapAPIStatusToFirebase(apiStatus) {
     switch (apiStatus) {
       case 'CONFIRMED':  return 'Payment Confirmed';
       case 'IN_PROGRESS':return 'Preparing';
@@ -308,9 +523,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
   // Firebase 상태 → API 액션으로 매핑
-  function mapFirebaseStatusToAPIAction(firebaseStatus) {
+    function mapFirebaseStatusToAPIAction(firebaseStatus) {
     switch (firebaseStatus) {
-      case 'Payment Confirmed': return 'confirm';
+            case 'Payment Confirmed': return 'confirm';
       case 'Preparing':         return 'start_preparing';
       case 'Order Complete':    return 'complete';
       default:                  return 'confirm';
@@ -318,10 +533,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // 새로고침
-  function refreshOrders() {
-    loadActiveOrders();
-  }
-
+    function refreshOrders() {
+        loadActiveOrders();
+    }
+    
   // ====== 🔗 여기서부터 "버튼/이벤트 연결"을 실제로 붙입니다 ======
 
   // 1) 알림 버튼 연결
@@ -381,8 +596,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // 초기 로드 + 주기적 새로고침
-  loadActiveOrders();
-  setInterval(refreshOrders, 30000); // 30초마다 새로고침
+    loadActiveOrders();
+    setInterval(refreshOrders, 30000); // 30초마다 새로고침
 });
 
 (function(){
@@ -849,10 +1064,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             itemsHtml += `<li>
                 ${itemName} x${item.quantity}
                 <div class="menu-status">
-<span class="menu-status-item ${status}" data-menu="${itemName}" data-order-id="${orderId}">
-    <span class="status-indicator"></span>
-    ${getStatusText(status)}
-</span>
+                    <span class="menu-status-item ${status}" data-menu="${itemName}" data-order-id="${orderId}">
+                        <span class="status-indicator"></span>
+                        ${getStatusText(status)}
+                    </span>
                 </div>
             </li>`;
         }
@@ -884,8 +1099,8 @@ ${orderData.orderType === 'takeout' ? '<h3>📦 포장 주문</h3>' : `<h3>🍽�
             <div class="order-status">
                 <p><strong>상태:</strong> <span class="status-text">${getStatusDisplayText(orderData.status)}</span></p>
                 ${orderData.status === 'Payment Pending' ? 
-'<button class="status-btn payment-confirm-btn" data-order-id="' + orderId + '" data-status="Payment Confirmed">💰 입금 확인</button>' :
-'<button class="status-btn" data-order-id="' + orderId + '" data-status="Payment Confirmed">입금확인</button>'
+                    '<button class="status-btn payment-confirm-btn" data-order-id="' + orderId + '" data-status="Payment Confirmed">💰 입금 확인</button>' :
+                    '<button class="status-btn" data-order-id="' + orderId + '" data-status="Payment Confirmed">입금확인</button>'
                 }
                 <button class="status-btn" data-order-id="${orderId}" data-status="Preparing">준비중</button>
                 <button class="status-btn" data-order-id="${orderId}" data-status="Order Complete">완료</button>
@@ -909,8 +1124,8 @@ ${orderData.orderType === 'takeout' ? '<h3>📦 포장 주문</h3>' : `<h3>🍽�
                 const menuName = item.dataset.menu;
                 const orderId = item.dataset.orderId;
                 const currentStatus = item.classList.contains('preparing') ? 'preparing' :
-               item.classList.contains('ready') ? 'ready' :
-               item.classList.contains('served') ? 'served' : 'pending';
+                                   item.classList.contains('ready') ? 'ready' :
+                                   item.classList.contains('served') ? 'served' : 'pending';
                 
                 toggleMenuStatus(orderId, menuName, currentStatus);
             });
@@ -934,13 +1149,13 @@ ${orderData.orderType === 'takeout' ? '<h3>📦 포장 주문</h3>' : `<h3>🍽�
                 
                 // 메뉴 상태 업데이트
                 db.ref('orders/' + orderId + '/menuStatus').set(menuStatus)
-.then(() => {
-    console.log(`메뉴 "${menuName}" 상태가 "${nextStatus}"로 변경됨`);
-})
-.catch(error => {
-    console.error('메뉴 상태 업데이트 실패:', error);
-    alert('메뉴 상태 업데이트 중 오류가 발생했습니다.');
-});
+                    .then(() => {
+                        console.log(`메뉴 "${menuName}" 상태가 "${nextStatus}"로 변경됨`);
+                    })
+                    .catch(error => {
+                        console.error('메뉴 상태 업데이트 실패:', error);
+                        alert('메뉴 상태 업데이트 중 오류가 발생했습니다.');
+                    });
             }
         });
     }
@@ -994,11 +1209,11 @@ ${orderData.orderType === 'takeout' ? '<h3>📦 포장 주문</h3>' : `<h3>🍽�
         if (orders && Object.keys(orders).length > 0) {
             Object.values(orders).forEach(order => {
                 if (order.items) {
-Object.entries(order.items).forEach(([menuName, item]) => {
-    if (currentInventory[menuName] !== undefined) {
-        currentInventory[menuName] -= item.quantity;
-    }
-});
+                    Object.entries(order.items).forEach(([menuName, item]) => {
+                        if (currentInventory[menuName] !== undefined) {
+                            currentInventory[menuName] -= item.quantity;
+                        }
+                    });
                 }
             });
         }
@@ -1127,12 +1342,12 @@ Object.entries(order.items).forEach(([menuName, item]) => {
         todayOrders.forEach(order => {
             if (order.items) {
                 Object.entries(order.items).forEach(([menuName, item]) => {
-if (menuStats[menuName]) {
-    menuStats[menuName] += item.quantity;
-} else {
-    menuStats[menuName] = item.quantity;
-}
-totalMenuCount += item.quantity;
+                    if (menuStats[menuName]) {
+                        menuStats[menuName] += item.quantity;
+                    } else {
+                        menuStats[menuName] = item.quantity;
+                    }
+                    totalMenuCount += item.quantity;
                 });
             }
         });
@@ -1188,59 +1403,59 @@ totalMenuCount += item.quantity;
             <head>
                 <title>MEMORY 주점 QR코드</title>
                 <style>
-body {
-    font-family: 'Noto Sans KR', Arial, sans-serif;
-    margin: 20px;
-    background: white;
-}
-.qr-code-item {
-    display: inline-block;
-    border: 2px solid #FF6B35;
-    border-radius: 15px;
-    padding: 20px;
-    margin: 10px;
-    text-align: center;
-    page-break-inside: avoid;
-    width: 250px;
-    vertical-align: top;
-}
-.qr-code-header h3 {
-    color: #FF6B35;
-    font-size: 1.5em;
-    margin: 0 0 5px 0;
-    font-weight: bold;
-}
-.qr-instruction {
-    color: #666;
-    font-size: 0.9em;
-    margin: 0 0 15px 0;
-}
-.qr-code-image img {
-    border: 1px solid #ddd;
-    border-radius: 8px;
-}
-.store-name {
-    color: #FF6B35;
-    font-weight: bold;
-    font-size: 1.1em;
-    margin: 15px 0 5px 0;
-}
-.qr-url {
-    color: #999;
-    font-size: 0.7em;
-    word-break: break-all;
-    margin: 5px 0;
-}
-@media print {
-    body { margin: 0; }
-    .qr-code-item { margin: 5px; }
-}
+                    body {
+                        font-family: 'Noto Sans KR', Arial, sans-serif;
+                        margin: 20px;
+                        background: white;
+                    }
+                    .qr-code-item {
+                        display: inline-block;
+                        border: 2px solid #FF6B35;
+                        border-radius: 15px;
+                        padding: 20px;
+                        margin: 10px;
+                        text-align: center;
+                        page-break-inside: avoid;
+                        width: 250px;
+                        vertical-align: top;
+                    }
+                    .qr-code-header h3 {
+                        color: #FF6B35;
+                        font-size: 1.5em;
+                        margin: 0 0 5px 0;
+                        font-weight: bold;
+                    }
+                    .qr-instruction {
+                        color: #666;
+                        font-size: 0.9em;
+                        margin: 0 0 15px 0;
+                    }
+                    .qr-code-image img {
+                        border: 1px solid #ddd;
+                        border-radius: 8px;
+                    }
+                    .store-name {
+                        color: #FF6B35;
+                        font-weight: bold;
+                        font-size: 1.1em;
+                        margin: 15px 0 5px 0;
+                    }
+                    .qr-url {
+                        color: #999;
+                        font-size: 0.7em;
+                        word-break: break-all;
+                        margin: 5px 0;
+                    }
+                    @media print {
+                        body { margin: 0; }
+                        .qr-code-item { margin: 5px; }
+                    }
                 </style>
             </head>
             <body>
                 <div style="text-align: center; margin-bottom: 30px;">
-<h1 style="color: #FF6B35;">⚾ MEMORY 주점 QR코드</h1>
-<p style="color: #666;">각 테이블에 부착하여 사용하세요</p>
+                    <h1 style="color: #FF6B35;">⚾ MEMORY 주점 QR코드</h1>
+                    <p style="color: #666;">각 테이블에 부착하여 사용하세요</p>
                 </div>
                 ${qrCodesHTML}
             </body>
@@ -1282,10 +1497,16 @@ body {
         }
     }, 1000);
     
-    // 페이지 로드 완료 후 알림 권한 요청
+    // 페이지 로드 완료 후 초기화
     setTimeout(() => {
         requestNotificationPermission();
-    }, 2000); // 2초 후 권한 요청
+        
+        // SSE 연결 초기화
+        initSSEConnection();
+        
+        // 관리자용 메뉴 로드
+        loadAdminMenu();
+    }, 2000); // 2초 후 권한 요청 및 초기화
     // 로그아웃 버튼 이벤트 리스너 추가
     const logoutBtn = document.getElementById('admin-logout-btn');
     if (logoutBtn) {
@@ -1313,8 +1534,8 @@ async function updateOrderStatus(orderId, status) {
         if (window.RUNTIME?.USE_FIREBASE_WRITE_MIRROR && db) {
             try {
                 await db.ref('orders/' + orderId).update({ 
-status: status,
-lastUpdated: Date.now()
+                    status: status,
+                    lastUpdated: Date.now()
                 });
                 console.log(`📁 Firebase 백업 동기화 완료`);
             } catch(firebaseError) {

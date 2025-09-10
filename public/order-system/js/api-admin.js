@@ -326,3 +326,104 @@ export async function forceCloseSession(sessionId) {
     throw error;
   }
 }
+
+// 관리자용 전체 메뉴 조회
+export async function getAdminMenu() {
+  await waitForRuntime();
+  const { API_BASE } = window.RUNTIME;
+
+  if (!isTokenValid()) {
+    clearAdminSession();
+    throw new Error('로그인이 필요합니다. 다시 로그인해주세요.');
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/menu/admin`, {
+      method: 'GET',
+      headers: adminHeaders(),
+    });
+
+    if (res.status === 401) {
+      clearAdminSession();
+      throw new Error('인증이 만료되었습니다. 다시 로그인해주세요.');
+    }
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data?.success) {
+      throw new Error(data?.message || `메뉴 조회 실패 (${res.status})`);
+    }
+    return data?.data || [];
+  } catch (error) {
+    console.error('getAdminMenu error:', error);
+    throw error;
+  }
+}
+
+// 실시간 주문 스트림 (SSE) 연결
+export function createOrderStream(onMessage, onError) {
+  return new Promise(async (resolve, reject) => {
+    await waitForRuntime();
+    const { API_BASE } = window.RUNTIME;
+
+    if (!isTokenValid()) {
+      clearAdminSession();
+      reject(new Error('로그인이 필요합니다. 다시 로그인해주세요.'));
+      return;
+    }
+
+    try {
+      const token = sessionStorage.getItem('admin_token') || localStorage.getItem('accesstoken');
+      const authHeader = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+
+      const eventSource = new EventSource(`${API_BASE}/sse/orders/stream`, {
+        headers: {
+          'Authorization': authHeader,
+          'Accept': 'text/event-stream',
+          'Cache-Control': 'no-cache'
+        }
+      });
+
+      eventSource.onopen = () => {
+        console.log('✅ SSE 연결 성공');
+        resolve(eventSource);
+      };
+
+      eventSource.onerror = (error) => {
+        console.error('❌ SSE 연결 오류:', error);
+        if (onError) onError(error);
+      };
+
+      // 스냅샷 이벤트 처리
+      eventSource.addEventListener('snapshot', (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          console.log('📸 스냅샷 수신:', data);
+          if (onMessage) onMessage('snapshot', data);
+        } catch (e) {
+          console.error('스냅샷 파싱 오류:', e);
+        }
+      });
+
+      // 주문 변경 이벤트 처리
+      eventSource.addEventListener('orders_changed', (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          console.log('🔄 주문 변경:', data);
+          if (onMessage) onMessage('orders_changed', data);
+        } catch (e) {
+          console.error('주문 변경 파싱 오류:', e);
+        }
+      });
+
+      // 핑 이벤트 처리
+      eventSource.addEventListener('ping', (event) => {
+        console.log('🏓 핑 수신:', event.data);
+        if (onMessage) onMessage('ping', event.data);
+      });
+
+    } catch (error) {
+      console.error('SSE 연결 생성 오류:', error);
+      reject(error);
+    }
+  });
+}

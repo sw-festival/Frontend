@@ -1,6 +1,27 @@
-const PRICE_TABLE = {
-  'SSG 문학철판구이': 25900, 'NC 빙하기공룡고기': 19900, 'KIA 호랑이 생고기 (기아 타이거즈 고추장 범벅)': 21900, '라팍 김치말이국수': 7900, '키움쫄?쫄면': 5900, 'LG라면': 5900, '롯데 자이언츠 화채': 6900, '두산 B볶음s': 8900, '후리카케 크봉밥': 2500, '캔음료(제로콜라, 사이다)': 3000, '물': 2000, '팀 컬러 칵테일': 3500
+// 제품 카탈로그 (product_id 기반)
+const PRODUCTS = {
+  1:  { name: 'SSG 문학철판구이(400g)', price: 25900 },
+  2:  { name: 'NC 빙하기공룡고기(400g)', price: 19900 },
+  3:  { name: 'KIA 호랑이 생고기',       price: 21900 },
+  4:  { name: 'LG라면',                 price: 5900  },
+  5:  { name: '라팍 김치말이국수',       price: 7900  },
+  6:  { name: '두산 B볶음s',            price: 8900  },
+  7:  { name: '키움쫄?쫄면',            price: 5900  },
+  8:  { name: '롯데 자이언츠 화채',      price: 6900  },
+  9:  { name: 'KT랍찜',                 price: 3900  }, 
+  10: { name: '후리카케크봉밥',          price: 2500  },
+  11: { name: '포도맛 칵테일',           price: 3500  },
+  12: { name: '자몽맛 칵테일',           price: 3500  },
+  13: { name: '소다맛 칵테일',           price: 3500  },
+  14: { name: '제로콜라',                price: 3000  },
+  15: { name: '사이다',                  price: 3000  },
+  16: { name: '물',                      price: 2000  },
 };
+
+// product_id로 가격을 찾는 테이블
+const PRICE_TABLE = Object.fromEntries(
+  Object.entries(PRODUCTS).map(([id, p]) => [Number(id), p.price])
+);
 
 const path = require('path');
 const express = require('express');
@@ -115,17 +136,40 @@ app.post('/admin/tables/ensure', (req, res) => {
 app.post('/sessions/open-by-slug', (req, res) => {
   const { slug, code } = req.body || {};
   if (!slug || !code) return res.status(400).json({ success:false, message:'Missing slug/code' });
-  if (code !== 'test123') return res.status(422).json({ success:false, message:'Invalid code' });
+  
+  // 글로벌 코드 확인 (실제로는 환경변수에서 가져와야 함)
+  const globalCode = 'test123'; // SESSION_OPEN_CODE
+  if (code !== globalCode) return res.status(422).json({ success:false, message:'Invalid code' });
 
-  const token = `session_${Date.now()}`;
-  sessions.push({ token, slug, created_at: Date.now() });
+  // 기존 세션 만료 처리
+  sessions.forEach(session => {
+    if (session.slug === slug && session.status !== 'expired') {
+      session.status = 'expired';
+      session.expired_at = nowISO();
+    }
+  });
+
+  // 새 세션 생성
+  const sessionId = sessions.length + 1;
+  const token = `session_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const newSession = {
+    id: sessionId,
+    token,
+    slug,
+    status: 'active',
+    created_at: nowISO(),
+    table: { id: sessionId, label: `A-${Math.floor(Math.random() * 20) + 1}`, slug, is_active: true }
+  };
+  
+  sessions.push(newSession);
+
   res.json({
     success: true,
     message: 'Session opened successfully',
     data: {
       session_token: token,
-      session_id: sessions.length,
-      table: { id: 1, label: 'A-10', slug, is_active: true },
+      session_id: sessionId,
+      table: newSession.table,
       abs_ttl_min: 120,
       idle_ttl_min: 30
     }
@@ -188,10 +232,9 @@ app.post('/orders', (req, res) => {
     }
     const total = subtotal - discount;
 
-    // 5) 테이블 정보: 세션에 저장해 둔게 있으면 꺼내기(없으면 null)
-    //   open-by-slug 시 세션에 { table:{id,label,slug} } 저장해뒀다는 가정
-    const session = getSessionByToken?.(token); // 없다면 기존대로 null/하드코딩
-    const tableInfo = session?.table ?? null;
+    // 5) 테이블 정보: 세션에서 테이블 정보 찾기
+    const session = sessions.find(s => s.token === token);
+    const tableInfo = session?.table || null;
 
     // 6) 주문 객체 구성 & 저장
     const order = {
@@ -207,19 +250,19 @@ app.post('/orders', (req, res) => {
     };
     orders.push(order);
 
-    // 7) 응답(JSON)
-    return res.status(201).json({
-      success: true,
-      message: 'Created',
-      data: {
-        order_id: order.id,
-        order_type,
-        status: order.status,
-        amounts: { subtotal, discount, total },
-        payer_name: order.payer_name,
-        table: order.table,
-      },
-    });
+     // 7) 응답(JSON) - 스웨거 스펙에 맞게 수정
+     return res.status(201).json({
+       success: true,
+       message: 'Created',
+       data: {
+         order_id: order.id,
+         order_type,
+         status: order.status,
+         subtotal_amount: subtotal,
+         discount_amount: discount,
+         total_amount: total
+       },
+     });
   } catch (err) {
     console.error('[POST /orders] error:', err);
     return res.status(500).json({ success: false, message: err.message || 'Internal Server Error' });
@@ -287,6 +330,16 @@ app.get('/orders/:id', (req, res) => {
   if (!order) return res.status(404).json({ success:false, message:'Not Found' });
   if (order.session_token !== token) return res.status(403).json({ success:false, message:'본인 세션의 주문이 아님' });
 
+  // 스웨거 스펙에 맞게 items 구조 변경
+  const formattedItems = order.items.map((item, index) => ({
+    id: index + 1,
+    product_id: item.product_id,
+    name: typeof item.product_id === 'string' ? item.product_id : `상품 ${item.product_id}`,
+    qty: item.qty,
+    unit_price: item.unit_price,
+    line_total: item.line_total
+  }));
+
   res.json({
     success: true,
     message: 'order details retrieved successfully',
@@ -295,18 +348,41 @@ app.get('/orders/:id', (req, res) => {
       status: order.status,
       table: order.table,
       payer_name: order.payer_name,
-      amounts: order.amounts,
+      amounts: {
+        subtotal: order.amounts.subtotal,
+        discount: order.amounts.discount,
+        total: order.amounts.total
+      },
       created_at: order.created_at,
-      items: order.items
+      items: formattedItems
     }
   });
 });
 
-// (관리자) 주문 상세 (인증 생략 테스트용)
+// (관리자) 주문 상세 조회
 app.get('/orders/admin/:id', (req, res) => {
+  // JWT 인증 확인
+  const auth = (req.get('Authorization') || '').split(' ')[1];
+  try { 
+    jwt.verify(auth, SECRET); 
+  } catch {
+    return res.status(401).json({ success: false, message: 'Unauthorized' });
+  }
+
   const idNum = Number(req.params.id);
   const order = orders.find(o => o.id === idNum);
-  if (!order) return res.status(404).json({ success:false, message:'Not Found' });
+  if (!order) return res.status(404).json({ success: false, message: 'Not Found' });
+
+  // 스웨거 스펙에 맞게 items 구조 변경
+  const formattedItems = order.items.map((item, index) => ({
+    id: index + 1,
+    product_id: item.product_id,
+    name: typeof item.product_id === 'string' ? item.product_id : `상품 ${item.product_id}`,
+    qty: item.qty,
+    unit_price: item.unit_price,
+    line_total: item.line_total
+  }));
+
   res.json({
     success: true,
     message: 'order details retrieved successfully',
@@ -315,13 +391,281 @@ app.get('/orders/admin/:id', (req, res) => {
       status: order.status,
       table: order.table,
       payer_name: order.payer_name,
-      amounts: order.amounts,
+      amounts: {
+        subtotal: order.amounts.subtotal,
+        discount: order.amounts.discount,
+        total: order.amounts.total
+      },
       created_at: order.created_at,
-      items: order.items
+      items: formattedItems
     }
   });
 });
 
+// ===== 추가 API 엔드포인트 =====
+
+// (관리자) 실시간 주문 스트림 (SSE)
+app.get('/sse/orders/stream', (req, res) => {
+  const auth = (req.get('Authorization') || '').split(' ')[1];
+  try { jwt.verify(auth, SECRET); } catch {
+    return res.status(401).json({ success: false, message: 'Unauthorized' });
+  }
+
+  // SSE 헤더 설정
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Cache-Control'
+  });
+
+  // 초기 스냅샷 전송
+  const activeOrders = getActiveOrdersData();
+  res.write(`event: snapshot\n`);
+  res.write(`data: ${JSON.stringify(activeOrders)}\n\n`);
+
+  // 주기적 ping (30초마다)
+  const pingInterval = setInterval(() => {
+    res.write(`event: ping\n`);
+    res.write(`data: "pong"\n\n`);
+  }, 30000);
+
+  // 클라이언트 연결 해제 시 정리
+  req.on('close', () => {
+    clearInterval(pingInterval);
+    console.log('SSE 클라이언트 연결 해제');
+  });
+
+  console.log('SSE 클라이언트 연결됨');
+});
+
+// (공용) 전체 메뉴 조회
+app.get('/menu', (req, res) => {
+  const menuItems = Object.entries(PRICE_TABLE).map((item, index) => ({
+    id: index + 1,
+    name: item[0],
+    price: item[1],
+    image_url: null,
+    description: `맛있는 ${item[0]}`,
+    type: 'MAIN',
+    is_sold_out: Math.random() > 0.9 // 10% 확률로 품절
+  }));
+
+  res.json({
+    success: true,
+    message: 'menu returned successfully',
+    data: menuItems
+  });
+});
+
+// (관리자) 전체 메뉴 조회
+app.get('/menu/admin', (req, res) => {
+  const auth = (req.get('Authorization') || '').split(' ')[1];
+  try { jwt.verify(auth, SECRET); } catch {
+    return res.status(401).json({ success: false, message: 'Unauthorized' });
+  }
+
+  const menuItems = Object.entries(PRICE_TABLE).map((item, index) => ({
+    id: index + 1,
+    name: item[0],
+    price: item[1],
+    image_url: null,
+    description: `맛있는 ${item[0]}`,
+    type: 'MAIN',
+    is_sold_out: Math.random() > 0.9, // 10% 확률로 품절
+    stock: Math.floor(Math.random() * 50) + 10 // 랜덤 재고
+  }));
+
+  res.json({
+    success: true,
+    message: 'menu returned successfully',
+    data: menuItems
+  });
+});
+
+// (공용) 인기 메뉴 Top N
+app.get('/menu/top', (req, res) => {
+  const count = parseInt(req.query.count) || 3;
+  
+  // 메뉴별 랜덤 판매 데이터 생성
+  const menuStats = Object.entries(PRICE_TABLE).map((item, index) => ({
+    id: index + 1,
+    name: item[0],
+    price: item[1],
+    image_url: null,
+    description: `맛있는 ${item[0]}`,
+    qty_sold: Math.floor(Math.random() * 20) + 5, // 5-24개 판매
+    amount_sold: 0 // 아래에서 계산
+  }));
+
+  // 매출 계산
+  menuStats.forEach(item => {
+    item.amount_sold = item.qty_sold * item.price;
+  });
+
+  // 정렬: 판매수량 내림차순 → 매출합계 내림차순
+  menuStats.sort((a, b) => {
+    if (b.qty_sold !== a.qty_sold) {
+      return b.qty_sold - a.qty_sold;
+    }
+    return b.amount_sold - a.amount_sold;
+  });
+
+  // 상위 N개만 반환
+  const topMenus = menuStats.slice(0, count);
+
+  res.json({
+    success: true,
+    message: 'top menu returned successfully',
+    data: topMenus
+  });
+});
+
+// 세션 강제 종료
+app.post('/sessions/:id/close', (req, res) => {
+  const auth = (req.get('Authorization') || '').split(' ')[1];
+  try { jwt.verify(auth, SECRET); } catch {
+    return res.status(401).json({ success: false, message: 'Unauthorized' });
+  }
+
+  const sessionId = parseInt(req.params.id);
+  const session = sessions.find(s => s.id === sessionId);
+  
+  if (!session) {
+    return res.status(404).json({ success: false, message: 'Session not found' });
+  }
+
+  if (session.status === 'closed') {
+    return res.status(409).json({ success: false, message: 'Session already closed' });
+  }
+
+  session.status = 'closed';
+  session.closed_at = nowISO();
+
+  res.json({
+    success: true,
+    message: 'Session closed successfully'
+  });
+});
+
+// 주문 상태 변경
+app.patch('/orders/:id/status', (req, res) => {
+  const auth = (req.get('Authorization') || '').split(' ')[1];
+  try { jwt.verify(auth, SECRET); } catch {
+    return res.status(401).json({ success: false, message: 'Unauthorized' });
+  }
+
+  const orderId = parseInt(req.params.id);
+  const { action, reason } = req.body || {};
+  
+  const order = orders.find(o => o.id === orderId);
+  if (!order) {
+    return res.status(404).json({ success: false, message: 'Order not found' });
+  }
+
+  const prevStatus = order.status;
+  let nextStatus;
+
+  // 상태 변경 로직
+  switch (action) {
+    case 'confirm':
+      if (order.status !== 'CONFIRMED') {
+        nextStatus = 'CONFIRMED';
+      }
+      break;
+    case 'start_preparing':
+      if (order.status === 'CONFIRMED') {
+        nextStatus = 'IN_PROGRESS';
+      }
+      break;
+    case 'complete':
+      if (order.status === 'IN_PROGRESS') {
+        nextStatus = 'COMPLETED';
+      }
+      break;
+    case 'cancel':
+      if (['CONFIRMED', 'IN_PROGRESS'].includes(order.status)) {
+        nextStatus = 'CANCELLED';
+      }
+      break;
+    default:
+      return res.status(400).json({ success: false, message: 'Invalid action' });
+  }
+
+  if (!nextStatus) {
+    return res.status(409).json({ 
+      success: false, 
+      message: `Cannot ${action} order with status ${prevStatus}` 
+    });
+  }
+
+  order.status = nextStatus;
+  order.updated_at = nowISO();
+  if (reason) order.reason = reason;
+
+  res.json({
+    success: true,
+    message: 'Status updated successfully',
+    data: {
+      order_id: orderId,
+      prev: prevStatus,
+      next: nextStatus
+    }
+  });
+});
+
+// 헬퍼 함수: Active Orders 데이터 생성
+function getActiveOrdersData() {
+  const THRESHOLD_MIN = 15;
+  const now = Date.now();
+
+  const inFlight = orders.filter(o => ['CONFIRMED', 'IN_PROGRESS'].includes(o.status));
+  const toRow = (o) => ({
+    id: o.id,
+    status: o.status,
+    table: o.table?.label || 'A-10',
+    payer_name: o.payer_name,
+    age_min: Math.floor((now - new Date(o.created_at).getTime()) / 60000),
+    placed_at: o.created_at
+  });
+
+  const urgent = [];
+  const waiting = [];
+  const preparing = [];
+
+  inFlight.forEach(o => {
+    const age = Math.floor((now - new Date(o.created_at).getTime()) / 60000);
+    if (['CONFIRMED', 'IN_PROGRESS'].includes(o.status) && age >= THRESHOLD_MIN) {
+      urgent.push(toRow(o));
+    }
+    if (o.status === 'CONFIRMED') waiting.push(toRow(o));
+    if (o.status === 'IN_PROGRESS') preparing.push(toRow(o));
+  });
+
+  const byAgeDesc = (a, b) => b.age_min - a.age_min;
+  urgent.sort(byAgeDesc); 
+  waiting.sort(byAgeDesc); 
+  preparing.sort(byAgeDesc);
+
+  return {
+    success: true,
+    message: 'active orders grouped',
+    data: { urgent, waiting, preparing },
+    meta: {
+      now: new Date(now).toISOString(),
+      threshold_min: THRESHOLD_MIN,
+      counts: {
+        urgent: urgent.length,
+        waiting: waiting.length,
+        preparing: preparing.length
+      },
+      total: urgent.length + waiting.length + preparing.length
+    }
+  };
+}
+
+// 서버 시작
 app.listen(PORT, () => {
   console.log(`🚀 테스트 API 서버가 http://localhost:${PORT} 에서 실행 중입니다.`);
   console.log('📋 사용 가능한 엔드포인트:');
@@ -329,8 +673,14 @@ app.listen(PORT, () => {
   console.log('   POST /admin/login');
   console.log('   POST /admin/tables/ensure');
   console.log('   POST /sessions/open-by-slug');
+  console.log('   POST /sessions/:id/close');
   console.log('   POST /orders');
   console.log('   GET  /orders/:id');
   console.log('   GET  /orders/active');
   console.log('   GET  /orders/admin/:id');
+  console.log('   PATCH /orders/:id/status');
+  console.log('   GET  /sse/orders/stream');
+  console.log('   GET  /menu');
+  console.log('   GET  /menu/admin');
+  console.log('   GET  /menu/top');
 });

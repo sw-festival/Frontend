@@ -6,7 +6,430 @@
     <title>MEMORY 주점 주문 시스템</title>
     <link rel="stylesheet" href="css/baseball-theme.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="icon" type="image/png" href="../icons/icon.png">
+    <link rel="icon" type="image/png" href="icons/icon.png">
+    <style>
+        /* 추가 스타일 */
+        .hidden { display: none !important; }
+        
+        /* 1단계: 주문 방식 선택 */
+        #order-type-section {
+            text-align: center;
+            padding: 2rem;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        .order-type-buttons {
+            display: flex;
+            gap: 2rem;
+            justify-content: center;
+            margin: 2rem 0;
+        }
+        
+        .order-type-btn {
+            background: white;
+            border: 3px solid #ddd;
+            border-radius: 15px;
+            padding: 2rem 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            min-width: 200px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .order-type-btn:hover {
+            border-color: #1a5490;
+            transform: translateY(-3px);
+        }
+        
+        .order-type-btn.selected {
+            border-color: #1a5490;
+            background: #f0f8ff;
+        }
+        
+        .order-type-btn i {
+            font-size: 3rem;
+            color: #1a5490;
+        }
+        
+        .order-type-btn span {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .order-type-btn small {
+            color: #666;
+            font-size: 0.9rem;
+        }
+        
+        .start-order-btn {
+            background: linear-gradient(135deg, #1a5490, #2c3e50);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 1.2rem 3rem;
+            font-size: 1.3rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 2rem;
+        }
+        
+        .start-order-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(26, 84, 144, 0.3);
+        }
+        
+        /* 2단계: 메뉴 선택 */
+        #menu-section {
+            padding: 1rem;
+        }
+        
+        .menu-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1rem;
+            margin: 2rem 0;
+        }
+        
+        .menu-item {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            transition: all 0.3s;
+        }
+        
+        .menu-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+        }
+        
+        .menu-img-placeholder {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #1a5490, #2c3e50);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.5rem;
+        }
+        
+        .menu-details {
+            flex: 1;
+        }
+        
+        .menu-name {
+            font-size: 1.1rem;
+            font-weight: bold;
+            margin: 0 0 0.5rem 0;
+            color: #333;
+        }
+        
+        .menu-price {
+            font-size: 1rem;
+            color: #1a5490;
+            font-weight: bold;
+            margin: 0;
+        }
+        
+        .menu-quantity {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .quantity-btn {
+            width: 35px;
+            height: 35px;
+            border: 2px solid #1a5490;
+            background: white;
+            color: #1a5490;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.2rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+        
+        .quantity-btn:hover {
+            background: #1a5490;
+            color: white;
+        }
+        
+        .quantity {
+            font-size: 1.1rem;
+            font-weight: bold;
+            min-width: 30px;
+            text-align: center;
+        }
+        
+        /* 주문 요약 */
+        .order-summary {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 2rem;
+            margin: 2rem 0;
+            border: 2px solid #e9ecef;
+        }
+        
+        .order-summary h3 {
+            color: #1a5490;
+            margin-bottom: 1rem;
+        }
+        
+        #cart-items {
+            background: white;
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+            min-height: 100px;
+            border: 1px solid #ddd;
+        }
+        
+        .cart-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .cart-item:last-child {
+            border-bottom: none;
+        }
+        
+        .total-price {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #1a5490;
+            text-align: center;
+            margin: 1rem 0;
+            padding: 1rem;
+            background: white;
+            border-radius: 8px;
+            border: 2px solid #1a5490;
+        }
+        
+        .payment-info {
+            background: white;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            border-left: 4px solid #28a745;
+        }
+        
+        .payment-info h4 {
+            color: #28a745;
+            margin-bottom: 1rem;
+        }
+        
+        .account-details p {
+            margin: 0.3rem 0;
+        }
+        
+        .notice {
+            color: #dc3545;
+            font-weight: bold;
+            margin-top: 1rem;
+        }
+        
+        .customer-info {
+            margin: 1.5rem 0;
+        }
+        
+        .customer-info label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .customer-info input {
+            width: 100%;
+            padding: 1rem;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+        
+        .customer-info input:focus {
+            border-color: #1a5490;
+            outline: none;
+        }
+        
+        .place-order-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 1.5rem;
+            font-size: 1.3rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .place-order-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(40, 167, 69, 0.3);
+        }
+        
+        /* 3단계: 모달 */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 15px;
+            padding: 0;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow: hidden;
+            animation: modalSlideIn 0.3s ease-out;
+        }
+        
+        @keyframes modalSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .modal-header {
+            background: linear-gradient(135deg, #1a5490, #2c3e50);
+            color: white;
+            padding: 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .modal-header h3 {
+            margin: 0;
+            font-size: 1.3rem;
+        }
+        
+        .modal-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 2rem;
+            cursor: pointer;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-body {
+            padding: 2rem;
+            text-align: center;
+        }
+        
+        .code-input-group {
+            margin: 2rem 0;
+        }
+        
+        .code-input-group input {
+            width: 100%;
+            padding: 1rem;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 1.2rem;
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+        
+        .code-input-group input:focus {
+            border-color: #1a5490;
+            outline: none;
+        }
+        
+        .verify-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 1rem;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .verify-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+        }
+        
+        .error-message {
+            color: #dc3545;
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+        
+        .loading-message {
+            color: #1a5490;
+            font-size: 1.1rem;
+            margin: 1rem 0;
+        }
+        
+        .loading-message i {
+            margin-right: 0.5rem;
+        }
+        
+        /* 반응형 */
+        @media (max-width: 768px) {
+            .order-type-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .menu-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .menu-item {
+                flex-direction: column;
+                text-align: center;
+            }
+        }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -27,22 +450,29 @@
         </header>
 
         <main>
-            <!-- 웰컴 섹션 -->
-            <section id="welcome-section">
+            <!-- 1단계: 주문 방식 선택 -->
+            <section id="order-type-section">
                 <div class="welcome-message">
-                    <h2><i class="fas fa-baseball-ball"></i> 스타디움에 오신 것을 환영합니다!</h2>
-                    <p>QR 코드를 통해 접속하신 경우 바로 주문이 가능합니다.</p>
-                    <p>포장 주문을 원하시면 아래 버튼을 클릭해주세요.</p>
+                    <h2><i class="fas fa-baseball-ball"></i> 주문 방식을 선택해주세요</h2>
+                    <p>매장 이용 또는 포장 주문을 선택하신 후 주문을 시작하세요.</p>
                 </div>
                 
-                <div class="order-type-section">
                     <div class="order-type-buttons">
-                        <button type="button" id="dine-in-btn" class="order-type-btn selected"><i class="fas fa-utensils"></i> 매장 이용</button>
-                        <button type="button" id="takeout-btn" class="order-type-btn"><i class="fas fa-shopping-bag"></i> 포장 (10% 할인)</button>
-                    </div>
+                    <button type="button" id="dine-in-btn" class="order-type-btn selected">
+                        <i class="fas fa-utensils"></i> 
+                        <span>매장 이용</span>
+                        <small>테이블에서 식사</small>
+                    </button>
+                    <button type="button" id="takeout-btn" class="order-type-btn">
+                        <i class="fas fa-shopping-bag"></i> 
+                        <span>포장 주문</span>
+                        <small>10% 할인 적용</small>
+                    </button>
                 </div>
                 
-                <button id="start-order-btn">주문 시작하기</button>
+                <button id="start-order-btn" class="start-order-btn">
+                    <i class="fas fa-arrow-right"></i> 주문하기
+                </button>
                 
                 <!-- 인기 메뉴 순위 -->
                 <div id="popular-menu-section">
@@ -53,83 +483,16 @@
                 </div>
             </section>
 
-            <!-- order.html의 <main> 내부: 주문 섹션 위에 '세션 게이트' 섹션 추가 -->
-            <section id="session-gate" style="display:none; margin:12px 0;">
-                <h2>테이블 접속 확인</h2>
-                <p id="gate-table-label" style="margin:4px 0;color:#666;"></p>
-                <label for="openCode">난수(테이블 스티커의 코드)를 입력하세요</label>
-                <div style="margin:8px 0; display:flex; gap:8px;">
-                    <input id="openCode" type="text" placeholder="예: test123" autocomplete="one-time-code" />
-                    <button id="openSessionBtn">접속하기</button>
-                </div>
-                <p id="gate-msg" style="color:#c00;font-size:0.9rem;"></p>
-            </section>
-            
-            <!-- slug 추출 코드 -->
-            <script>
-            (function () {
-                const url = new URL(window.location.href);
-                let slug = url.searchParams.get('slug');
-
-                if (!slug) {
-                // 경로가 /t/xxxxx 형태인지 검사
-                // 예: /t/3ho2ov, /order-system/t/3ho2ov 모두 지원
-                const m = location.pathname.match(/\/t\/([^\/?#]+)/);
-                if (m) slug = m[1];
-                }
-
-                window.__TABLE_SLUG__ = slug || null;
-                // 이후 기존 로직에서 window.__TABLE_SLUG__ 를 사용해 세션 오픈 호출
-                // ex) openSessionBySlug(window.__TABLE_SLUG__)
-            })();
-            </script>
-
-            <!-- 메뉴판 및 주문 섹션 (처음에는 숨김) -->
-            <section id="order-section" class="hidden">
+            <!-- 2단계: 메뉴 선택 섹션 (처음에는 숨김) -->
+            <section id="menu-section" class="hidden">
                 <h2><i class="fas fa-utensils"></i> 스타디움 메뉴</h2>
-                <div id="menu-list">
-                    <!-- 
-                        ********************************
-                        *      메뉴 수정 영역 시작        *
-                        ********************************
-                        
-                        아래와 같은 형식으로 메뉴를 추가, 수정, 삭제하세요.
-                        - data-price: 메뉴의 실제 가격 (숫자만 입력)
-                        - .menu-img: 메뉴 이미지 경로
-                        - .menu-name: 메뉴 이름
-                        - .menu-price: 표시될 메뉴 가격 (원화 표시 등)
-                        
-                        실제 메뉴
-                        - SSG 문학철판구이 25,900
-                        - NC 빙하기공룡고기 19,900원
-                        - KIA 호랑이 생고기 (기아 타이거즈 고추장 범벅) 21,900원
-                        - 라팍 김치말이국수 7,900원
-                        - 키움쫄?쫄면 5,900원
-                        - LG라면 5,900원
-                        - 롯데 자이언츠 화채 6,900원
-                        - 두산 B볶음s 8,900원
-                        - 후리카케 크봉밥 2,500
-                        - 캔음료(제로콜라, 사이다) 3,000
-                        - 물 2,000
-                        - 팀 컬러 칵테일 3,500
-                    -->
-                    <div class="menu-item" data-price="6000">
+                
+                <div class="menu-grid" id="menu-list">
+                    <!-- 메뉴 항목들 -->
+                    <div class="menu-item" data-price="25900">
                         <div class="menu-img-placeholder"><i class="fas fa-fire"></i></div>
                         <div class="menu-details">
-                            <h3 class="menu-name">NC 빙하기공룡고기</h3>
-                            <p class="menu-price">19,900원</p>
-                        </div>
-                        <div class="menu-quantity">
-                            <button class="quantity-btn minus-btn">-</button>
-                            <span class="quantity">0</span>
-                            <button class="quantity-btn plus-btn">+</button>
-                        </div>
-                    </div>
-
-                    <div class="menu-item" data-price="6000">
-                        <div class="menu-img-placeholder"><i class="fas fa-leaf"></i></div>
-                        <div class="menu-details">
-                            <h3 class="menu-name">SSG 문학철판구이</h3>
+                            <h3 class="menu-name">SSG 문학철판구이(400g)</h3>
                             <p class="menu-price">25,900원</p>
                         </div>
                         <div class="menu-quantity">
@@ -139,10 +502,23 @@
                         </div>
                     </div>
 
-                    <div class="menu-item" data-price="8000">
-                        <div class="menu-img-placeholder"><i class="fas fa-fish"></i></div>
+                    <div class="menu-item" data-price="19900">
+                        <div class="menu-img-placeholder"><i class="fas fa-drumstick-bite"></i></div>
                         <div class="menu-details">
-                            <h3 class="menu-name">KIA 호랑이 생고기 (기아 타이거즈 고추장 범벅)</h3>
+                            <h3 class="menu-name">NC 빙하기공룡고기(400g)</h3>
+                            <p class="menu-price">19,900원</p>
+                        </div>
+                        <div class="menu-quantity">
+                            <button class="quantity-btn minus-btn">-</button>
+                            <span class="quantity">0</span>
+                            <button class="quantity-btn plus-btn">+</button>
+                        </div>
+                    </div>
+
+                    <div class="menu-item" data-price="21900">
+                        <div class="menu-img-placeholder"><i class="fas fa-pepper-hot"></i></div>
+                        <div class="menu-details">
+                            <h3 class="menu-name">KIA 호랑이 생고기</h3>
                             <p class="menu-price">21,900원</p>
                         </div>
                         <div class="menu-quantity">
@@ -152,8 +528,8 @@
                         </div>
                     </div>
 
-                    <div class="menu-item" data-price="7000">
-                        <div class="menu-img-placeholder"><i class="fas fa-drumstick-bite"></i></div>
+                    <div class="menu-item" data-price="7900">
+                        <div class="menu-img-placeholder"><i class="fas fa-leaf"></i></div>
                         <div class="menu-details">
                             <h3 class="menu-name">라팍 김치말이국수</h3>
                             <p class="menu-price">7,900원</p>
@@ -165,8 +541,8 @@
                         </div>
                     </div>
 
-                    <div class="menu-item" data-price="5000">
-                        <div class="menu-img-placeholder"><i class="fas fa-wine-bottle"></i></div>
+                    <div class="menu-item" data-price="5900">
+                        <div class="menu-img-placeholder"><i class="fas fa-utensils"></i></div>
                         <div class="menu-details">
                             <h3 class="menu-name">키움쫄?쫄면</h3>
                             <p class="menu-price">5,900원</p>
@@ -178,10 +554,10 @@
                         </div>
                     </div>
 
-                    <div class="menu-item" data-price="6000">
-                        <div class="menu-img-placeholder"><i class="fas fa-beer"></i></div>
+                    <div class="menu-item" data-price="5900">
+                        <div class="menu-img-placeholder"><i class="fas fa-bowl-hot"></i></div>
                         <div class="menu-details">
-                            <h3 class="menu-name">LG라면</h3>
+                            <h3 class="menu-name">LG라ㄹ면</h3>
                             <p class="menu-price">5,900원</p>
                         </div>
                         <div class="menu-quantity">
@@ -191,7 +567,7 @@
                         </div>
                     </div>
 
-                    <div class="menu-item" data-price="3000">
+                    <div class="menu-item" data-price="6900">
                         <div class="menu-img-placeholder"><i class="fas fa-glass-whiskey"></i></div>
                         <div class="menu-details">
                             <h3 class="menu-name">롯데 자이언츠 화채</h3>
@@ -203,10 +579,11 @@
                             <button class="quantity-btn plus-btn">+</button>
                         </div>
                     </div>
-                                        <div class="menu-item" data-price="7000">
-                        <div class="menu-img-placeholder"><i class="fas fa-drumstick-bite"></i></div>
+
+                    <div class="menu-item" data-price="8900">
+                        <div class="menu-img-placeholder"><i class="fas fa-fire"></i></div>
                         <div class="menu-details">
-                            <h3 class="menu-name">두산 B볶음s</h3>
+                            <h3 class="menu-name">두산 B볶rs</h3>
                             <p class="menu-price">8,900원</p>
                         </div>
                         <div class="menu-quantity">
@@ -216,10 +593,10 @@
                         </div>
                     </div>
 
-                    <div class="menu-item" data-price="5000">
-                        <div class="menu-img-placeholder"><i class="fas fa-wine-bottle"></i></div>
+                    <div class="menu-item" data-price="2500">
+                        <div class="menu-img-placeholder"><i class="fas fa-bowl-rice"></i></div>
                         <div class="menu-details">
-                            <h3 class="menu-name">후리카케 크봉밥</h3>
+                            <h3 class="menu-name">후리카케크봉밥</h3>
                             <p class="menu-price">2,500원</p>
                         </div>
                         <div class="menu-quantity">
@@ -229,10 +606,10 @@
                         </div>
                     </div>
 
-                    <div class="menu-item" data-price="6000">
-                        <div class="menu-img-placeholder"><i class="fas fa-beer"></i></div>
+                    <div class="menu-item" data-price="3000">
+                        <div class="menu-img-placeholder"><i class="fas fa-wine-bottle"></i></div>
                         <div class="menu-details">
-                            <h3 class="menu-name">캔음료(제로콜라, 사이다)</h3>
+                            <h3 class="menu-name">제로콜라</h3>
                             <p class="menu-price">3,000원</p>
                         </div>
                         <div class="menu-quantity">
@@ -241,8 +618,22 @@
                             <button class="quantity-btn plus-btn">+</button>
                         </div>
                     </div>
-                                        <div class="menu-item" data-price="7000">
-                        <div class="menu-img-placeholder"><i class="fas fa-drumstick-bite"></i></div>
+
+                    <div class="menu-item" data-price="3000">
+                        <div class="menu-img-placeholder"><i class="fas fa-wine-bottle"></i></div>
+                        <div class="menu-details">
+                            <h3 class="menu-name">사이다</h3>
+                            <p class="menu-price">3,000원</p>
+                        </div>
+                        <div class="menu-quantity">
+                            <button class="quantity-btn minus-btn">-</button>
+                            <span class="quantity">0</span>
+                            <button class="quantity-btn plus-btn">+</button>
+                        </div>
+                    </div>
+
+                    <div class="menu-item" data-price="2000">
+                        <div class="menu-img-placeholder"><i class="fas fa-tint"></i></div>
                         <div class="menu-details">
                             <h3 class="menu-name">물</h3>
                             <p class="menu-price">2,000원</p>
@@ -254,10 +645,10 @@
                         </div>
                     </div>
 
-                    <div class="menu-item" data-price="5000">
-                        <div class="menu-img-placeholder"><i class="fas fa-wine-bottle"></i></div>
+                    <div class="menu-item" data-price="3500">
+                        <div class="menu-img-placeholder"><i class="fas fa-cocktail"></i></div>
                         <div class="menu-details">
-                            <h3 class="menu-name">팀 컬러 칵테일</h3>
+                            <h3 class="menu-name">포도맛 (두산/KT/롯데/LG/키움) 칵테일</h3>
                             <p class="menu-price">3,500원</p>
                         </div>
                         <div class="menu-quantity">
@@ -266,56 +657,94 @@
                             <button class="quantity-btn plus-btn">+</button>
                         </div>
                     </div>
-                    <!-- 
-                        ********************************
-                        *       메뉴 수정 영역 끝         *
-                        ********************************
-                    -->
+                    <div class="menu-item" data-price="3500">
+                        <div class="menu-img-placeholder"><i class="fas fa-cocktail"></i></div>
+                        <div class="menu-details">
+                            <h3 class="menu-name">자몽맛 (한화/SSG/기아) 칵테일</h3>
+                            <p class="menu-price">3,500원</p>
+                        </div>
+                        <div class="menu-quantity">
+                            <button class="quantity-btn minus-btn">-</button>
+                            <span class="quantity">0</span>
+                            <button class="quantity-btn plus-btn">+</button>
+                        </div>
+                    </div>
+                    <div class="menu-item" data-price="3500">
+                        <div class="menu-img-placeholder"><i class="fas fa-cocktail"></i></div>
+                        <div class="menu-details">
+                            <h3 class="menu-name">소다맛 (NC/삼성) 칵테일</h3>
+                            <p class="menu-price">3,500원</p>
+                        </div>
+                        <div class="menu-quantity">
+                            <button class="quantity-btn minus-btn">-</button>
+                            <span class="quantity">0</span>
+                            <button class="quantity-btn plus-btn">+</button>
+                        </div>
+                    </div>
                 </div>
 
-                <h2><i class="fas fa-shopping-cart"></i> 주문 내역</h2>
-                <div id="cart">
-                    <ul id="cart-items">
-                        <!-- 장바구니에 담긴 메뉴가 여기에 추가됩니다. -->
-                    </ul>
-                    <p>총 금액: <span id="total-price">0</span>원</p>
+                <!-- 주문 요약 섹션 -->
+                <div class="order-summary">
+                    <h3><i class="fas fa-shopping-cart"></i> 주문 내역</h3>
+                    <div id="cart-items">
+                        <p style="text-align: center; color: #666; padding: 2rem;">
+                            선택한 메뉴가 여기에 표시됩니다.
+                        </p>
+                    </div>
+                    <div class="total-price">
+                        총 금액: <span id="total-price">0</span>원
                 </div>
 
-                <h2><i class="fas fa-credit-card"></i> 결제 정보</h2>
-                <div id="payment-info">
-                    <div class="account-info">
-                        <h3><i class="fas fa-university"></i> 계좌이체 정보</h3>
+                    <div class="payment-info">
+                        <h4><i class="fas fa-university"></i> 계좌이체 정보</h4>
+                        <div class="account-details">
                         <p><strong>은행:</strong> 신한은행</p>
                         <p><strong>계좌번호:</strong> 110-123-456789</p>
                         <p><strong>예금주:</strong> 소프트웨어융합대학 학생회</p>
                         <p class="notice">* 주문 후 위 계좌로 이체해주세요</p>
                     </div>
-                    <input type="text" id="customer-name" placeholder="입금자명을 입력하세요 (반드시 이체할 이름으로!)">
+                    </div>
+                    
+                    <div class="customer-info">
+                        <label for="customer-name">
+                            <i class="fas fa-user"></i> 입금자명:
+                        </label>
+                        <input type="text" id="customer-name" placeholder="입금자명을 입력하세요" required>
+                    </div>
+                    
+                    <button id="place-order-btn" class="place-order-btn">
+                        <i class="fas fa-credit-card"></i> 주문하기
+                    </button>
                 </div>
-
-                <button id="place-order-btn"><i class="fas fa-baseball-ball"></i> 주문하기</button>
             </section>
         </main>
     </div>
 
-    <!-- Firebase SDK (v8) -->
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-    
-    <!-- Firebase 설정 및 앱 로직 -->
-    <script src="js/firebase-config.js"></script>
-    <script src="js/config.js"></script>
+    <!-- 3단계: 코드 입력 모달 -->
+    <div id="code-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-lock"></i> 주문 확인</h3>
+                <button id="modal-close-btn" class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>주문을 완료하려면 접속 코드를 입력해주세요.</p>
+                <div class="code-input-group">
+                    <input type="text" id="code-input" placeholder="접속 코드 입력" maxlength="10">
+                    <button id="verify-btn" class="verify-btn">
+                        <i class="fas fa-check"></i> 접속하기
+                    </button>
+                </div>
+                <div id="code-error" class="error-message hidden">
+                    정상처리되지않았습니다. 다시 시도해주세요.
+                </div>
+                <div id="code-loading" class="loading-message hidden">
+                    <i class="fas fa-spinner fa-spin"></i> 주문 처리 중...
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script type="module" src="js/app.js"></script>
-
-    <!-- order.html의 body 마지막 스크립트 로드 순서 (게이트 js 추가) -->
-    <script src="js/firebase-config.js"></script>
-    <script src="js/config.js"></script>
-
-    <!-- 게이트 전용(일반 스크립트) -->
-    <script src="js/session-gate.js" defer></script>
-
-    <!-- 기존: 앱 로직(ES Module) -->
-    <script type="module" src="js/app.js"></script>
-    
 </body>
 </html>

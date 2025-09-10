@@ -94,11 +94,15 @@ export async function openSessionBySlug(slug, codeFromUser) {
 // 주문 생성
 export async function createOrder({ order_type, payer_name, items }) {
   await waitForRuntime();
-  const headers = sessionHeaders();
-  const body    = JSON.stringify({ order_type, payer_name, items });
-  console.log('[createOrder] POST /orders', { headers, body });
+  
+  // 배포 서버와 로컬 서버 구분
+  const isLocal = API_BASE.includes('localhost');
+  const headers = isLocal ? sessionHeaders() : { 'Content-Type': 'application/json' };
+  
+  const body = JSON.stringify({ order_type, payer_name, items });
+  console.log('[createOrder] POST /orders', { API_BASE, isLocal, headers, body });
 
-  const res  = await fetch(`${API_BASE}/orders`, { method: 'POST', headers, body });
+  const res = await fetch(`${API_BASE}/orders`, { method: 'POST', headers, body });
   const text = await res.text();
   let data = {};
   try { data = JSON.parse(text); } catch(e) {}
@@ -125,4 +129,40 @@ export async function getUserOrderDetails(orderId) {
     throw new Error(data?.message || '주문 조회 실패');
   }
   return data;
+}
+
+// 공용 메뉴 조회
+export async function getPublicMenu() {
+  await waitForRuntime();
+  const res = await fetch(`${API_BASE}/menu`, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+  });
+  const text = await res.text();
+  let data = {};
+  try { data = JSON.parse(text); } catch(e) {}
+  console.log('[getPublicMenu]', res.status, text);
+
+  if (!res.ok || !data?.success) {
+    throw new Error(data?.message || '메뉴 조회 실패');
+  }
+  return data?.data || [];
+}
+
+// 인기 메뉴 Top N 조회
+export async function getTopMenu(count = 3) {
+  await waitForRuntime();
+  const res = await fetch(`${API_BASE}/menu/top?count=${count}`, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+  });
+  const text = await res.text();
+  let data = {};
+  try { data = JSON.parse(text); } catch(e) {}
+  console.log('[getTopMenu]', res.status, text);
+
+  if (!res.ok || !data?.success) {
+    throw new Error(data?.message || '인기 메뉴 조회 실패');
+  }
+  return data?.data || [];
 }
