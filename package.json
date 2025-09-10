@@ -5,7 +5,9 @@
   "main": "test-api-server.js",
   "scripts": {
     "start": "node test-api-server.js",
-    "dev": "nodemon test-api-server.js"
+    "dev": "nodemon test-api-server.js",
+    "build": "next build",
+    "lint": "next lint"
   },
   "dependencies": {
     "cors": "^2.8.5",
