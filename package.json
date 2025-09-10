@@ -18,7 +18,10 @@
     "react-dom": "^19.1.1"
   },
   "devDependencies": {
-    "nodemon": "^3.0.1"
+    "@types/node": "24.3.1",
+    "@types/react": "19.1.12",
+    "nodemon": "^3.0.1",
+    "typescript": "5.9.2"
   },
   "keywords": [
     "restaurant",
