@@ -181,18 +181,16 @@ export async function ensureTable(label, active = true) {
  * ----------------------------- */
 export async function getActiveOrders() {
   await waitForRuntime();
-  const url = apiUrl('/admin/orders/active');
+  const url = apiUrl('/orders/active'); // ← 여기만 바뀜
   const res = await fetch(url, { headers: adminHeaders() });
-  const { data } = await parseJsonSafe(res);
-  if (!res.ok || !data?.success) throw new Error(data?.message || `주문 로드 실패 (${res.status})`);
-  return data;
+  const { data, text } = await parseJsonSafe(res);
+  console.log('[getActiveOrders]', url, res.status, text);
+  if (!res.ok || !data?.success) {
+    throw new Error(data?.message || `주문 로드 실패 (${res.status})`);
+  }
+  return data; // { data: { urgent, waiting, preparing }, meta: ... }
 }
 
-/* -----------------------------
- *  관리자용 주문 상세 (경로 호환)
- *  1차: /admin/orders/:id
- *  2차: /orders/admin/:id  (서버가 이렇게 줄 수도 있어 폴백)
- * ----------------------------- */
 export async function getOrderDetails(orderId) {
   await waitForRuntime();
   if (!isTokenValid()) {
