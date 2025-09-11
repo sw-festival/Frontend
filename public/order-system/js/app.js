@@ -1,6 +1,6 @@
 // public/order-system/js/app.js
 import './config.js';
-import { createOrder, openSessionBySlug, getUserOrderDetails, getPublicMenu, getTopMenu } from './api-session.js';
+import { createOrder, openSessionBySlug, getPublicMenu, getTopMenu } from './api-session.js';
 import { PRODUCT_ID_MAP } from './product-map.js';
 import { Tokens } from './tokens.js';
 
