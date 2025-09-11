@@ -77,8 +77,9 @@ export async function openSessionBySlug(slug, codeFromUser) {
   try { data = JSON.parse(text); } catch(e) {}
 
   console.log('[openSessionBySlug]', res.status, url, text);
-
+  
   // 상태별 메시지 보정
+  if (res.status === 401) {Tokens.clearSession?.(); throw new Error(data?.message || '세션 만료. 코드를 다시 입력해주세요.');}
   if (!res.ok || !data?.success) {
     if (res.status === 422) throw new Error('접속 코드가 올바르지 않습니다.');
     if (res.status === 404) throw new Error('테이블을 찾을 수 없거나 비활성 상태입니다.');

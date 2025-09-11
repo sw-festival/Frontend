@@ -6,11 +6,25 @@ import { Tokens } from './tokens.js';
 document.addEventListener('DOMContentLoaded', () => {
     console.log('🚀 MEMORY 주점 주문 시스템 시작');
     
-    // URL 파라미터 확인
-    const url = new URL(location.href);
-    const slug = url.searchParams.get('slug');
+    // URL/경로에서 slug 추출
+    function extractSlug() {
+        const { pathname, href } = window.location;
+        const m = pathname.match(/\/t\/([^/?#]+)/);           // /t/Ez6Xbp or /t/Ez6Xbp/
+        const fromPath = m ? decodeURIComponent(m[1]) : null;
+
+        if (fromPath) return fromPath.replace(/^:/, '').trim();
+
+        const sp = new URL(href).searchParams;
+        const fromQuery = sp.get('slug');
+
+        if (fromQuery) return fromQuery.replace(/^:/, '').trim();
+
+        return (window.RUNTIME?.DEFAULT_SLUG || '').trim();
+    }
+
+    const slug = extractSlug();
     console.log('Slug 파라미터:', slug);
-    
+
     // DOM 요소들
     const orderTypeSection = document.getElementById('order-type-section');
     const menuSection = document.getElementById('menu-section');
@@ -153,9 +167,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // 주문하기 버튼 클릭 (2단계 → 3단계 모달)
     if (placeOrderBtn) {
-        placeOrderBtn.addEventListener('click', () => {
-            console.log('2단계 → 3단계 모달 표시');
-            
+        placeOrderBtn.addEventListener('click', async () => {
+            console.log('2단계 → 3단계 주문 시도');
+
             // 유효성 검사
             if (Object.keys(cart).length === 0) {
                 alert('메뉴를 선택해주세요.');
@@ -167,16 +181,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 customerNameInput.focus();
                 return;
             }
-            
-            // 모달 표시
-            showCodeModal();
+
+            // 슬러그 유무 검사
+            if (!slug) {
+                alert('슬러그 정보가 없습니다. /t/{slug} 주소로 접속해주세요.');
+                return;
+            }
+
+            // 토큰 유무로 분기
+            if (!Tokens.getSession?.()) {
+                // 최초 사용자: 코드 입력 필수
+                showCodeModal();
+                return;
+            }
+            // 토큰 보유자: 바로 주문
+            await placeOrderWithExistingSession();
         });
     }
     
     // ========================================
     // 3단계: 코드 입력 모달
     // ========================================
-    
+
     // 모달 표시
     function showCodeModal() {
         codeModal.classList.remove('hidden');
@@ -233,7 +259,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             
-            console.log('코드 검증 및 주문 처리 시작:', code);
+            console.log('코드 검증 및 세션 열기 시작:', code);
             
             isProcessing = true;
             hideModalMessages();
@@ -241,29 +267,22 @@ document.addEventListener('DOMContentLoaded', () => {
             verifyBtn.disabled = true;
             
             try {
-                // 배포 서버와 로컬 서버 구분
-                const isLocal = window.RUNTIME.API_BASE.includes('localhost');
-                
-                // 1. 세션 열기 (로컬 서버이고 slug가 있는 경우만)
-                if (isLocal && slug) {
-                    console.log('로컬 서버 - 세션 열기 시도:', slug);
-                    await openSessionBySlug(slug, code);
-                    console.log('세션 열기 성공');
-                } else if (!isLocal) {
-                    console.log('배포 서버 - 세션 토큰 없이 주문 진행');
-                    // 배포 서버에서는 코드 검증만 수행
-                    if (code !== window.RUNTIME.SESSION_OPEN_CODE) {
-                        throw new Error('접속 코드가 올바르지 않습니다.');
-                    }
-                }
+                if (!slug) throw new Error('테이블(슬러그) 정보가 없습니다. /t/{slug} 형태로 접속해주세요.');
+                // 1. 항상 세션 먼저 열기 (성공 시 토큰이 저장됨)
+                await openSessionBySlug(slug, code);
+                const tokenPreview = (Tokens.getSession?.() || '').slice(0, 12);
+                console.log('세션 열기 성공, token=', tokenPreview ? tokenPreview + '...' : '(없음)');
                 
                 // 2. 주문 데이터 준비
                 const orderData = prepareOrderData();
                 console.log('주문 데이터 준비 완료:', orderData);
                 
-                // 3. 주문 생성
+                // 3. 모달 닫고 주문 생성(즉시 진행)
+                codeLoading.classList.add('hidden');
+                hideCodeModal();
                 const result = await createOrder(orderData);
                 console.log('주문 생성 성공:', result);
+
                 
                 // 4. 성공 처리
                 handleOrderSuccess(result.data.order_id);
@@ -287,7 +306,33 @@ document.addEventListener('DOMContentLoaded', () => {
     // ========================================
     // 유틸리티 함수들
     // ========================================
-    
+    async function placeOrderWithExistingSession() {
+        try {
+            if (isProcessing) return;
+            isProcessing = true;
+
+            const orderData = prepareOrderData();
+            console.log('주문 데이터 준비 완료:', orderData);
+
+            const result = await createOrder(orderData);
+            console.log('주문 생성 성공:', result);
+
+            handleOrderSuccess(result.data.order_id);
+        } catch (e) {
+            console.error('주문 실패:', e);
+            const msg = String(e?.message || e);
+            // 세션 만료/부재 시 재인증 유도
+            if (msg.includes('세션') || msg.includes('401') || msg.toLowerCase().includes('token')) {
+            Tokens.clearSession?.();
+            showCodeModal();
+            return;
+            }
+            alert('주문 중 오류가 발생했습니다: ' + msg);
+        } finally {
+            isProcessing = false;
+        }
+    }
+
     // 인기 메뉴 로드 (API 기반)
     async function loadPopularMenus() {
         try {
@@ -504,7 +549,9 @@ document.addEventListener('DOMContentLoaded', () => {
         alert('주문이 성공적으로 완료되었습니다!');
         
         // 대기 페이지로 이동
-        const waitingUrl = `waiting.html?orderId=${orderId}`;
+        const waitingUrl = `/waiting.html?orderId=${orderId}`;
+        // slug 포함이 필요하면 아래 주석 해제
+        // const waitingUrl = `/waiting.html?orderId=${orderId}&slug=${encodeURIComponent(slug)}`;
         console.log('대기 페이지로 이동:', waitingUrl);
         window.location.href = waitingUrl;
     }
