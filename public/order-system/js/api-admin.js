@@ -191,33 +191,25 @@ export async function getActiveOrders() {
   return data; // { data: { urgent, waiting, preparing }, meta: ... }
 }
 
+// 관리자 주문 상세
 export async function getOrderDetails(orderId) {
   await waitForRuntime();
   if (!isTokenValid()) {
     clearAdminSession();
     throw new Error('로그인이 필요합니다. 다시 로그인해주세요.');
   }
-
-  // 1차 시도
-  let url = apiUrl(`/admin/orders/${orderId}`);
-  let res = await fetch(url, { method: 'GET', headers: adminHeaders() });
-
-  // 404면 폴백 경로도 시도
-  if (res.status === 404) {
-    url = apiUrl(`/orders/admin/${orderId}`);
-    res = await fetch(url, { method: 'GET', headers: adminHeaders() });
-  }
-
+  const url = apiUrl(`/orders/admin/${orderId}`);
+  const res = await fetch(url, { method: 'GET', headers: adminHeaders() });
+  const { data, text } = await parseJsonSafe(res);
+  console.log('[getOrderDetails]', url, res.status, text);
   if (res.status === 401) {
     clearAdminSession();
     throw new Error('인증이 만료되었습니다. 다시 로그인해주세요.');
   }
-
-  const { data } = await parseJsonSafe(res);
   if (!res.ok || !data?.success) {
     throw new Error(data?.message || `주문 조회 실패 (${res.status})`);
   }
-  return data?.data || data;
+  return data?.data || data; // 백엔드 포맷 대응
 }
 
 /* -----------------------------
@@ -225,37 +217,25 @@ export async function getOrderDetails(orderId) {
  *  1차: /admin/orders/:id/status
  *  2차: /orders/:id/status
  * ----------------------------- */
+// 주문 상태 변경
 export async function patchOrderStatus(orderId, action, reason) {
   await waitForRuntime();
   if (!isTokenValid()) {
     clearAdminSession();
     throw new Error('로그인이 필요합니다. 다시 로그인해주세요.');
   }
-
-  // 1차 시도
-  let url = apiUrl(`/admin/orders/${orderId}/status`);
-  let res = await fetch(url, {
-    method: 'PATCH',
+  const url = apiUrl(`/orders/${orderId}/status`);
+  const res = await fetch(url, {
+    method: 'POST', // ✅ 서버 명세에 맞춰 POST
     headers: adminHeaders(),
     body: JSON.stringify({ action, reason }),
   });
-
-  // 404면 폴백
-  if (res.status === 404) {
-    url = apiUrl(`/orders/${orderId}/status`);
-    res = await fetch(url, {
-      method: 'PATCH',
-      headers: adminHeaders(),
-      body: JSON.stringify({ action, reason }),
-    });
-  }
-
+  const { data, text } = await parseJsonSafe(res);
+  console.log('[patchOrderStatus]', url, res.status, text);
   if (res.status === 401) {
     clearAdminSession();
     throw new Error('인증이 만료되었습니다. 다시 로그인해주세요.');
   }
-
-  const { data } = await parseJsonSafe(res);
   if (!res.ok || !data?.success) {
     throw new Error(data?.message || `상태 변경 실패 (${res.status})`);
   }
