@@ -1,60 +1,98 @@
-import './config.js'; // ← RUNTIME을 제일 먼저 준비
+import './config.js';
 import { createOrder, openSessionBySlug, getUserOrderDetails, getPublicMenu, getTopMenu } from './api-session.js';
 import { PRODUCT_ID_MAP } from './product-map.js';
 import { Tokens } from './tokens.js';
 
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('🚀 MEMORY 주점 주문 시스템 시작');
+  console.log('🚀 MEMORY 주점 주문 시스템 시작');
 
-    // 0) 상태 변수들 — 가장 먼저 선언
-    let orderType = 'dine-in'; // 기본값: 매장 이용
-    let discountRate = 0; // 할인율 (포장시 0.1)
-    const cart = {}; // 장바구니
-    let isProcessing = false; // 주문 처리 중 플래그
+  // 0) 상태
+  let orderType = 'dine-in';
+  let discountRate = 0;
+  const cart = {};
+  let isProcessing = false;
 
-    // 1) 1단계 → 2단계 전환 함수 (호이스팅 이슈 피하려고 먼저 선언)
-    function goToMenuStep(type) {
-        const headerTitle = document.querySelector('header h1');
-        if (headerTitle) {
-        headerTitle.innerHTML = (type === 'takeout')
-            ? `<i class="fas fa-shopping-bag"></i> 포장 주문 (10% 할인)`
-            : `<i class="fas fa-utensils"></i> 매장 이용`;
-        }
-        const dineInBtn  = document.getElementById('dine-in-btn');
-        const takeoutBtn = document.getElementById('takeout-btn');
-        if (dineInBtn && takeoutBtn) {
-        if (type === 'takeout') { takeoutBtn.classList.add('selected'); dineInBtn.classList.remove('selected'); }
-        else { dineInBtn.classList.add('selected'); takeoutBtn.classList.remove('selected'); }
-        }
-        const orderTypeSection = document.getElementById('order-type-section');
-        const menuSection = document.getElementById('menu-section');
-        if (orderTypeSection) orderTypeSection.classList.add('hidden');
-        if (menuSection) menuSection.classList.remove('hidden');
-        console.log('타입 자동결정으로 메뉴 단계 진입:', type);
+  // ── slug 유형 로더 (캐시)
+  let _slugTypes;
+  async function getSlugTypes() {
+    if (_slugTypes) return _slugTypes;
+    const url = window.RUNTIME?.SLUG_TYPES_URL || '/order-system/data/slug-types.json';
+    try {
+      const res = await fetch(url, { cache: 'no-store' });
+      const json = await res.json();
+      _slugTypes = {
+        takeout: new Set(json.takeout || []),
+        dinein:  new Set(json.dinein  || [])
+      };
+    } catch (e) {
+      console.warn('[slug-types] load failed, fallback dine-in', e);
+      _slugTypes = { takeout: new Set(), dinein: new Set() };
     }
+    return _slugTypes;
+  }
 
-    // 2) slug 추출 → 주문 유형 자동 결정
-    function extractSlug() {
-        const { pathname, href } = window.location;
-        const m = pathname.match(/\/t\/([^/?#]+)/);
-        const fromPath = m ? decodeURIComponent(m[1]) : null;
-        if (fromPath) return fromPath.replace(/^:/, '').trim();
-        const sp = new URL(href).searchParams;
-        const fromQuery = sp.get('slug');
-        if (fromQuery) return fromQuery.replace(/^:/, '').trim();
-        return (window.RUNTIME?.DEFAULT_SLUG || '').trim();
+  async function resolveOrderTypeBySlug(slug) {
+    const types = await getSlugTypes();
+    if (types.takeout.has(slug)) return 'takeout';
+    if (types.dinein.has(slug))  return 'dine-in';
+    return 'dine-in';
+  }
+
+  // 1) 화면 전환
+  function goToMenuStep(type) {
+    const headerTitle = document.querySelector('header h1');
+    if (headerTitle) {
+      headerTitle.innerHTML = (type === 'takeout')
+        ? `<i class="fas fa-shopping-bag"></i> 포장 주문 (10% 할인)`
+        : `<i class="fas fa-utensils"></i> 매장 이용`;
     }
-    const slug = extractSlug();
-    console.log('Slug:', slug);
+    const dineInBtn  = document.getElementById('dine-in-btn');
+    const takeoutBtn = document.getElementById('takeout-btn');
+    if (dineInBtn && takeoutBtn) {
+      if (type === 'takeout') { takeoutBtn.classList.add('selected'); dineInBtn.classList.remove('selected'); }
+      else { dineInBtn.classList.add('selected'); takeoutBtn.classList.remove('selected'); }
+    }
+    const orderTypeSection = document.getElementById('order-type-section');
+    const menuSection = document.getElementById('menu-section');
+    if (orderTypeSection) orderTypeSection.classList.add('hidden');
+    if (menuSection) menuSection.classList.remove('hidden');
+    console.log('타입 자동결정으로 메뉴 단계 진입:', type);
+  }
 
-    const TAKEOUT_SET = new Set(window.RUNTIME?.TAKEOUT_SLUGS || []);
-    const isTakeoutBySlug = !!slug && TAKEOUT_SET.has(slug);
-    orderType = isTakeoutBySlug ? 'takeout' : 'dine-in';
-    discountRate = isTakeoutBySlug ? 0.1 : 0;
+  // 2) slug 추출
+  function extractSlug() {
+    const { pathname, href } = window.location;
+    const m = pathname.match(/\/t\/([^/?#]+)/);
+    const fromPath = m ? decodeURIComponent(m[1]) : null;
+    if (fromPath) return fromPath.replace(/^:/, '').trim();
+    const sp = new URL(href).searchParams;
+    const fromQuery = sp.get('slug');
+    if (fromQuery) return fromQuery.replace(/^:/, '').trim();
+    return (window.RUNTIME?.DEFAULT_SLUG || '').trim();
+  }
+  const slug = extractSlug();
+  console.log('Slug:', slug);
 
-    // 3) 1단계 스킵하고 바로 메뉴 화면
+  // 3) 주문유형 결정 → 이후 단계 진행
+  (async () => {
+    const cfgSet = new Set(window.RUNTIME?.TAKEOUT_SLUGS || []);
+    if (cfgSet.size > 0) {
+      // 우선 RUNTIME 배열이 있으면 그걸로 결정
+      orderType = (slug && cfgSet.has(slug)) ? 'takeout' : 'dine-in';
+    } else {
+      // 없으면 JSON로 비동기 결정
+      orderType = await resolveOrderTypeBySlug(slug);
+    }
+    discountRate = (orderType === 'takeout') ? 0.1 : 0;
+
+    // 여기서 화면 진입
     goToMenuStep(orderType);
+
+    // 이후 초기 로드들
+    loadPopularMenus();
+    loadDynamicMenus();
     
+    // DOM 요소들
     const orderTypeSection = document.getElementById('order-type-section');
     const menuSection = document.getElementById('menu-section');
     const codeModal = document.getElementById('code-modal');
@@ -74,12 +112,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalCloseBtn = document.getElementById('modal-close-btn');
     const codeError = document.getElementById('code-error');
     const codeLoading = document.getElementById('code-loading');
-    
-    // 인기 메뉴 로드
-    loadPopularMenus();
-    
-    // 메뉴 동적 로드 (선택적)
-    loadDynamicMenus();
     
     // ========================================
     // 1단계: 주문 방식 선택
@@ -597,4 +629,5 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     console.log('주문 시스템 초기화 완료');
+});
 });

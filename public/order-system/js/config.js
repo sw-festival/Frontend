@@ -5,8 +5,8 @@
     API_BASE: isLocal ? 'http://localhost:3000' : 'https://api.limswoo.shop', // 운영 도메인
     SESSION_OPEN_CODE: 'sC2mj4Kgp',      
 
-    // 포장 전용 슬러그 (CSV 기반으로 빌드시 주입 추천)
-    TAKEOUT_SLUGS: ['Ez6ZXz'],
+    // 슬러그 정보 가져올 URL 
+    SLUG_TYPES_URL: '/order-system/data/slug-types.json',
 
     USE_FIREBASE_READ: true,
     USE_FIREBASE_WRITE_MIRROR: true,
