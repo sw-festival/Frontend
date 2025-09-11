@@ -536,35 +536,202 @@ document.addEventListener('DOMContentLoaded', async () => {
   requestNotificationPermission();
 
   // 2) 슬러그 발급(ensure) 버튼 연결
-  if (ensureBtn) {
-    ensureBtn.addEventListener('click', async () => {
-      if (!ensureResult) return;
-      ensureResult.textContent = '';
-      const label  = (ensureLabelInput?.value || '').trim();
-      const active = !!(ensureActiveCheck?.checked);
-      if (!label) {
-        ensureResult.textContent = '라벨을 입력하세요 (예: A-10)';
-        return;
-      }
-      try {
-        // api-admin.js의 ensureTable 사용 (구현 시그니처: ensureTable(label, active))
-        const data = await ensureTable(label, active);
-        const slug = data?.table?.slug;
-        // QR URL은 배포 구성에 맞춰 선택
-        const FRONT_BASE = window.RUNTIME?.FRONT_BASE || location.origin;
-        // const qrUrl = `${FRONT_BASE}/t/${slug}`; // Next rewrites 사용 시
-        const qrUrl = `${FRONT_BASE}/order-system/order.html?slug=${slug}`; // 정적 직접 접근 시
+  // if (ensureBtn) {
+  //   ensureBtn.addEventListener('click', async () => {
+  //     if (!ensureResult) return;
+  //     ensureResult.textContent = '';
+  //     const label  = (ensureLabelInput?.value || '').trim();
+  //     const active = !!(ensureActiveCheck?.checked);
+  //     if (!label) {
+  //       ensureResult.textContent = '라벨을 입력하세요 (예: A-10)';
+  //       return;
+  //     }
+  //     try {
+  //       // api-admin.js의 ensureTable 사용 (구현 시그니처: ensureTable(label, active))
+  //       const data = await ensureTable(label, active);
+  //       const slug = data?.table?.slug;
+  //       // QR URL은 배포 구성에 맞춰 선택
+  //       const FRONT_BASE = window.RUNTIME?.FRONT_BASE || location.origin;
+  //       // const qrUrl = `${FRONT_BASE}/t/${slug}`; // Next rewrites 사용 시
+  //       const qrUrl = `${FRONT_BASE}/order-system/order.html?slug=${slug}`; // 정적 직접 접근 시
 
-        ensureResult.innerHTML =
-          `✅ 발급 완료<br>
-           • Table: <b>${data.table.label}</b><br>
-           • Slug: <code>${slug}</code><br>
-           • QR URL: <a href="${qrUrl}" target="_blank">${qrUrl}</a>`;
-      } catch (e) {
-        ensureResult.textContent = '발급 실패: ' + (e?.message || '알 수 없는 오류');
+  //       ensureResult.innerHTML =
+  //         `✅ 발급 완료<br>
+  //          • Table: <b>${data.table.label}</b><br>
+  //          • Slug: <code>${slug}</code><br>
+  //          • QR URL: <a href="${qrUrl}" target="_blank">${qrUrl}</a>`;
+  //     } catch (e) {
+  //       ensureResult.textContent = '발급 실패: ' + (e?.message || '알 수 없는 오류');
+  //     }
+  //   });
+  // }
+  
+  // ====== 렌더링 대상 컨테이너 ======
+  const $dash = document.getElementById('admin-dashboard');
+
+  function renderBuckets(urgent=[], waiting=[], preparing=[], meta={}) {
+    if (!$dash) return;
+
+    const section = (title, list) => `
+      <section class="bucket">
+        <h3>${title} <small>(${list.length})</small></h3>
+        <div class="bucket-list">
+          ${list.map(renderCard).join('') || '<div class="empty">비어있음</div>'}
+        </div>
+      </section>
+    `;
+
+    $dash.innerHTML = `
+      <div class="buckets">
+        ${section('🚨 긴급', urgent)}
+        ${section('🕒 대기중', waiting)}
+        ${section('👨‍🍳 준비중', preparing)}
+      </div>
+    `;
+
+    // 간단 스타일(없으면 추가)
+    if (!document.getElementById('admin-inline-style')) {
+      const style = document.createElement('style');
+      style.id = 'admin-inline-style';
+      style.textContent = `
+        .buckets{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+        .bucket{background:#fff;border-radius:12px;padding:12px;box-shadow:0 8px 24px rgba(0,0,0,.08)}
+        .bucket h3{margin:0 0 8px}
+        .card{border:1px solid #eee;border-radius:10px;padding:10px;margin-bottom:10px}
+        .card .meta{font-size:12px;color:#666;margin:4px 0}
+        .card .btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+        .card button{padding:6px 10px;border-radius:8px;border:0;background:#1a5490;color:#fff;cursor:pointer}
+        .card button.secondary{background:#888}
+        .card button.danger{background:#c0392b}
+        .empty{color:#aaa;padding:8px;text-align:center}
+      `;
+      document.head.appendChild(style);
+    }
+  }
+
+  function renderCard(o) {
+    // o: { id, status, table, payer_name, placed_at }
+    const statusK = mapStatusK(o.status);
+    const tableLabel = o.table?.label || (o.table || '') || (o.orderType === 'takeout' ? '포장' : '-');
+    const placedAt = o.placed_at ? new Date(o.placed_at).toLocaleTimeString() : '';
+
+    // 상태별 버튼
+    const btns = [];
+    if (o.status === 'PENDING') {
+      btns.push(`<button data-act="confirm" data-id="${o.id}">💳 입금 확인</button>`);
+    }
+    if (o.status === 'CONFIRMED') {
+      btns.push(`<button data-act="start_preparing" data-id="${o.id}">👨‍🍳 조리 시작</button>`);
+    }
+    if (o.status === 'IN_PROGRESS') {
+      btns.push(`<button data-act="complete" data-id="${o.id}">✅ 완료</button>`);
+    }
+    // 항상 노출
+    btns.push(`<button class="secondary" data-act="detail" data-id="${o.id}">🔍 상세</button>`);
+
+    return `
+      <div class="card" id="order-${o.id}">
+        <div><b>#${o.id}</b> · ${tableLabel} · ${o.payer_name || ''}</div>
+        <div class="meta">${statusK}${placedAt ? ' · ' + placedAt : ''}</div>
+        <div class="btns">${btns.join('')}</div>
+      </div>
+    `;
+  }
+
+  function mapStatusK(s) {
+    switch (s) {
+      case 'PENDING':     return '💰 입금 대기';
+      case 'CONFIRMED':   return '💳 입금 확인됨';
+      case 'IN_PROGRESS': return '👨‍🍳 준비중';
+      case 'COMPLETED':   return '✅ 완료';
+      case 'CANCELLED':   return '⛔ 취소';
+      default:            return s || '';
+    }
+  }
+
+  // ====== 클릭 이벤트 위임: 상태 변경 & 상세 ======
+  if ($dash) {
+    $dash.addEventListener('click', async (e) => {
+      const btn = e.target.closest('button[data-act]');
+      if (!btn) return;
+      const act = btn.getAttribute('data-act');
+      const id  = Number(btn.getAttribute('data-id'));
+      if (!id) return;
+
+      try {
+        if (act === 'detail') {
+          const d = await getOrderDetails(id); // /orders/admin/{id}
+          alert(detailText(d));
+          return;
+        }
+        // 상태 변경
+        await patchOrderStatus(id, act);       // confirm | start_preparing | complete
+        // 성공 후 목록 갱신
+        await loadActiveOrders();
+      } catch (err) {
+        alert(err?.message || '요청 실패');
       }
     });
   }
+
+  function detailText(d) {
+    // d 예시: { id, status, table:{label}, payer_name, amounts, items:[...] ... }
+    const lines = [];
+    lines.push(`주문 #${d.id} (${mapStatusK(d.status)})`);
+    if (d.table?.label) lines.push(`테이블: ${d.table.label}`);
+    if (d.payer_name)   lines.push(`입금자: ${d.payer_name}`);
+    if (d.amounts?.total != null) lines.push(`합계: ${Number(d.amounts.total).toLocaleString()}원`);
+    if (Array.isArray(d.items) && d.items.length) {
+      lines.push('품목:');
+      d.items.forEach(it => {
+        lines.push(` - ${it.name || it.product_id} x${it.qty} (${Number(it.line_total).toLocaleString()}원)`);
+      });
+    }
+    return lines.join('\n');
+  }
+
+  // ====== 로딩/갱신 로직 교체 ======
+  async function loadActiveOrders() {
+    try {
+      console.log('📊 진행중 주문 데이터 로드 중...');
+      const resp = await getActiveOrders(); // { data:{urgent,waiting,preparing}, meta }
+      const { urgent = [], waiting = [], preparing = [] } = resp.data || {};
+      const meta = resp.meta || {};
+      renderBuckets(urgent, waiting, preparing, meta);
+      console.log(`✅ 활성 주문 로드 완료: ${(meta.total) ?? (urgent.length + waiting.length + preparing.length)}건`);
+    } catch (err) {
+      console.error('❌ 주문 데이터 로드 실패:', err);
+      if ($dash) $dash.innerHTML = '<p>주문 데이터를 불러오는데 실패했습니다.</p>';
+    }
+  }
+
+  // ====== SSE 연결: 스냅샷은 즉시 렌더, 변경 신호 오면 재로딩 ======
+  (async () => {
+    try {
+      await createOrderStream(
+        (type, payload) => {
+          if (type === 'snapshot') {
+            const { data: { urgent=[], waiting=[], preparing=[] } = {}, meta = {} } = payload || {};
+            renderBuckets(urgent, waiting, preparing, meta);
+          } else if (type === 'orders_changed') {
+            loadActiveOrders(); // 변경 시 API로 최신화
+          } else if (type === 'ping') {
+            // keepalive
+          }
+        },
+        (err) => {
+          console.warn('SSE 오류, 폴백으로 폴링 유지:', err?.message || err);
+        }
+      );
+    } catch (e) {
+      console.warn('SSE 연결 실패, 폴링 사용');
+    }
+  })();
+
+  // 초기 1회 로드 + 폴링 백업
+  loadActiveOrders();
+  setInterval(loadActiveOrders, 30000);
+
 
   // 3) (선택) 대시보드 내부 상태 변경 액션을 patch API로 연결
   //    createOrderCard가 상태 변경 select/button을 렌더링한다면, 아래처럼 이벤트 위임으로 처리

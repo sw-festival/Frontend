@@ -181,7 +181,7 @@ export async function ensureTable(label, active = true) {
  * ----------------------------- */
 export async function getActiveOrders() {
   await waitForRuntime();
-  const url = apiUrl('/orders/active'); // ← 여기만 바뀜
+  const url = apiUrl('/orders/active');
   const res = await fetch(url, { headers: adminHeaders() });
   const { data, text } = await parseJsonSafe(res);
   console.log('[getActiveOrders]', url, res.status, text);
@@ -335,76 +335,75 @@ export async function getAdminMenu() {
  *  ⚠️ 브라우저 EventSource는 헤더 설정 불가 → 토큰은 쿼리로 전달 필요
  *  서버가 ?token=... 지원 안하면 폴링으로 폴백
  * ----------------------------- */
+// ✅ text/event-stream fetch 폴리필
 export function createOrderStream(onMessage, onError) {
   return new Promise(async (resolve, reject) => {
     await waitForRuntime();
-
-    // 토큰 체크
     if (!isTokenValid()) {
-      clearAdminSession();
       const err = new Error('로그인이 필요합니다. 다시 로그인해주세요.');
-      if (onError) onError(err);
+      onError?.(err);
       return reject(err);
     }
-
-    const rawToken = getAdminToken().replace(/^Bearer\s+/i,'');
-    const sseUrlPrimary = apiUrl('/admin/sse/orders/stream', { token: rawToken }); // 권장
-    const sseUrlFallback = apiUrl('/sse/orders/stream',       { token: rawToken }); // 폴백
-
-    let es;
+    const url = apiUrl('/sse/orders/stream'); // 문서 기준 경로
     try {
-      // 1차 시도
-      es = new EventSource(sseUrlPrimary, { withCredentials: false });
-      wire(es);
-      resolve(es);
-    } catch (e1) {
-      console.warn('SSE 1차 연결 실패, 폴백 시도:', e1);
-      try {
-        es = new EventSource(sseUrlFallback, { withCredentials: false });
-        wire(es);
-        resolve(es);
-      } catch (e2) {
-        console.error('SSE 폴백도 실패, 폴링으로 전환:', e2);
-        startPolling(onMessage);
-        resolve({ close: () => clearInterval(window.__ADMIN_POLL_TIMER__) });
-      }
-    }
-
-    function wire(eventSource) {
-      eventSource.onopen = () => console.log('✅ SSE 연결 성공');
-      eventSource.onerror = (err) => {
-        console.error('❌ SSE 오류:', err);
-        if (onError) onError(err);
-      };
-
-      // 스냅샷
-      eventSource.addEventListener('snapshot', (ev) => {
-        try { onMessage && onMessage('snapshot', JSON.parse(ev.data)); }
-        catch(e){ console.error('snapshot parse error', e); }
-      });
-      // 변경 이벤트
-      eventSource.addEventListener('orders_changed', (ev) => {
-        try { onMessage && onMessage('orders_changed', JSON.parse(ev.data)); }
-        catch(e){ console.error('orders_changed parse error', e); }
-      });
-      // 핑
-      eventSource.addEventListener('ping', (ev) => {
-        onMessage && onMessage('ping', ev.data);
-      });
-    }
-
-    function startPolling(cb) {
-      // 10초 폴링
-      const poll = async () => {
-        try {
-          const data = await getActiveOrders(); // { data:{urgent,waiting,preparing}, meta }
-          cb && cb('snapshot', data);
-        } catch (e) {
-          onError && onError(e);
+      const res = await fetch(url, {
+        method: 'GET',
+        headers: {
+          ...adminHeaders(),
+          'Accept': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
         }
+      });
+      if (!res.ok || !res.body) throw new Error(`SSE 연결 실패 (${res.status})`);
+
+      const reader  = res.body.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let buffer = '';
+
+      const parseBlock = (block) => {
+        let event = 'message';
+        const dataLines = [];
+        block.split('\n').forEach(line => {
+          const l = line.trim();
+          if (l.startsWith('event:')) event = l.slice(6).trim();
+          else if (l.startsWith('data:')) dataLines.push(l.slice(5).trim());
+        });
+        return { event, data: dataLines.join('\n') };
       };
-      poll();
-      window.__ADMIN_POLL_TIMER__ = setInterval(poll, 10_000);
+
+      (async function pump() {
+        try {
+          while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+
+            let idx;
+            while ((idx = buffer.indexOf('\n\n')) >= 0) {
+              const raw = buffer.slice(0, idx).trim();
+              buffer = buffer.slice(idx + 2);
+              if (!raw) continue;
+
+              const evt = parseBlock(raw);
+              if (evt.event === 'snapshot') {
+                try { onMessage?.('snapshot', JSON.parse(evt.data)); } catch {}
+              } else if (evt.event === 'orders_changed') {
+                try { onMessage?.('orders_changed', JSON.parse(evt.data)); } catch {}
+              } else if (evt.event === 'ping') {
+                onMessage?.('ping', evt.data);
+              }
+            }
+          }
+        } catch (err) {
+          onError?.(err);
+        }
+      })();
+
+      resolve({ close: () => reader.cancel() });
+    } catch (e) {
+      onError?.(e);
+      reject(e);
     }
   });
 }
