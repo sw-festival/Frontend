@@ -55,40 +55,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // 3) 1단계 스킵하고 바로 메뉴 화면
     goToMenuStep(orderType);
     
-    // URL/경로에서 slug 추출
-    // function extractSlug() {
-    //     const { pathname, href } = window.location;
-    //     const m = pathname.match(/\/t\/([^/?#]+)/);           // /t/Ez6Xbp or /t/Ez6Xbp/
-    //     const fromPath = m ? decodeURIComponent(m[1]) : null;
-
-    //     if (fromPath) return fromPath.replace(/^:/, '').trim();
-
-    //     const sp = new URL(href).searchParams;
-    //     const fromQuery = sp.get('slug');
-
-    //     if (fromQuery) return fromQuery.replace(/^:/, '').trim();
-
-    //     return (window.RUNTIME?.DEFAULT_SLUG || '').trim();
-    // }
-
-    // const slug = extractSlug();
-    // console.log('Slug:', slug);
-
-    // 포장 전용 여부 판단
-    // const TAKEOUT_SET = new Set(window.RUNTIME?.TAKEOUT_SLUGS || []);
-
-    // slug로 주문 유형 자동 결정
-    // const isTakeoutBySlug = slug && TAKEOUT_SET.has(slug);
-
-    // if (isTakeoutBySlug) {
-    //     orderType = 'takeout';
-    //     discountRate = 0.1;
-    // } else {
-    //     orderType = 'dine-in';
-    //     discountRate = 0;
-    // }
-
-    // DOM 요소들
     const orderTypeSection = document.getElementById('order-type-section');
     const menuSection = document.getElementById('menu-section');
     const codeModal = document.getElementById('code-modal');
@@ -300,38 +266,6 @@ document.addEventListener('DOMContentLoaded', () => {
         isProcessing = false;
         }
     }
-    // if (placeOrderBtn) {
-    //     placeOrderBtn.addEventListener('click', async () => {
-    //         console.log('2단계 → 3단계 주문 시도');
-
-    //         // 유효성 검사
-    //         if (Object.keys(cart).length === 0) {
-    //             alert('메뉴를 선택해주세요.');
-    //             return;
-    //         }
-            
-    //         if (!customerNameInput.value.trim()) {
-    //             alert('입금자명을 입력해주세요.');
-    //             customerNameInput.focus();
-    //             return;
-    //         }
-
-    //         // 슬러그 유무 검사
-    //         if (!slug) {
-    //             alert('슬러그 정보가 없습니다. /t/{slug} 주소로 접속해주세요.');
-    //             return;
-    //         }
-
-    //         // 토큰 유무로 분기
-    //         if (!Tokens.getSession?.()) {
-    //             // 최초 사용자: 코드 입력 필수
-    //             showCodeModal();
-    //             return;
-    //         }
-    //         // 토큰 보유자: 바로 주문
-    //         await placeOrderWithExistingSession();
-    //     });
-    // }
     
     // ========================================
     // 3단계: 코드 입력 모달
@@ -415,61 +349,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         });
     }
-
-    // if (verifyBtn) {
-    //     verifyBtn.addEventListener('click', async () => {
-    //         if (isProcessing) return;
-            
-    //         const code = codeInput.value.trim();
-    //         if (!code) {
-    //             alert('접속 코드를 입력해주세요.');
-    //             codeInput.focus();
-    //             return;
-    //         }
-            
-    //         console.log('코드 검증 및 세션 열기 시작:', code);
-            
-    //         isProcessing = true;
-    //         hideModalMessages();
-    //         codeLoading.classList.remove('hidden');
-    //         verifyBtn.disabled = true;
-            
-    //         try {
-    //             if (!slug) throw new Error('테이블(슬러그) 정보가 없습니다. /t/{slug} 형태로 접속해주세요.');
-    //             // 1. 항상 세션 먼저 열기 (성공 시 토큰이 저장됨)
-    //             await openSessionBySlug(slug, code);
-    //             const tokenPreview = (Tokens.getSession?.() || '').slice(0, 12);
-    //             console.log('세션 열기 성공, token=', tokenPreview ? tokenPreview + '...' : '(없음)');
-                
-    //             // 2. 주문 데이터 준비
-    //             const orderData = prepareOrderData();
-    //             console.log('주문 데이터 준비 완료:', orderData);
-                
-    //             // 3. 모달 닫고 주문 생성(즉시 진행)
-    //             codeLoading.classList.add('hidden');
-    //             hideCodeModal();
-    //             const result = await createOrder(orderData);
-    //             console.log('주문 생성 성공:', result);
-
-                
-    //             // 4. 성공 처리
-    //             handleOrderSuccess(result.data.order_id);
-                
-    //     } catch (error) {
-    //             console.error('주문 처리 실패:', error);
-                
-    //             // 에러 메시지 표시
-    //             codeLoading.classList.add('hidden');
-    //             codeError.classList.remove('hidden');
-                
-    //             // 모달은 닫지 않고 유지
-                
-    //         } finally {
-    //             isProcessing = false;
-    //             verifyBtn.disabled = false;
-    //         }
-    //     });
-    // }
     
     // ========================================
     // 유틸리티 함수들
@@ -698,26 +577,6 @@ document.addEventListener('DOMContentLoaded', () => {
         items
         };
     }
-
-    // function prepareOrderData() {
-    //     const items = Object.values(cart).map(item => {
-    //         const productId = PRODUCT_ID_MAP[item.name];
-    //         if (!productId) {
-    //             throw new Error(`상품 ID를 찾을 수 없습니다: ${item.name}`);
-    //         }
-            
-    //         return {
-    //             product_id: productId,
-    //             quantity: item.quantity
-    //         };
-    //     });
-
-    //     return {
-    //         order_type: orderType === 'dine-in' ? 'DINE_IN' : 'TAKEOUT',
-    //         payer_name: customerNameInput.value.trim(),
-    //         items: items
-    //     };
-    // }
     
     // 주문 성공 처리
     function handleOrderSuccess(orderId) {
