@@ -23,13 +23,41 @@
                 </div>
             </div>
 
-            <section style="margin:16px 0; padding:12px; border:1px solid #ddd; border-radius:8px;">
-            <h3>주문 번호로 조회/확정</h3>
-            <form id="order-search-form" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-                <input id="order-search-id" type="number" placeholder="주문 번호 입력 (예: 123)" min="1" required />
-                <button type="submit">조회</button>
-            </form>
-            <div id="order-inspect" style="margin-top:12px;"></div>
+            <!-- 주문 관리 섹션 -->
+            <section style="margin:16px 0; padding:16px; border:2px solid #3498db; border-radius:8px; background-color:#f8f9fa;">
+                <h3><i class="fas fa-search"></i> 주문 조회 및 상태 관리</h3>
+                <p style="color:#666; margin-bottom:12px;">주문 번호를 입력하여 주문을 조회하고 상태를 변경할 수 있습니다.</p>
+                
+                <!-- 주문 플로우 표시 -->
+                <div style="background:white; padding:12px; border-radius:6px; margin-bottom:16px; border-left:4px solid #3498db;">
+                    <h4 style="margin:0 0 8px 0; color:#2c3e50;"><i class="fas fa-route"></i> 주문 처리 플로우</h4>
+                    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:0.9em;">
+                        <span style="padding:4px 8px; background:#f39c12; color:white; border-radius:12px; font-weight:bold;">💰 PENDING</span>
+                        <i class="fas fa-arrow-right" style="color:#666;"></i>
+                        <span style="padding:4px 8px; background:#27ae60; color:white; border-radius:12px; font-weight:bold;">💳 CONFIRMED</span>
+                        <i class="fas fa-arrow-right" style="color:#666;"></i>
+                        <span style="padding:4px 8px; background:#3498db; color:white; border-radius:12px; font-weight:bold;">👨‍🍳 IN_PROGRESS</span>
+                        <i class="fas fa-arrow-right" style="color:#666;"></i>
+                        <span style="padding:4px 8px; background:#2ecc71; color:white; border-radius:12px; font-weight:bold;">🍽️ SERVED</span>
+                        <div style="margin-left:16px; color:#e74c3c; font-weight:bold;">
+                            <i class="fas fa-times-circle"></i> CANCELED (언제든지 가능)
+                        </div>
+                    </div>
+                </div>
+                
+                <form id="order-search-form" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:16px;">
+                    <input id="order-search-id" type="number" placeholder="주문 번호 입력 (예: 123)" min="1" required style="padding:8px; border:1px solid #ddd; border-radius:4px; min-width:200px;" />
+                    <button type="submit" style="padding:8px 16px; background:#3498db; color:white; border:none; border-radius:4px; cursor:pointer;">
+                        <i class="fas fa-search"></i> 조회
+                    </button>
+                </form>
+                
+                <div id="order-inspect" style="margin-top:12px;">
+                    <div style="text-align:center; color:#666; padding:20px; border:1px dashed #ddd; border-radius:8px;">
+                        <i class="fas fa-info-circle" style="font-size:2em; margin-bottom:8px;"></i><br>
+                        주문 번호를 입력하고 조회 버튼을 클릭하세요.
+                    </div>
+                </div>
             </section>
 
             <div class="baseball-scoreboard">

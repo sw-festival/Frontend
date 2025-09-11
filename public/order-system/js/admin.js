@@ -186,9 +186,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     switch (s) {
       case 'PENDING':     return '💰 입금 대기';
       case 'CONFIRMED':   return '💳 입금 확인됨';
-      case 'IN_PROGRESS': return '👨‍🍳 준비중';
-      case 'COMPLETED':   return '✅ 완료';
-      case 'CANCELLED':   return '⛔ 취소';
+      case 'IN_PROGRESS': return '👨‍🍳 조리중';
+      case 'SERVED':      return '🍽️ 서빙 완료';
+      case 'CANCELED':    return '❌ 취소됨';
       default:            return s || '';
     }
   }
@@ -200,9 +200,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     const placedAt = o.placed_at ? new Date(o.placed_at).toLocaleTimeString() : '';
 
     const btns = [];
-    if (o.status === 'PENDING')     btns.push(`<button data-act="confirm" data-id="${o.id}">💳 입금 확인</button>`);
-    if (o.status === 'CONFIRMED')   btns.push(`<button data-act="start_preparing" data-id="${o.id}">👨‍🍳 조리 시작</button>`);
-    if (o.status === 'IN_PROGRESS') btns.push(`<button data-act="complete" data-id="${o.id}">✅ 완료</button>`);
+    if (o.status === 'PENDING') {
+      btns.push(`<button data-act="confirm" data-id="${o.id}">💳 입금 확인</button>`);
+      btns.push(`<button data-act="cancel" data-id="${o.id}" class="danger">❌ 취소</button>`);
+    }
+    if (o.status === 'CONFIRMED') {
+      btns.push(`<button data-act="start_preparing" data-id="${o.id}">👨‍🍳 조리 시작</button>`);
+      btns.push(`<button data-act="cancel" data-id="${o.id}" class="danger">❌ 취소</button>`);
+    }
+    if (o.status === 'IN_PROGRESS') {
+      btns.push(`<button data-act="serve" data-id="${o.id}">🍽️ 서빙 완료</button>`);
+      btns.push(`<button data-act="cancel" data-id="${o.id}" class="danger">❌ 취소</button>`);
+    }
     btns.push(`<button class="secondary" data-act="detail" data-id="${o.id}">🔍 상세</button>`);
 
     return `
@@ -233,6 +242,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         ${section('👨‍🍳 준비중', preparing)}
       </div>
     `;
+
+    // 통계 업데이트
+    updateStats(urgent.length + waiting.length + preparing.length, 0, preparing.length, 0, meta);
 
     // 인라인 스타일 1회 주입
     if (!document.getElementById('admin-inline-style')) {
@@ -302,12 +314,239 @@ document.addEventListener('DOMContentLoaded', async () => {
   loadActiveOrders();
   startPolling(30000);
 
+
+  /* ============ 주문 조회 및 상태 관리 ============ */
+  
+  const orderSearchForm = document.getElementById('order-search-form');
+  const orderSearchId = document.getElementById('order-search-id');
+  const orderInspect = document.getElementById('order-inspect');
+
+  if (orderSearchForm && orderSearchId && orderInspect) {
+    orderSearchForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const orderId = parseInt(orderSearchId.value);
+      if (!orderId) {
+        showError('주문 번호를 입력하세요.');
+        return;
+      }
+
+      showLoading();
+
+      try {
+        const orderData = await getOrderDetails(orderId);
+        const order = orderData?.id ? orderData : (orderData?.data || orderData);
+        
+        if (!order || !order.id) {
+          showError(`주문 #${orderId}를 찾을 수 없습니다.`);
+          return;
+        }
+
+        renderOrderCard(order);
+
+      } catch (err) {
+        if (handleAuthError(err)) return;
+        console.error('주문 조회 실패:', err);
+        showError(`주문 조회 실패: ${err?.message || '알 수 없는 오류'}`);
+      }
+    });
+  }
+
+  // 로딩 표시
+  function showLoading() {
+    orderInspect.innerHTML = `
+      <div style="text-align:center; color:#666; padding:20px;">
+        <i class="fas fa-spinner fa-spin" style="font-size:2em; margin-bottom:8px;"></i><br>
+        주문 정보를 조회하고 있습니다...
+      </div>
+    `;
+  }
+
+  // 에러 표시
+  function showError(message) {
+    orderInspect.innerHTML = `
+      <div style="text-align:center; color:#e74c3c; padding:20px; border:1px solid #e74c3c; border-radius:8px; background:#fdf2f2;">
+        <i class="fas fa-exclamation-triangle" style="font-size:2em; margin-bottom:8px;"></i><br>
+        ${message}
+      </div>
+    `;
+  }
+
+  // 주문 카드 렌더링
+  function renderOrderCard(order) {
+    const status = order.status;
+    const createdTime = order.created_at ? new Date(order.created_at).toLocaleString('ko-KR') : '시간 정보 없음';
+    const tableLabel = order.table?.label || '테이블 정보 없음';
+    const total = order.amounts?.total ? Number(order.amounts.total).toLocaleString() : '0';
+    
+    const itemsHtml = (order.items || [])
+      .map(item => `<li>${item.name || item.product_id} × ${item.qty}개 = ${Number(item.line_total || 0).toLocaleString()}원</li>`)
+      .join('');
+
+    // 상태별 버튼 생성
+    const actionButtons = getActionButtons(order);
+
+    orderInspect.innerHTML = `
+      <div style="border:2px solid ${getStatusColor(status)}; padding:20px; border-radius:12px; background:white; box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+          <div>
+            <h3 style="margin:0; color:#2c3e50;">주문 #${order.id}</h3>
+            <span style="display:inline-block; margin-top:4px; padding:4px 12px; border-radius:20px; font-size:0.9em; font-weight:bold; background:${getStatusColor(status)}; color:white;">
+              ${mapStatusK(status)}
+            </span>
+          </div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            ${actionButtons}
+            <button onclick="location.reload()" style="background:#95a5a6; color:white; border:none; padding:8px 12px; border-radius:6px; cursor:pointer;">
+              <i class="fas fa-sync"></i> 새로고침
+            </button>
+          </div>
+        </div>
+        
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:16px; margin-bottom:16px; padding:16px; background:#f8f9fa; border-radius:8px;">
+          <div>
+            <div style="margin-bottom:8px;"><i class="fas fa-table" style="color:#3498db;"></i> <strong>테이블:</strong> ${tableLabel}</div>
+            <div><i class="fas fa-user" style="color:#27ae60;"></i> <strong>입금자:</strong> ${order.payer_name || '정보 없음'}</div>
+          </div>
+          <div>
+            <div style="margin-bottom:8px;"><i class="fas fa-won-sign" style="color:#f39c12;"></i> <strong>합계:</strong> ${total}원</div>
+            <div><i class="fas fa-clock" style="color:#9b59b6;"></i> <strong>주문시간:</strong> ${createdTime}</div>
+          </div>
+        </div>
+        
+        <div>
+          <h4 style="margin:0 0 12px 0; color:#2c3e50;"><i class="fas fa-list"></i> 주문 항목</h4>
+          <ul style="margin:0; padding:16px; background:#ffffff; border:1px solid #ecf0f1; border-radius:8px; list-style:none;">
+            ${itemsHtml ? itemsHtml.replace(/<li>/g, '<li style="padding:4px 0; border-bottom:1px solid #ecf0f1;">').replace(/(<li[^>]*>)([^<]+)/g, '$1<i class="fas fa-utensils" style="color:#e67e22; margin-right:8px;"></i>$2') : '<li style="text-align:center; color:#95a5a6;">항목 없음</li>'}
+          </ul>
+        </div>
+      </div>
+    `;
+
+    // 버튼 이벤트 바인딩
+    bindActionButtons(order.id);
+  }
+
+  // 상태별 액션 버튼 생성
+  function getActionButtons(order) {
+    const status = order.status;
+    const orderId = order.id;
+    
+    switch (status) {
+      case 'PENDING':
+        return `
+          <button data-action="confirm" data-id="${orderId}" style="background:#27ae60; color:white; border:none; padding:8px 16px; border-radius:6px; cursor:pointer; font-weight:bold; margin-right:8px;">
+            <i class="fas fa-check-circle"></i> 입금 확인
+          </button>
+          <button data-action="cancel" data-id="${orderId}" style="background:#e74c3c; color:white; border:none; padding:8px 16px; border-radius:6px; cursor:pointer; font-weight:bold;">
+            <i class="fas fa-times-circle"></i> 주문 취소
+          </button>
+        `;
+      
+      case 'CONFIRMED':
+        return `
+          <button data-action="start_preparing" data-id="${orderId}" style="background:#3498db; color:white; border:none; padding:8px 16px; border-radius:6px; cursor:pointer; font-weight:bold; margin-right:8px;">
+            <i class="fas fa-utensils"></i> 조리 시작
+          </button>
+          <button data-action="cancel" data-id="${orderId}" style="background:#e74c3c; color:white; border:none; padding:8px 16px; border-radius:6px; cursor:pointer; font-weight:bold;">
+            <i class="fas fa-times-circle"></i> 주문 취소
+          </button>
+        `;
+      
+      case 'IN_PROGRESS':
+        return `
+          <button data-action="serve" data-id="${orderId}" style="background:#2ecc71; color:white; border:none; padding:8px 16px; border-radius:6px; cursor:pointer; font-weight:bold; margin-right:8px;">
+            <i class="fas fa-concierge-bell"></i> 서빙 완료
+          </button>
+          <button data-action="cancel" data-id="${orderId}" style="background:#e74c3c; color:white; border:none; padding:8px 16px; border-radius:6px; cursor:pointer; font-weight:bold;">
+            <i class="fas fa-times-circle"></i> 주문 취소
+          </button>
+        `;
+      
+      case 'SERVED':
+        return `<span style="color:#2ecc71; font-weight:bold; font-size:1.1em;"><i class="fas fa-check-double"></i> 서빙 완료된 주문</span>`;
+      
+      case 'CANCELED':
+        return `<span style="color:#e74c3c; font-weight:bold; font-size:1.1em;"><i class="fas fa-ban"></i> 취소된 주문</span>`;
+      
+      default:
+        return '';
+    }
+  }
+
+  // 액션 버튼 이벤트 바인딩
+  function bindActionButtons(orderId) {
+    const actionButtons = orderInspect.querySelectorAll('button[data-action]');
+    
+    actionButtons.forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const action = btn.getAttribute('data-action');
+        const id = parseInt(btn.getAttribute('data-id'));
+        
+        if (id !== orderId) return;
+        
+        try {
+          // 취소 액션인 경우 확인 받기
+          if (action === 'cancel') {
+            const confirmMessage = `주문 #${id}를 취소하시겠습니까?\n\n이 작업은 되돌릴 수 없습니다.`;
+            if (!confirm(confirmMessage)) {
+              return;
+            }
+          }
+          
+          // 버튼 비활성화
+          btn.disabled = true;
+          const originalText = btn.innerHTML;
+          btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 처리중...';
+          
+          // 상태 변경 API 호출
+          await patchOrderStatus(id, action);
+          
+          // 성공 시 활성 주문 목록 새로고침
+          await loadActiveOrders();
+          
+          // 현재 주문 정보 다시 조회
+          orderSearchForm.dispatchEvent(new Event('submit'));
+          
+          // 성공 메시지
+          const actionMessages = {
+            'confirm': '입금이 확인되었습니다.',
+            'start_preparing': '조리를 시작합니다.',
+            'serve': '서빙이 완료되었습니다.',
+            'cancel': '주문이 취소되었습니다.'
+          };
+          
+          console.log(`✅ 주문 #${id}: ${actionMessages[action] || '상태 변경 완료'}`);
+          
+        } catch (err) {
+          if (handleAuthError(err)) return;
+          alert(`상태 변경 실패: ${err?.message || '알 수 없는 오류'}`);
+          
+          // 에러 시 버튼 복원
+          btn.disabled = false;
+          btn.innerHTML = originalText;
+        }
+      });
+    });
+  }
+
+  // 상태별 색상 반환
+  function getStatusColor(status) {
+    switch (status) {
+      case 'PENDING': return '#f39c12';      // 주황색 - 입금 대기
+      case 'CONFIRMED': return '#27ae60';    // 초록색 - 입금 확인됨
+      case 'IN_PROGRESS': return '#3498db';  // 파란색 - 조리중
+      case 'SERVED': return '#2ecc71';       // 밝은 초록 - 서빙 완료
+      case 'CANCELED': return '#e74c3c';     // 빨간색 - 취소됨
+      default: return '#95a5a6';             // 회색 - 기타
+    }
+  }
+
   /* ============ 카드 버튼 액션 위임 ============ */
   if ($dash) {
     $dash.addEventListener('click', async (e) => {
       const btn = e.target.closest('button[data-act]');
       if (!btn) return;
-      const act = btn.getAttribute('data-act');         // confirm | start_preparing | complete | detail
+      const act = btn.getAttribute('data-act');         // confirm | start_preparing | serve | cancel | detail
       const id  = Number(btn.getAttribute('data-id'));
       if (!id) return;
 
@@ -318,8 +557,30 @@ document.addEventListener('DOMContentLoaded', async () => {
           alert(detailText(od));
           return;
         }
+        
+        // 취소 액션인 경우 확인 받기
+        if (act === 'cancel') {
+          const confirmMessage = `주문 #${id}를 취소하시겠습니까?\n\n이 작업은 되돌릴 수 없습니다.`;
+          if (!confirm(confirmMessage)) {
+            return;
+          }
+        }
+        
         await patchOrderStatus(id, act); // 상태 변경
         await loadActiveOrders();
+        
+        // 성공 메시지
+        const actionMessages = {
+          'confirm': '입금이 확인되었습니다.',
+          'start_preparing': '조리를 시작합니다.',
+          'serve': '서빙이 완료되었습니다.',
+          'cancel': '주문이 취소되었습니다.'
+        };
+        
+        if (actionMessages[act]) {
+          console.log(`✅ 주문 #${id}: ${actionMessages[act]}`);
+        }
+        
       } catch (err) {
         if (handleAuthError(err)) return;
         alert(err?.message || '요청 실패');
@@ -338,6 +599,23 @@ document.addEventListener('DOMContentLoaded', async () => {
       d.items.forEach(it => lines.push(` - ${it.name || it.product_id} x${it.qty} (${Number(it.line_total).toLocaleString()}원)`));
     }
     return lines.join('\n');
+  }
+
+  // 통계 업데이트 함수
+  function updateStats(totalActive, pendingCount, preparingCount, completedCount, meta) {
+    const totalOrdersEl = document.getElementById('total-orders');
+    const paymentPendingEl = document.getElementById('payment-pending-orders');
+    const pendingOrdersEl = document.getElementById('pending-orders');
+    const completedOrdersEl = document.getElementById('completed-orders');
+    const waitingTeamsEl = document.getElementById('waiting-teams');
+
+    if (totalOrdersEl) totalOrdersEl.textContent = totalActive;
+    if (paymentPendingEl) paymentPendingEl.textContent = pendingCount;
+    if (pendingOrdersEl) pendingOrdersEl.textContent = preparingCount;
+    if (completedOrdersEl) completedOrdersEl.textContent = completedCount;
+    if (waitingTeamsEl) waitingTeamsEl.textContent = totalActive;
+
+    console.log(`📊 통계 업데이트: 활성 ${totalActive}, 입금대기 ${pendingCount}, 준비중 ${preparingCount}`);
   }
 
   /* ============ 재고 UI(폴백 포함) ============ */
