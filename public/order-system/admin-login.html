@@ -56,7 +56,7 @@
 
   <!-- 실제 로그인 로직: PIN → /admin/login → JWT 저장 → admin.html 리다이렉트 -->
   <script type="module">
-    import { adminLogin } from './js/api-admin.js';
+    import { adminLogin } from '/js/api-admin.js';
 
     const waitForRuntime = () =>
       new Promise((r) => (window.RUNTIME ? r() : setTimeout(() => waitForRuntime().then(r), 10)));
@@ -91,7 +91,7 @@
 
       try {
         await waitForRuntime();
-        // ✅ 실제 백엔드 /admin/login 호출 → JWT 저장 (api-admin.js 내부)
+        // 실제 백엔드 /admin/login 호출 → JWT 저장 (api-admin.js 내부)
         await adminLogin(pin);
 
         showOk('로그인 성공! 관리자 페이지로 이동합니다...');
