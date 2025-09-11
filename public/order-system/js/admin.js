@@ -432,95 +432,25 @@ document.addEventListener('DOMContentLoaded', async () => {
       alert(`${menuName} 재고 관리 기능은 추후 구현 예정입니다.`);
     }
   }
-
-  // ===== API 기반 주문 로드 =====
-    async function loadActiveOrders() {
-        try {
-            console.log('📊 진행중 주문 데이터 로드 중...');
-            const response = await getActiveOrders();
-      const { urgent = [], waiting = [], preparing = [] } = response.data || {};
-      const meta = response.meta || {};
-            
-            // 대시보드 초기화
-      if (adminDashboard) adminDashboard.innerHTML = '';
-
-      // 모든 주문을 배열로 합치고 Firebase형태 유사객체로 변환
-      const allActive = [...urgent, ...waiting, ...preparing];
-            const ordersForDisplay = {};
-      allActive.forEach(order => {
-                ordersForDisplay[order.id] = {
-                    id: order.id,
-                    status: mapAPIStatusToFirebase(order.status),
-                    tableNumber: order.table,
-                    customerName: order.payer_name,
-                    timestamp: new Date(order.placed_at).getTime(),
-                    items: {},
-                    totalPrice: 0,
-                    orderType: 'dine-in'
-                };
-            });
-            
-      // 기존 렌더링 로직 재사용 (createOrderCard / updateStatistics / updateInventory / updateSalesDashboard 등)
-            if (Object.keys(ordersForDisplay).length > 0) {
-        // 변경 감지/알림
-        checkForNewOrders(ordersForDisplay);
-                allOrdersCache = ordersForDisplay;
-
-        const sorted = Object.entries(ordersForDisplay).sort(([, a], [, b]) => b.timestamp - a.timestamp);
-
-        if (typeof updateStatistics === 'function') updateStatistics(ordersForDisplay);
-        if (typeof updateInventory === 'function') updateInventory(ordersForDisplay);
-        if (typeof updateSalesDashboard === 'function') updateSalesDashboard(ordersForDisplay);
-
-        if (adminDashboard) {
-          for (const [, orderData] of sorted) {
-            if (typeof createOrderCard === 'function') {
-              const card = createOrderCard(orderData.id, orderData);
-              adminDashboard.appendChild(card);
-            } else {
-              // 카드 생성 함수가 없다면 최소 표시
-              const div = document.createElement('div');
-              div.className = 'order-card';
-              div.textContent = `#${orderData.id} ${orderData.customerName} (${orderData.tableNumber}) - ${getStatusDisplayText(orderData.status)}`;
-              adminDashboard.appendChild(div);
-            }
-          }
-                }
-            } else {
-        if (adminDashboard) {
-                adminDashboard.innerHTML = '<p>아직 접수된 주문이 없습니다.</p>';
-        }
-        if (typeof updateStatistics === 'function') updateStatistics({});
-        if (typeof updateInventory === 'function') updateInventory({});
-        if (typeof updateSalesDashboard === 'function') updateSalesDashboard({});
-            }
-            
-            isFirstLoad = false;
-      console.log(`✅ 활성 주문 로드 완료: ${meta.total ?? Object.keys(ordersForDisplay).length}건`);
-        } catch (error) {
-            console.error('❌ 주문 데이터 로드 실패:', error);
-      if (adminDashboard) adminDashboard.innerHTML = '<p>주문 데이터를 불러오는데 실패했습니다.</p>';
-        }
-    }
-    
   // API 상태 → Firebase 상태로 매핑
-    function mapAPIStatusToFirebase(apiStatus) {
-    switch (apiStatus) {
-      case 'CONFIRMED':  return 'Payment Confirmed';
-      case 'IN_PROGRESS':return 'Preparing';
-      case 'COMPLETED':  return 'Order Complete';
-      default:           return 'Payment Pending';
-    }
-  }
+  //   function mapAPIStatusToFirebase(apiStatus) {
+  //   switch (apiStatus) {
+  //     case 'CONFIRMED':  return 'Payment Confirmed';
+  //     case 'IN_PROGRESS':return 'Preparing';
+  //     case 'COMPLETED':  return 'Order Complete';
+  //     default:           return 'Payment Pending';
+  //   }
+  // }
+
   // Firebase 상태 → API 액션으로 매핑
-    function mapFirebaseStatusToAPIAction(firebaseStatus) {
-    switch (firebaseStatus) {
-            case 'Payment Confirmed': return 'confirm';
-      case 'Preparing':         return 'start_preparing';
-      case 'Order Complete':    return 'complete';
-      default:                  return 'confirm';
-    }
-  }
+  //   function mapFirebaseStatusToAPIAction(firebaseStatus) {
+  //   switch (firebaseStatus) {
+  //     case 'Payment Confirmed': return 'confirm';
+  //     case 'Preparing':         return 'start_preparing';
+  //     case 'Order Complete':    return 'complete';
+  //     default:                  return 'confirm';
+  //   }
+  // }
 
   // 새로고침
     function refreshOrders() {
@@ -818,7 +748,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   //    createOrderCard가 상태 변경 select/button을 렌더링한다면, 아래처럼 이벤트 위임으로 처리
   if (adminDashboard) {
     adminDashboard.addEventListener('click', async (e) => {
-      const btn = e.target.closest('[data-action][data-order-id]');
+      // const btn = e.target.closest('[data-action][data-order-id]');
       if (!btn) return;
       const orderId = Number(btn.getAttribute('data-order-id'));
       const firebaseStatus = btn.getAttribute('data-action'); // ex) 'Payment Confirmed' 등
