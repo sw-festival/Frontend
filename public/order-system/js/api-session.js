@@ -10,7 +10,15 @@ function waitForRuntime() {
 }
 
 let API_BASE = '';
-waitForRuntime().then(() => { API_BASE = window.RUNTIME.API_BASE; });
+let API_PREFIX = '';
+let BASE = '';
+
+waitForRuntime().then(() => {
+API_BASE = window.RUNTIME.API_BASE;
+API_PREFIX = window.RUNTIME.API_PREFIX ?? '/api';
+BASE = `${API_BASE}${API_PREFIX}`;
+console.log('[RUNTIME]', { API_BASE, API_PREFIX, BASE });
+});
 
 function sessionHeaders() {
   const token = Tokens.getSession?.();
@@ -40,7 +48,7 @@ export async function openSessionBySlug(slug, codeFromUser) {
     throw new Error('접속 코드를 입력해주세요.');
   }
 
-  const res  = await fetch(`${API_BASE}/sessions/open-by-slug`, {
+  const res  = await fetch(`${BASE}/sessions/open-by-slug`, {
     method: 'POST',
     headers: { 'Content-Type':'application/json', 'Accept':'application/json' },
     body: JSON.stringify({ slug, code: String(codeFromUser).trim() }),
@@ -68,29 +76,6 @@ export async function openSessionBySlug(slug, codeFromUser) {
   return data; // 호출측에서 code_verified 플래그를 세움
 }
 
-// export async function openSessionBySlug(slug, codeFromUser) {
-//   await waitForRuntime();
-//   const code = (codeFromUser ?? window.RUNTIME.SESSION_OPEN_CODE);
-//   const res  = await fetch(`${API_BASE}/sessions/open-by-slug`, {
-//     method: 'POST',
-//     headers: {'Content-Type':'application/json', 'Accept':'application/json'},
-//     body: JSON.stringify({ slug, code }),
-//   });
-
-//   const text = await res.text(); // ← 먼저 텍스트로 받아서
-//   let data = {};
-//   try { data = JSON.parse(text); } catch(e) {}
-//   console.log('[openSessionBySlug] status:', res.status, 'body:', text);
-
-//   if (!res.ok || !data?.success) {
-//     throw new Error(data?.message || `세션 열기 실패 (${res.status})`);
-//   }
-//   if (data?.data?.session_token) {
-//     Tokens.setSession(data.data.session_token);
-//   }
-//   return data;
-// }
-
 // 주문 생성
 export async function createOrder({ order_type, payer_name, items }) {
   await waitForRuntime();
@@ -100,9 +85,9 @@ export async function createOrder({ order_type, payer_name, items }) {
   const headers = isLocal ? sessionHeaders() : { 'Content-Type': 'application/json' };
   
   const body = JSON.stringify({ order_type, payer_name, items });
-  console.log('[createOrder] POST /orders', { API_BASE, isLocal, headers, body });
+  console.log('[createOrder] POST /orders', { BASE, isLocal, headers, body });
 
-  const res = await fetch(`${API_BASE}/orders`, { method: 'POST', headers, body });
+  const res = await fetch(`${BASE}/orders`, { method: 'POST', headers, body });
   const text = await res.text();
   let data = {};
   try { data = JSON.parse(text); } catch(e) {}
@@ -116,7 +101,7 @@ export async function createOrder({ order_type, payer_name, items }) {
 
 export async function getUserOrderDetails(orderId) {
   await waitForRuntime();
-  const res  = await fetch(`${API_BASE}/orders/${orderId}`, {
+  const res  = await fetch(`${BASE}/orders/${orderId}`, {
     method: 'GET',
     headers: sessionHeaders(),
   });
@@ -134,7 +119,7 @@ export async function getUserOrderDetails(orderId) {
 // 공용 메뉴 조회
 export async function getPublicMenu() {
   await waitForRuntime();
-  const res = await fetch(`${API_BASE}/menu`, {
+  const res = await fetch(`${BASE}/menu`, {
     method: 'GET',
     headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
   });
@@ -152,7 +137,7 @@ export async function getPublicMenu() {
 // 인기 메뉴 Top N 조회
 export async function getTopMenu(count = 3) {
   await waitForRuntime();
-  const res = await fetch(`${API_BASE}/menu/top?count=${count}`, {
+  const res = await fetch(`${BASE}/menu/top?count=${count}`, {
     method: 'GET',
     headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
   });
