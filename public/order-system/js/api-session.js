@@ -14,10 +14,10 @@ let API_PREFIX = '';
 let BASE = '';
 
 waitForRuntime().then(() => {
-API_BASE = window.RUNTIME.API_BASE;
-API_PREFIX = window.RUNTIME.API_PREFIX ?? '/api';
-BASE = `${API_BASE}${API_PREFIX}`;
-console.log('[RUNTIME]', { API_BASE, API_PREFIX, BASE });
+  API_BASE = window.RUNTIME.API_BASE;
+  API_PREFIX = window.RUNTIME.API_PREFIX ?? '/api';
+  BASE = `${API_BASE}${API_PREFIX}`;
+  console.log('[RUNTIME]', { API_BASE, API_PREFIX, BASE });
 });
 
 function sessionHeaders() {
