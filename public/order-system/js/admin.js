@@ -27,17 +27,12 @@ function clearClientSession() {
 }
 
 let POLL_TIMER = null;
-function stopPolling() {
-  if (POLL_TIMER) clearInterval(POLL_TIMER);
-  POLL_TIMER = null;
-}
-function startPolling(ms = 30000) {
-  if (POLL_TIMER) return;
-  POLL_TIMER = setInterval(loadActiveOrders, ms);
-}
 
 function redirectToLogin() {
-  stopPolling();
+  if (POLL_TIMER) {
+    clearInterval(POLL_TIMER);
+    POLL_TIMER = null;
+  }
   clearClientSession();
   window.location.replace(LOGIN_PATH);
 }
@@ -264,6 +259,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       `;
       document.head.appendChild(style);
     }
+  }
+
+  /* ============ 폴링 함수들 ============ */
+  function stopPolling() {
+    if (POLL_TIMER) clearInterval(POLL_TIMER);
+    POLL_TIMER = null;
+  }
+  
+  function startPolling(ms = 30000) {
+    if (POLL_TIMER) return;
+    POLL_TIMER = setInterval(loadActiveOrders, ms);
   }
 
   /* ============ 데이터 로드 ============ */
