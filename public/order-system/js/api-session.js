@@ -1,4 +1,4 @@
-// public/order-system/js/api-session.js
+import './config.js';
 import { Tokens } from './tokens.js';
 
 function waitForRuntime() {
@@ -19,6 +19,23 @@ waitForRuntime().then(() => {
   BASE = `${API_BASE}${API_PREFIX}`;
   console.log('[RUNTIME]', { API_BASE, API_PREFIX, BASE });
 });
+
+function getBase() {
+  const rt = window.RUNTIME || {};
+  const base   = rt.API_BASE || 'https://api.limswoo.shop';
+  const prefix = (rt.API_PREFIX ?? '/api'); // '' 허용
+  return `${base}${prefix}`;
+}
+
+function apiUrl(path, params) {
+  const base = getBase();
+  const url  = new URL(String(path).replace(/^\//, ''), base.endsWith('/') ? base : base + '/');
+  if (params && typeof params === 'object') {
+    Object.entries(params).forEach(([k, v]) => v != null && url.searchParams.set(k, String(v)));
+  }
+  console.debug('[apiUrl]', url.href);
+  return url.href;
+}
 
 function sessionHeaders() {
   const token = Tokens.getSession?.();
@@ -48,7 +65,8 @@ export async function openSessionBySlug(slug, codeFromUser) {
     throw new Error('접속 코드를 입력해주세요.');
   }
 
-  const res  = await fetch(`${BASE}/sessions/open-by-slug`, {
+  const url = apiUrl('/sessions/open-by-slug');
+  const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type':'application/json', 'Accept':'application/json' },
     body: JSON.stringify({ slug, code: String(codeFromUser).trim() }),
@@ -58,7 +76,7 @@ export async function openSessionBySlug(slug, codeFromUser) {
   let data = {};
   try { data = JSON.parse(text); } catch(e) {}
 
-  console.log('[openSessionBySlug] status:', res.status, 'body:', text);
+  console.log('[openSessionBySlug]', res.status, url, text);
 
   // 상태별 메시지 보정
   if (!res.ok || !data?.success) {
@@ -77,38 +95,52 @@ export async function openSessionBySlug(slug, codeFromUser) {
 }
 
 // 주문 생성
+// export async function createOrder({ order_type, payer_name, items }) {
+//   await waitForRuntime();
+  
+//   // 배포 서버와 로컬 서버 구분
+//   const isLocal = API_BASE.includes('localhost');
+//   const headers = isLocal ? sessionHeaders() : { 'Content-Type': 'application/json' };
+  
+//   const body = JSON.stringify({ order_type, payer_name, items });
+//   console.log('[createOrder] POST /orders', { BASE, isLocal, headers, body });
+
+//   const res = await fetch(`${BASE}/orders`, { method: 'POST', headers, body });
+//   const text = await res.text();
+//   let data = {};
+//   try { data = JSON.parse(text); } catch(e) {}
+//   console.log('[createOrder] status:', res.status, 'body:', text);
+
+//   if (!res.ok || !data?.success) {
+//     throw new Error(data?.message || '주문 생성 실패');
+//   }
+//   return data;
+// }
 export async function createOrder({ order_type, payer_name, items }) {
   await waitForRuntime();
-  
-  // 배포 서버와 로컬 서버 구분
-  const isLocal = API_BASE.includes('localhost');
-  const headers = isLocal ? sessionHeaders() : { 'Content-Type': 'application/json' };
-  
+  const url = apiUrl('/orders');
+  const isLocal = (window.RUNTIME?.API_BASE || '').includes('localhost');
+  const headers = isLocal ? sessionHeaders() : { 'Content-Type':'application/json','Accept':'application/json' };
   const body = JSON.stringify({ order_type, payer_name, items });
-  console.log('[createOrder] POST /orders', { BASE, isLocal, headers, body });
-
-  const res = await fetch(`${BASE}/orders`, { method: 'POST', headers, body });
-  const text = await res.text();
-  let data = {};
-  try { data = JSON.parse(text); } catch(e) {}
-  console.log('[createOrder] status:', res.status, 'body:', text);
-
-  if (!res.ok || !data?.success) {
-    throw new Error(data?.message || '주문 생성 실패');
-  }
+  console.log('[createOrder] POST', url, { headers, body });
+  const res = await fetch(url, { method:'POST', headers, body });
+  const text = await res.text(); let data={}; try{ data = JSON.parse(text) } catch(e){}
+  console.log('[createOrder] status:', res.status, text);
+  if (!res.ok || !data?.success) throw new Error(data?.message || '주문 생성 실패');
   return data;
 }
 
 export async function getUserOrderDetails(orderId) {
   await waitForRuntime();
-  const res  = await fetch(`${BASE}/orders/${orderId}`, {
+  const url = apiUrl(`/orders/${orderId}`);
+  const res = await fetch(url, {
     method: 'GET',
     headers: sessionHeaders(),
   });
   const text = await res.text();
   let data = {};
   try { data = JSON.parse(text); } catch(e) {}
-  console.log('[getUserOrderDetails]', res.status, text);
+  console.log('[getUserOrderDetails]', res.status, url, text);
 
   if (!res.ok || !data?.success) {
     throw new Error(data?.message || '주문 조회 실패');
@@ -117,37 +149,55 @@ export async function getUserOrderDetails(orderId) {
 }
 
 // 공용 메뉴 조회
+// export async function getPublicMenu() {
+//   await waitForRuntime();
+//   const res = await fetch(`${BASE}/menu`, {
+//     method: 'GET',
+//     headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+//   });
+//   const text = await res.text();
+//   let data = {};
+//   try { data = JSON.parse(text); } catch(e) {}
+//   console.log('[getPublicMenu]', res.status, text);
+
+//   if (!res.ok || !data?.success) {
+//     throw new Error(data?.message || '메뉴 조회 실패');
+//   }
+//   return data?.data || [];
+// }
 export async function getPublicMenu() {
   await waitForRuntime();
-  const res = await fetch(`${BASE}/menu`, {
-    method: 'GET',
-    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-  });
-  const text = await res.text();
-  let data = {};
-  try { data = JSON.parse(text); } catch(e) {}
-  console.log('[getPublicMenu]', res.status, text);
-
-  if (!res.ok || !data?.success) {
-    throw new Error(data?.message || '메뉴 조회 실패');
-  }
+  const url = apiUrl('/menu');
+  const res = await fetch(url, { method:'GET', headers:{ 'Content-Type':'application/json','Accept':'application/json' } });
+  const text = await res.text(); let data={}; try{ data = JSON.parse(text) } catch(e){}
+  console.log('[getPublicMenu]', url, res.status, text);
+  if (!res.ok || !data?.success) throw new Error(data?.message || '메뉴 조회 실패');
   return data?.data || [];
 }
 
 // 인기 메뉴 Top N 조회
-export async function getTopMenu(count = 3) {
-  await waitForRuntime();
-  const res = await fetch(`${BASE}/menu/top?count=${count}`, {
-    method: 'GET',
-    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-  });
-  const text = await res.text();
-  let data = {};
-  try { data = JSON.parse(text); } catch(e) {}
-  console.log('[getTopMenu]', res.status, text);
+// export async function getTopMenu(count = 3) {
+//   await waitForRuntime();
+//   const res = await fetch(`${BASE}/menu/top?count=${count}`, {
+//     method: 'GET',
+//     headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+//   });
+//   const text = await res.text();
+//   let data = {};
+//   try { data = JSON.parse(text); } catch(e) {}
+//   console.log('[getTopMenu]', res.status, text);
 
-  if (!res.ok || !data?.success) {
-    throw new Error(data?.message || '인기 메뉴 조회 실패');
-  }
+//   if (!res.ok || !data?.success) {
+//     throw new Error(data?.message || '인기 메뉴 조회 실패');
+//   }
+//   return data?.data || [];
+// }
+export async function getTopMenu(count=3) {
+  await waitForRuntime();
+  const url = apiUrl('/menu/top', { count });
+  const res = await fetch(url, { method:'GET', headers:{ 'Content-Type':'application/json','Accept':'application/json' } });
+  const text = await res.text(); let data={}; try{ data = JSON.parse(text) } catch(e){}
+  console.log('[getTopMenu]', url, res.status, text);
+  if (!res.ok || !data?.success) throw new Error(data?.message || '인기 메뉴 조회 실패');
   return data?.data || [];
 }
