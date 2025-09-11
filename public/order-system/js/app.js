@@ -5,41 +5,88 @@ import { Tokens } from './tokens.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     console.log('🚀 MEMORY 주점 주문 시스템 시작');
-    
-    // URL/경로에서 slug 추출
-    function extractSlug() {
-        const { pathname, href } = window.location;
-        const m = pathname.match(/\/t\/([^/?#]+)/);           // /t/Ez6Xbp or /t/Ez6Xbp/
-        const fromPath = m ? decodeURIComponent(m[1]) : null;
 
-        if (fromPath) return fromPath.replace(/^:/, '').trim();
+    // 0) 상태 변수들 — 가장 먼저 선언
+    let orderType = 'dine-in'; // 기본값: 매장 이용
+    let discountRate = 0; // 할인율 (포장시 0.1)
+    const cart = {}; // 장바구니
+    let isProcessing = false; // 주문 처리 중 플래그
 
-        const sp = new URL(href).searchParams;
-        const fromQuery = sp.get('slug');
-
-        if (fromQuery) return fromQuery.replace(/^:/, '').trim();
-
-        return (window.RUNTIME?.DEFAULT_SLUG || '').trim();
+    // 1) 1단계 → 2단계 전환 함수 (호이스팅 이슈 피하려고 먼저 선언)
+    function goToMenuStep(type) {
+        const headerTitle = document.querySelector('header h1');
+        if (headerTitle) {
+        headerTitle.innerHTML = (type === 'takeout')
+            ? `<i class="fas fa-shopping-bag"></i> 포장 주문 (10% 할인)`
+            : `<i class="fas fa-utensils"></i> 매장 이용`;
+        }
+        const dineInBtn  = document.getElementById('dine-in-btn');
+        const takeoutBtn = document.getElementById('takeout-btn');
+        if (dineInBtn && takeoutBtn) {
+        if (type === 'takeout') { takeoutBtn.classList.add('selected'); dineInBtn.classList.remove('selected'); }
+        else { dineInBtn.classList.add('selected'); takeoutBtn.classList.remove('selected'); }
+        }
+        const orderTypeSection = document.getElementById('order-type-section');
+        const menuSection = document.getElementById('menu-section');
+        if (orderTypeSection) orderTypeSection.classList.add('hidden');
+        if (menuSection) menuSection.classList.remove('hidden');
+        console.log('타입 자동결정으로 메뉴 단계 진입:', type);
     }
 
+    // 2) slug 추출 → 주문 유형 자동 결정
+    function extractSlug() {
+        const { pathname, href } = window.location;
+        const m = pathname.match(/\/t\/([^/?#]+)/);
+        const fromPath = m ? decodeURIComponent(m[1]) : null;
+        if (fromPath) return fromPath.replace(/^:/, '').trim();
+        const sp = new URL(href).searchParams;
+        const fromQuery = sp.get('slug');
+        if (fromQuery) return fromQuery.replace(/^:/, '').trim();
+        return (window.RUNTIME?.DEFAULT_SLUG || '').trim();
+    }
     const slug = extractSlug();
     console.log('Slug:', slug);
 
-    // 포장 전용 여부 판단
     const TAKEOUT_SET = new Set(window.RUNTIME?.TAKEOUT_SLUGS || []);
+    const isTakeoutBySlug = !!slug && TAKEOUT_SET.has(slug);
+    orderType = isTakeoutBySlug ? 'takeout' : 'dine-in';
+    discountRate = isTakeoutBySlug ? 0.1 : 0;
+
+    // 3) 1단계 스킵하고 바로 메뉴 화면
+    goToMenuStep(orderType);
+    
+    // URL/경로에서 slug 추출
+    // function extractSlug() {
+    //     const { pathname, href } = window.location;
+    //     const m = pathname.match(/\/t\/([^/?#]+)/);           // /t/Ez6Xbp or /t/Ez6Xbp/
+    //     const fromPath = m ? decodeURIComponent(m[1]) : null;
+
+    //     if (fromPath) return fromPath.replace(/^:/, '').trim();
+
+    //     const sp = new URL(href).searchParams;
+    //     const fromQuery = sp.get('slug');
+
+    //     if (fromQuery) return fromQuery.replace(/^:/, '').trim();
+
+    //     return (window.RUNTIME?.DEFAULT_SLUG || '').trim();
+    // }
+
+    // const slug = extractSlug();
+    // console.log('Slug:', slug);
+
+    // 포장 전용 여부 판단
+    // const TAKEOUT_SET = new Set(window.RUNTIME?.TAKEOUT_SLUGS || []);
 
     // slug로 주문 유형 자동 결정
-    const isTakeoutBySlug = slug && TAKEOUT_SET.has(slug);
-    if (isTakeoutBySlug) {
-        orderType = 'takeout';
-        discountRate = 0.1;
-    } else {
-        orderType = 'dine-in';
-        discountRate = 0;
-    }
+    // const isTakeoutBySlug = slug && TAKEOUT_SET.has(slug);
 
-    // 1단계 스킵하고 바로 메뉴 단계로
-    goToMenuStep(orderType);
+    // if (isTakeoutBySlug) {
+    //     orderType = 'takeout';
+    //     discountRate = 0.1;
+    // } else {
+    //     orderType = 'dine-in';
+    //     discountRate = 0;
+    // }
 
     // DOM 요소들
     const orderTypeSection = document.getElementById('order-type-section');
@@ -61,12 +108,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalCloseBtn = document.getElementById('modal-close-btn');
     const codeError = document.getElementById('code-error');
     const codeLoading = document.getElementById('code-loading');
-    
-    // 상태 변수들
-    let orderType = 'dine-in'; // 기본값: 매장 이용
-    let discountRate = 0; // 할인율 (포장시 0.1)
-    const cart = {}; // 장바구니
-    let isProcessing = false; // 주문 처리 중 플래그
     
     // 인기 메뉴 로드
     loadPopularMenus();
@@ -433,32 +474,32 @@ document.addEventListener('DOMContentLoaded', () => {
     // ========================================
     // 유틸리티 함수들
     // ========================================
-    async function placeOrderWithExistingSession() {
-        try {
-            if (isProcessing) return;
-            isProcessing = true;
+    // async function placeOrderWithExistingSession() {
+    //     try {
+    //         if (isProcessing) return;
+    //         isProcessing = true;
 
-            const orderData = prepareOrderData();
-            console.log('주문 데이터 준비 완료:', orderData);
+    //         const orderData = prepareOrderData();
+    //         console.log('주문 데이터 준비 완료:', orderData);
 
-            const result = await createOrder(orderData);
-            console.log('주문 생성 성공:', result);
+    //         const result = await createOrder(orderData);
+    //         console.log('주문 생성 성공:', result);
 
-            handleOrderSuccess(result.data.order_id);
-        } catch (e) {
-            console.error('주문 실패:', e);
-            const msg = String(e?.message || e);
-            // 세션 만료/부재 시 재인증 유도
-            if (msg.includes('세션') || msg.includes('401') || msg.toLowerCase().includes('token')) {
-            Tokens.clearSession?.();
-            showCodeModal();
-            return;
-            }
-            alert('주문 중 오류가 발생했습니다: ' + msg);
-        } finally {
-            isProcessing = false;
-        }
-    }
+    //         handleOrderSuccess(result.data.order_id);
+    //     } catch (e) {
+    //         console.error('주문 실패:', e);
+    //         const msg = String(e?.message || e);
+    //         // 세션 만료/부재 시 재인증 유도
+    //         if (msg.includes('세션') || msg.includes('401') || msg.toLowerCase().includes('token')) {
+    //         Tokens.clearSession?.();
+    //         showCodeModal();
+    //         return;
+    //         }
+    //         alert('주문 중 오류가 발생했습니다: ' + msg);
+    //     } finally {
+    //         isProcessing = false;
+    //     }
+    // }
 
     // 인기 메뉴 로드 (API 기반)
     async function loadPopularMenus() {
