@@ -4,9 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>관리자 로그인 - MEMORY 주점</title>
-  <link rel="stylesheet" href="css/baseball-theme.css" />
+  <link rel="stylesheet" href="/css/baseball-theme.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
-  <link rel="icon" type="image/png" href="icons/icon.png" />
+  <link rel="icon" type="image/png" href="/icons/icon.png" />
   <style>
     .login-container{display:flex;justify-content:center;align-items:center;min-height:100vh;background:linear-gradient(135deg,#1a5490 0%,#2c3e50 100%)}
     .login-card{background:#fff;padding:2rem;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.3);text-align:center;min-width:300px}
@@ -52,7 +52,7 @@
   </div>
 
   <!-- 설정 로딩 (window.RUNTIME 제공) -->
-  <script src="js/config.js"></script>
+  <script src="/js/config.js"></script>
 
   <!-- 실제 로그인 로직: PIN → /admin/login → JWT 저장 → admin.html 리다이렉트 -->
   <script type="module">
@@ -69,8 +69,8 @@
 
     // 이미 로그인했다면 관리자 페이지로
     if (sessionStorage.getItem('admin_logged_in') === 'true' &&
-        (sessionStorage.getItem('admin_token') || localStorage.getItem('accesstoken'))) {
-      window.location.href = '/order-system/admin.html';
+      (sessionStorage.getItem('admin_token') || localStorage.getItem('accesstoken'))) {
+      window.location.href = '/admin';
     }
 
     const showErr = (m) => { errEl.textContent = m; errEl.style.display = 'block'; okEl.style.display = 'none'; };
@@ -96,7 +96,7 @@
 
         showOk('로그인 성공! 관리자 페이지로 이동합니다...');
         setTimeout(() => {
-          window.location.href = '/order-system/admin.html';
+          window.location.href = '/admin';
         }, 600);
       } catch (err) {
         console.error(err);
