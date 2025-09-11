@@ -565,7 +565,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   //     }
   //   });
   // }
-  
+
   // ====== 렌더링 대상 컨테이너 ======
   const $dash = document.getElementById('admin-dashboard');
 
@@ -648,6 +648,87 @@ document.addEventListener('DOMContentLoaded', async () => {
       default:            return s || '';
     }
   }
+
+  // ===== 주문번호 단건 조회/확정 UI =====
+  (function wireSingleOrderInspect() {
+    const $form = document.getElementById('order-search-form');
+    const $input = document.getElementById('order-search-id');
+    const $inspect = document.getElementById('order-inspect');
+
+    if (!$form || !$input || !$inspect) return;
+
+    const renderInspect = (od) => {
+      if (!od || !od.id) {
+        return `<div class="empty">주문을 찾을 수 없습니다.</div>`;
+      }
+      const status = String(od.status || '').toUpperCase();
+      const isPending = status === 'PENDING';
+      const itemsHtml = (od.items || [])
+        .map(i => `<li>${i.name} × ${i.qty} = ${Number(i.line_total||0).toLocaleString()}원</li>`)
+        .join('');
+
+      return `
+        <div class="card" style="border:1px solid #ddd;padding:12px;border-radius:8px;">
+          <div><b>#${od.id}</b> · ${od.table?.label || '-'} · ${od.payer_name || '-'}</div>
+          <div style="color:#555;">상태: ${status}</div>
+          <div style="color:#555;">합계: ${Number(od.amounts?.total||0).toLocaleString()}원</div>
+          <div style="margin-top:8px;">
+            <ul style="margin:0;padding-left:18px;">${itemsHtml || '<li>항목 없음</li>'}</ul>
+          </div>
+          <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
+            ${isPending
+              ? `<button class="btn-confirm" data-id="${od.id}">💳 입금확인(Confirm)</button>`
+              : ''
+            }
+            <button class="btn-refresh" data-id="${od.id}">🔄 새로고침</button>
+          </div>
+        </div>
+      `;
+    };
+
+    async function fetchAndShow(id) {
+      try {
+        const detail = await getOrderDetails(id); // GET /orders/admin/{id}
+        // 일부 백엔드 응답이 {data:{...}} 형태면 아래처럼 정규화
+        const od = detail?.id ? detail : (detail?.data || detail);
+        $inspect.innerHTML = renderInspect(od);
+      } catch (e) {
+        console.error(e);
+        $inspect.innerHTML = `<div class="error">조회 실패: ${e?.message || '알 수 없는 오류'}</div>`;
+      }
+    }
+
+    $form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const id = Number(($input.value || '').trim());
+      if (!id) {
+        $inspect.innerHTML = `<div class="error">주문 번호를 입력하세요.</div>`;
+        return;
+      }
+      fetchAndShow(id);
+    });
+
+    $inspect.addEventListener('click', async (e) => {
+      const btnConfirm = e.target.closest('.btn-confirm[data-id]');
+      const btnRefresh = e.target.closest('.btn-refresh[data-id]');
+      if (!btnConfirm && !btnRefresh) return;
+
+      const id = Number((btnConfirm || btnRefresh).dataset.id);
+
+      try {
+        if (btnConfirm) {
+          // PATCH /orders/{id}/status  { action: 'confirm' }
+          await patchOrderStatus(id, 'confirm');
+          // 대시보드 새로고침 + 상세 새로고침
+          await Promise.all([fetchAndShow(id), loadActiveOrders()]);
+        } else if (btnRefresh) {
+          await fetchAndShow(id);
+        }
+      } catch (err) {
+        alert('처리 실패: ' + (err?.message || '알 수 없는 오류'));
+      }
+    });
+  })();
 
   // ====== 클릭 이벤트 위임: 상태 변경 & 상세 ======
   if ($dash) {
