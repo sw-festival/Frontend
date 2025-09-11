@@ -1,10 +1,6 @@
-// public/order-system/js/api-admin.js
 // 관리자 전용 API 래퍼 (JWT Bearer)
 import './config.js';
 
-/* -----------------------------
- * RUNTIME 대기 & 공통 URL 유틸
- * ----------------------------- */
 function waitForRuntime() {
   return new Promise((resolve) => {
     if (window.RUNTIME) return resolve();
@@ -15,14 +11,23 @@ function waitForRuntime() {
 
 function getBase() {
   const rt = window.RUNTIME || {};
-  const base   = rt.API_BASE || 'https://api.limswoo.shop';
-  const prefix = (rt.API_PREFIX ?? '/api'); // 로컬: '', 운영: '/api'
+  const base = rt.API_BASE || 'https://api.limswoo.shop';
+
+  // base가 로컬인지 판단
+  const isLocalBase =
+    /(^http:\/\/(?:localhost|127\.0\.0\.1)|^https?:\/\/192\.168\.)/i.test(base);
+
+  let prefix = rt.API_PREFIX;
+  // null/undefined이거나 빈 문자열인데 로컬이 아니면 강제로 '/api'
+  if (prefix == null || (prefix === '' && !isLocalBase)) {
+    prefix = '/api';
+  }
   return `${base}${prefix}`;
 }
 
 function apiUrl(path, params) {
   const base = getBase();
-  const url  = new URL(String(path).replace(/^\//, ''), base.endsWith('/') ? base : base + '/');
+  const url = new URL(String(path).replace(/^\//, ''), base.endsWith('/') ? base : base + '/');
   if (params && typeof params === 'object') {
     Object.entries(params).forEach(([k, v]) => v != null && url.searchParams.set(k, String(v)));
   }
