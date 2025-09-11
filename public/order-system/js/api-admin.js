@@ -9,6 +9,19 @@ function waitForRuntime() {
   });
 }
 
+// API URL 헬퍼 함수 (관리자용)
+function apiUrl(path, params) {
+  const rt = window.RUNTIME || {};
+  const base = rt.API_BASE || 'https://api.limswoo.shop';
+  // 관리자 API는 API_PREFIX를 사용하지 않음
+  const url = new URL(String(path).replace(/^\//, ''), base.endsWith('/') ? base : base + '/');
+  if (params && typeof params === 'object') {
+    Object.entries(params).forEach(([k, v]) => v != null && url.searchParams.set(k, String(v)));
+  }
+  console.debug('[Admin apiUrl]', url.href);
+  return url.href;
+}
+
 // 공통 관리자 헤더: 세션스토리지 'admin_token' 우선, 구버전 호환 'accesstoken' 보조
 function adminHeaders(extra = {}) {
   const token =
@@ -91,7 +104,8 @@ export async function validateAndRefreshToken() {
   const { API_BASE } = window.RUNTIME;
   
   try {
-    const res = await fetch(`${API_BASE}/admin/validate`, {
+    const url = apiUrl('/admin/validate');
+    const res = await fetch(url, {
       method: 'GET',
       headers: adminHeaders()
     });
@@ -118,7 +132,8 @@ export async function adminLogin(pin) {
   const { API_BASE } = window.RUNTIME;
 
   try {
-    const res = await fetch(`${API_BASE}/admin/login`, {
+    const url = apiUrl('/admin/login');
+    const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ pin }),
@@ -161,9 +176,10 @@ export async function ensureTable(label, active = true) {
   }
 
   try {
-    console.log('Calling ensureTable API:', { label, active, url: `${API_BASE}/admin/tables/ensure` });
+    const url = apiUrl('/admin/tables/ensure');
+    console.log('Calling ensureTable API:', { label, active, url });
     
-    const res = await fetch(`${API_BASE}/admin/tables/ensure`, {
+    const res = await fetch(url, {
       method: 'POST',
       headers: adminHeaders(),
       body: JSON.stringify({ label, active }),
@@ -209,7 +225,8 @@ export async function getActiveOrders() {
   }
 
   try {
-    const res = await fetch(`${API_BASE}/orders/active`, {
+    const url = apiUrl('/orders/active');
+    const res = await fetch(url, {
       method: 'GET',
       headers: adminHeaders(),
     });
@@ -241,7 +258,8 @@ export async function getOrderDetails(orderId) {
   }
 
   try {
-    const res = await fetch(`${API_BASE}/orders/admin/${orderId}`, {
+    const url = apiUrl(`/orders/admin/${orderId}`);
+    const res = await fetch(url, {
       method: 'GET',
       headers: adminHeaders(),
     });
@@ -273,7 +291,8 @@ export async function patchOrderStatus(orderId, action, reason) {
   }
 
   try {
-    const res = await fetch(`${API_BASE}/orders/${orderId}/status`, {
+    const url = apiUrl(`/orders/${orderId}/status`);
+    const res = await fetch(url, {
       method: 'PATCH',
       headers: adminHeaders(),
       body: JSON.stringify({ action, reason }),
@@ -306,7 +325,8 @@ export async function forceCloseSession(sessionId) {
   }
 
   try {
-    const res = await fetch(`${API_BASE}/sessions/${sessionId}/close`, {
+    const url = apiUrl(`/sessions/${sessionId}/close`);
+    const res = await fetch(url, {
       method: 'POST',
       headers: adminHeaders(),
     });
@@ -338,7 +358,8 @@ export async function getAdminMenu() {
   }
 
   try {
-    const res = await fetch(`${API_BASE}/menu/admin`, {
+    const url = apiUrl('/menu/admin');
+    const res = await fetch(url, {
       method: 'GET',
       headers: adminHeaders(),
     });
@@ -375,7 +396,8 @@ export function createOrderStream(onMessage, onError) {
       const token = sessionStorage.getItem('admin_token') || localStorage.getItem('accesstoken');
       const authHeader = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
 
-      const eventSource = new EventSource(`${API_BASE}/sse/orders/stream`, {
+      const url = apiUrl('/sse/orders/stream');
+      const eventSource = new EventSource(url, {
         headers: {
           'Authorization': authHeader,
           'Accept': 'text/event-stream',

@@ -19,6 +19,29 @@
   function show(el) { el && (el.style.display = 'block'); }
   function hide(el) { el && (el.style.display = 'none'); }
 
+  // API URL 헬퍼 함수
+  function apiUrl(path, params) {
+    var rt = window.RUNTIME || {};
+    var apiBase = rt.API_BASE || 'https://api.limswoo.shop';
+    var apiPrefix = rt.API_PREFIX || '/api';
+    var base = apiBase + apiPrefix;
+    var url = base.endsWith('/') ? base + path.replace(/^\//, '') : base + '/' + path.replace(/^\//, '');
+    
+    if (params && typeof params === 'object') {
+      var searchParams = new URLSearchParams();
+      Object.keys(params).forEach(function(key) {
+        var value = params[key];
+        if (value != null) searchParams.set(key, String(value));
+      });
+      if (searchParams.toString()) {
+        url += (url.indexOf('?') >= 0 ? '&' : '?') + searchParams.toString();
+      }
+    }
+    
+    console.debug('[Session apiUrl]', url);
+    return url;
+  }
+
   document.addEventListener('DOMContentLoaded', function () {
     var gate = document.getElementById('session-gate');
     var orderSection = document.getElementById('order-section');
@@ -58,12 +81,11 @@
       var code = (codeInput && codeInput.value || '').trim();
       if (!code) { gateMsg.textContent = '난수를 입력하세요.'; openBtn.disabled = false; return; }
 
-      var apiBase = (window.RUNTIME && window.RUNTIME.API_BASE) || '';
-      var apiPrefix = (window.RUNTIME && window.RUNTIME.API_PREFIX) || '/api';
-      var base = apiBase + apiPrefix;
-      if (!apiBase) { gateMsg.textContent = 'API_BASE 설정이 없습니다.'; openBtn.disabled = false; return; }
+      var rt = window.RUNTIME || {};
+      if (!rt.API_BASE) { gateMsg.textContent = 'API_BASE 설정이 없습니다.'; openBtn.disabled = false; return; }
 
-      fetch(base + '/sessions/open-by-slug', {
+      var url = apiUrl('/sessions/open-by-slug');
+      fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ slug: slug, code: code })
