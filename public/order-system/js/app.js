@@ -23,7 +23,23 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const slug = extractSlug();
-    console.log('Slug 파라미터:', slug);
+    console.log('Slug:', slug);
+
+    // 포장 전용 여부 판단
+    const TAKEOUT_SET = new Set(window.RUNTIME?.TAKEOUT_SLUGS || []);
+
+    // slug로 주문 유형 자동 결정
+    const isTakeoutBySlug = slug && TAKEOUT_SET.has(slug);
+    if (isTakeoutBySlug) {
+        orderType = 'takeout';
+        discountRate = 0.1;
+    } else {
+        orderType = 'dine-in';
+        discountRate = 0;
+    }
+
+    // 1단계 스킵하고 바로 메뉴 단계로
+    goToMenuStep(orderType);
 
     // DOM 요소들
     const orderTypeSection = document.getElementById('order-type-section');
@@ -61,7 +77,39 @@ document.addEventListener('DOMContentLoaded', () => {
     // ========================================
     // 1단계: 주문 방식 선택
     // ========================================
-    
+    function goToMenuStep(type) {
+        // 헤더 제목
+        const headerTitle = document.querySelector('header h1');
+        if (headerTitle) {
+        if (type === 'takeout') {
+            headerTitle.innerHTML = `<i class="fas fa-shopping-bag"></i> 포장 주문 (10% 할인)`;
+        } else {
+            headerTitle.innerHTML = `<i class="fas fa-utensils"></i> 매장 이용`;
+        }
+        }
+
+        // 버튼 선택 스타일(있다면)
+        const dineInBtn = document.getElementById('dine-in-btn');
+        const takeoutBtn = document.getElementById('takeout-btn');
+        if (dineInBtn && takeoutBtn) {
+        if (type === 'takeout') {
+            takeoutBtn.classList.add('selected');
+            dineInBtn.classList.remove('selected');
+        } else {
+            dineInBtn.classList.add('selected');
+            takeoutBtn.classList.remove('selected');
+        }
+        }
+
+        // 섹션 전환
+        const orderTypeSection = document.getElementById('order-type-section');
+        const menuSection = document.getElementById('menu-section');
+        if (orderTypeSection) orderTypeSection.classList.add('hidden');
+        if (menuSection) menuSection.classList.remove('hidden');
+
+        console.log('타입 자동결정으로 메뉴 단계 진입:', type);
+    }
+
     // 매장이용 버튼 클릭
     if (dineInBtn) {
         dineInBtn.addEventListener('click', () => {
@@ -94,21 +142,21 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('1단계 → 2단계 전환');
             
             // 헤더 제목 변경
-        const headerTitle = document.querySelector('header h1');
-        if (headerTitle) {
-            if (orderType === 'takeout') {
-                    headerTitle.innerHTML = `<i class="fas fa-shopping-bag"></i> 포장 주문 (10% 할인)`;
-            } else {
-                    headerTitle.innerHTML = `<i class="fas fa-utensils"></i> 매장 이용`;
+            const headerTitle = document.querySelector('header h1');
+            if (headerTitle) {
+                if (orderType === 'takeout') {
+                        headerTitle.innerHTML = `<i class="fas fa-shopping-bag"></i> 포장 주문 (10% 할인)`;
+                } else {
+                        headerTitle.innerHTML = `<i class="fas fa-utensils"></i> 매장 이용`;
+                    }
                 }
-            }
-            
-            // 화면 전환
-            orderTypeSection.classList.add('hidden');
-            menuSection.classList.remove('hidden');
-            
-            console.log('메뉴 선택 단계로 전환 완료');
-        });
+                
+                // 화면 전환
+                orderTypeSection.classList.add('hidden');
+                menuSection.classList.remove('hidden');
+                
+                console.log('메뉴 선택 단계로 전환 완료');
+            });
     }
     
     // ========================================
@@ -168,36 +216,81 @@ document.addEventListener('DOMContentLoaded', () => {
     // 주문하기 버튼 클릭 (2단계 → 3단계 모달)
     if (placeOrderBtn) {
         placeOrderBtn.addEventListener('click', async () => {
-            console.log('2단계 → 3단계 주문 시도');
+        console.log('주문 시도');
 
-            // 유효성 검사
-            if (Object.keys(cart).length === 0) {
-                alert('메뉴를 선택해주세요.');
-                return;
-            }
-            
-            if (!customerNameInput.value.trim()) {
-                alert('입금자명을 입력해주세요.');
-                customerNameInput.focus();
-                return;
-            }
+        if (Object.keys(cart).length === 0) { alert('메뉴를 선택해주세요.'); return; }
+        if (!customerNameInput.value.trim()) {
+            alert('입금자명을 입력해주세요.'); customerNameInput.focus(); return;
+        }
 
-            // 슬러그 유무 검사
-            if (!slug) {
-                alert('슬러그 정보가 없습니다. /t/{slug} 주소로 접속해주세요.');
-                return;
-            }
+        if (!Tokens.getSession?.()) {
+            // 첫 주문: 코드 모달
+            showCodeModal();
+            return;
+        }
 
-            // 토큰 유무로 분기
-            if (!Tokens.getSession?.()) {
-                // 최초 사용자: 코드 입력 필수
-                showCodeModal();
-                return;
-            }
-            // 토큰 보유자: 바로 주문
-            await placeOrderWithExistingSession();
+        // 재주문: 바로 주문
+        await placeOrderWithExistingSession();
         });
     }
+
+    async function placeOrderWithExistingSession() {
+        try {
+        if (isProcessing) return;
+        isProcessing = true;
+
+        const orderData = prepareOrderData();
+        console.log('주문 데이터 준비 완료:', orderData);
+
+        const result = await createOrder(orderData);
+        console.log('주문 생성 성공:', result);
+
+        handleOrderSuccess(result.data.order_id);
+        } catch (e) {
+        console.error('주문 실패:', e);
+        const msg = String(e?.message || e);
+        if (msg.includes('세션') || msg.includes('401') || msg.toLowerCase().includes('token')) {
+            Tokens.clearSession?.();
+            showCodeModal();
+            return;
+        }
+        alert('주문 중 오류가 발생했습니다: ' + msg);
+        } finally {
+        isProcessing = false;
+        }
+    }
+    // if (placeOrderBtn) {
+    //     placeOrderBtn.addEventListener('click', async () => {
+    //         console.log('2단계 → 3단계 주문 시도');
+
+    //         // 유효성 검사
+    //         if (Object.keys(cart).length === 0) {
+    //             alert('메뉴를 선택해주세요.');
+    //             return;
+    //         }
+            
+    //         if (!customerNameInput.value.trim()) {
+    //             alert('입금자명을 입력해주세요.');
+    //             customerNameInput.focus();
+    //             return;
+    //         }
+
+    //         // 슬러그 유무 검사
+    //         if (!slug) {
+    //             alert('슬러그 정보가 없습니다. /t/{slug} 주소로 접속해주세요.');
+    //             return;
+    //         }
+
+    //         // 토큰 유무로 분기
+    //         if (!Tokens.getSession?.()) {
+    //             // 최초 사용자: 코드 입력 필수
+    //             showCodeModal();
+    //             return;
+    //         }
+    //         // 토큰 보유자: 바로 주문
+    //         await placeOrderWithExistingSession();
+    //     });
+    // }
     
     // ========================================
     // 3단계: 코드 입력 모달
@@ -250,58 +343,92 @@ document.addEventListener('DOMContentLoaded', () => {
     // 접속하기 버튼 클릭
     if (verifyBtn) {
         verifyBtn.addEventListener('click', async () => {
-            if (isProcessing) return;
-            
-            const code = codeInput.value.trim();
-            if (!code) {
-                alert('접속 코드를 입력해주세요.');
-                codeInput.focus();
-                return;
-            }
-            
-            console.log('코드 검증 및 세션 열기 시작:', code);
-            
-            isProcessing = true;
-            hideModalMessages();
-            codeLoading.classList.remove('hidden');
-            verifyBtn.disabled = true;
-            
-            try {
-                if (!slug) throw new Error('테이블(슬러그) 정보가 없습니다. /t/{slug} 형태로 접속해주세요.');
-                // 1. 항상 세션 먼저 열기 (성공 시 토큰이 저장됨)
-                await openSessionBySlug(slug, code);
-                const tokenPreview = (Tokens.getSession?.() || '').slice(0, 12);
-                console.log('세션 열기 성공, token=', tokenPreview ? tokenPreview + '...' : '(없음)');
-                
-                // 2. 주문 데이터 준비
-                const orderData = prepareOrderData();
-                console.log('주문 데이터 준비 완료:', orderData);
-                
-                // 3. 모달 닫고 주문 생성(즉시 진행)
-                codeLoading.classList.add('hidden');
-                hideCodeModal();
-                const result = await createOrder(orderData);
-                console.log('주문 생성 성공:', result);
+        if (isProcessing) return;
 
-                
-                // 4. 성공 처리
-                handleOrderSuccess(result.data.order_id);
-                
+        const code = codeInput.value.trim();
+        if (!code) { alert('접속 코드를 입력해주세요.'); codeInput.focus(); return; }
+        if (!slug) { alert('슬러그 정보가 없습니다. /t/{slug}로 접속해주세요.'); return; }
+
+        console.log('코드 검증 및 세션 열기 시작:', code);
+        isProcessing = true;
+        hideModalMessages();
+        codeLoading.classList.remove('hidden');
+        verifyBtn.disabled = true;
+
+        try {
+            await openSessionBySlug(slug, code);
+            const tokenPreview = (Tokens.getSession?.() || '').slice(0, 12);
+            console.log('세션 열기 성공, token=', tokenPreview ? tokenPreview + '...' : '(없음)');
+
+            codeLoading.classList.add('hidden');
+            hideCodeModal();
+
+            await placeOrderWithExistingSession();
         } catch (error) {
-                console.error('주문 처리 실패:', error);
-                
-                // 에러 메시지 표시
-                codeLoading.classList.add('hidden');
-                codeError.classList.remove('hidden');
-                
-                // 모달은 닫지 않고 유지
-                
-            } finally {
-                isProcessing = false;
-                verifyBtn.disabled = false;
-            }
+            console.error('주문 처리 실패:', error);
+            codeLoading.classList.add('hidden');
+            codeError.classList.remove('hidden');
+        } finally {
+            isProcessing = false;
+            verifyBtn.disabled = false;
+        }
         });
     }
+
+    // if (verifyBtn) {
+    //     verifyBtn.addEventListener('click', async () => {
+    //         if (isProcessing) return;
+            
+    //         const code = codeInput.value.trim();
+    //         if (!code) {
+    //             alert('접속 코드를 입력해주세요.');
+    //             codeInput.focus();
+    //             return;
+    //         }
+            
+    //         console.log('코드 검증 및 세션 열기 시작:', code);
+            
+    //         isProcessing = true;
+    //         hideModalMessages();
+    //         codeLoading.classList.remove('hidden');
+    //         verifyBtn.disabled = true;
+            
+    //         try {
+    //             if (!slug) throw new Error('테이블(슬러그) 정보가 없습니다. /t/{slug} 형태로 접속해주세요.');
+    //             // 1. 항상 세션 먼저 열기 (성공 시 토큰이 저장됨)
+    //             await openSessionBySlug(slug, code);
+    //             const tokenPreview = (Tokens.getSession?.() || '').slice(0, 12);
+    //             console.log('세션 열기 성공, token=', tokenPreview ? tokenPreview + '...' : '(없음)');
+                
+    //             // 2. 주문 데이터 준비
+    //             const orderData = prepareOrderData();
+    //             console.log('주문 데이터 준비 완료:', orderData);
+                
+    //             // 3. 모달 닫고 주문 생성(즉시 진행)
+    //             codeLoading.classList.add('hidden');
+    //             hideCodeModal();
+    //             const result = await createOrder(orderData);
+    //             console.log('주문 생성 성공:', result);
+
+                
+    //             // 4. 성공 처리
+    //             handleOrderSuccess(result.data.order_id);
+                
+    //     } catch (error) {
+    //             console.error('주문 처리 실패:', error);
+                
+    //             // 에러 메시지 표시
+    //             codeLoading.classList.add('hidden');
+    //             codeError.classList.remove('hidden');
+                
+    //             // 모달은 닫지 않고 유지
+                
+    //         } finally {
+    //             isProcessing = false;
+    //             verifyBtn.disabled = false;
+    //         }
+    //     });
+    // }
     
     // ========================================
     // 유틸리티 함수들
@@ -519,24 +646,37 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // 주문 데이터 준비
     function prepareOrderData() {
-        const items = Object.values(cart).map(item => {
-            const productId = PRODUCT_ID_MAP[item.name];
-            if (!productId) {
-                throw new Error(`상품 ID를 찾을 수 없습니다: ${item.name}`);
-            }
-            
-            return {
-                product_id: productId,
-                quantity: item.quantity
-            };
-        });
+        const items = Object.values(cart).map(item => ({
+        product_id: PRODUCT_ID_MAP[item.name],
+        quantity: item.quantity
+        }));
 
         return {
-            order_type: orderType === 'dine-in' ? 'DINE_IN' : 'TAKEOUT',
-            payer_name: customerNameInput.value.trim(),
-            items: items
+        order_type: orderType === 'dine-in' ? 'DINE_IN' : 'TAKEOUT', // ✅ slug로 결정된 값 사용
+        payer_name: customerNameInput.value.trim(),
+        items
         };
     }
+
+    // function prepareOrderData() {
+    //     const items = Object.values(cart).map(item => {
+    //         const productId = PRODUCT_ID_MAP[item.name];
+    //         if (!productId) {
+    //             throw new Error(`상품 ID를 찾을 수 없습니다: ${item.name}`);
+    //         }
+            
+    //         return {
+    //             product_id: productId,
+    //             quantity: item.quantity
+    //         };
+    //     });
+
+    //     return {
+    //         order_type: orderType === 'dine-in' ? 'DINE_IN' : 'TAKEOUT',
+    //         payer_name: customerNameInput.value.trim(),
+    //         items: items
+    //     };
+    // }
     
     // 주문 성공 처리
     function handleOrderSuccess(orderId) {
