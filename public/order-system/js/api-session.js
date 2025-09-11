@@ -95,39 +95,41 @@ export async function openSessionBySlug(slug, codeFromUser) {
   return data; // 호출측에서 code_verified 플래그를 세움
 }
 
-// 주문 생성
 // export async function createOrder({ order_type, payer_name, items }) {
 //   await waitForRuntime();
-  
-//   // 배포 서버와 로컬 서버 구분
-//   const isLocal = API_BASE.includes('localhost');
-//   const headers = isLocal ? sessionHeaders() : { 'Content-Type': 'application/json' };
-  
+//   const url = apiUrl('/orders');
+//   const isLocal = (window.RUNTIME?.API_BASE || '').includes('localhost');
+//   const headers = isLocal ? sessionHeaders() : { 'Content-Type':'application/json','Accept':'application/json' };
 //   const body = JSON.stringify({ order_type, payer_name, items });
-//   console.log('[createOrder] POST /orders', { BASE, isLocal, headers, body });
-
-//   const res = await fetch(`${BASE}/orders`, { method: 'POST', headers, body });
-//   const text = await res.text();
-//   let data = {};
-//   try { data = JSON.parse(text); } catch(e) {}
-//   console.log('[createOrder] status:', res.status, 'body:', text);
-
-//   if (!res.ok || !data?.success) {
-//     throw new Error(data?.message || '주문 생성 실패');
-//   }
+//   console.log('[createOrder] POST', url, { headers, body });
+//   const res = await fetch(url, { method:'POST', headers, body });
+//   const text = await res.text(); let data={}; try{ data = JSON.parse(text) } catch(e){}
+//   console.log('[createOrder] status:', res.status, text);
+//   if (!res.ok || !data?.success) throw new Error(data?.message || '주문 생성 실패');
 //   return data;
 // }
 export async function createOrder({ order_type, payer_name, items }) {
   await waitForRuntime();
   const url = apiUrl('/orders');
-  const isLocal = (window.RUNTIME?.API_BASE || '').includes('localhost');
-  const headers = isLocal ? sessionHeaders() : { 'Content-Type':'application/json','Accept':'application/json' };
+
+  // 항상 세션 헤더 사용 (토큰 있으면 자동으로 Authorization/x-session-token 포함)
+  const headers = sessionHeaders();
+
   const body = JSON.stringify({ order_type, payer_name, items });
   console.log('[createOrder] POST', url, { headers, body });
-  const res = await fetch(url, { method:'POST', headers, body });
-  const text = await res.text(); let data={}; try{ data = JSON.parse(text) } catch(e){}
+
+  const res = await fetch(url, { method: 'POST', headers, body });
+  const text = await res.text();
+  let data = {}; try { data = JSON.parse(text); } catch (e) {}
   console.log('[createOrder] status:', res.status, text);
-  if (!res.ok || !data?.success) throw new Error(data?.message || '주문 생성 실패');
+
+  if (!res.ok || !data?.success) {
+    if (res.status === 401) {
+      // 선택: 토큰 만료/부재 방어
+      Tokens.clearSession?.();
+    }
+    throw new Error(data?.message || '주문 생성 실패');
+  }
   return data;
 }
 
@@ -149,23 +151,6 @@ export async function getUserOrderDetails(orderId) {
   return data;
 }
 
-// 공용 메뉴 조회
-// export async function getPublicMenu() {
-//   await waitForRuntime();
-//   const res = await fetch(`${BASE}/menu`, {
-//     method: 'GET',
-//     headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-//   });
-//   const text = await res.text();
-//   let data = {};
-//   try { data = JSON.parse(text); } catch(e) {}
-//   console.log('[getPublicMenu]', res.status, text);
-
-//   if (!res.ok || !data?.success) {
-//     throw new Error(data?.message || '메뉴 조회 실패');
-//   }
-//   return data?.data || [];
-// }
 export async function getPublicMenu() {
   await waitForRuntime();
   const url = apiUrl('/menu');
@@ -176,23 +161,6 @@ export async function getPublicMenu() {
   return data?.data || [];
 }
 
-// 인기 메뉴 Top N 조회
-// export async function getTopMenu(count = 3) {
-//   await waitForRuntime();
-//   const res = await fetch(`${BASE}/menu/top?count=${count}`, {
-//     method: 'GET',
-//     headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-//   });
-//   const text = await res.text();
-//   let data = {};
-//   try { data = JSON.parse(text); } catch(e) {}
-//   console.log('[getTopMenu]', res.status, text);
-
-//   if (!res.ok || !data?.success) {
-//     throw new Error(data?.message || '인기 메뉴 조회 실패');
-//   }
-//   return data?.data || [];
-// }
 export async function getTopMenu(count=3) {
   await waitForRuntime();
   const url = apiUrl('/menu/top', { count });
