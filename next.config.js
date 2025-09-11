@@ -3,7 +3,7 @@ module.exports = {
   async rewrites() {
     return [
       // 랜딩 페이지
-      { source: '/', destination: '/order-system/order.html' },
+      { source: '/', destination: '/order-system/index.html' },
 
       // 보기 좋게 별칭 라우트 제공
       { source: '/admin',   destination: '/order-system/admin.html' },
