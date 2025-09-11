@@ -58,8 +58,10 @@
       var code = (codeInput && codeInput.value || '').trim();
       if (!code) { gateMsg.textContent = '난수를 입력하세요.'; openBtn.disabled = false; return; }
 
-      var base = (window.RUNTIME && window.RUNTIME.API_BASE) || '';
-      if (!base) { gateMsg.textContent = 'API_BASE 설정이 없습니다.'; openBtn.disabled = false; return; }
+      var apiBase = (window.RUNTIME && window.RUNTIME.API_BASE) || '';
+      var apiPrefix = (window.RUNTIME && window.RUNTIME.API_PREFIX) || '/api';
+      var base = apiBase + apiPrefix;
+      if (!apiBase) { gateMsg.textContent = 'API_BASE 설정이 없습니다.'; openBtn.disabled = false; return; }
 
       fetch(base + '/sessions/open-by-slug', {
         method: 'POST',
