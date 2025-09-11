@@ -7,7 +7,7 @@ module.exports = {
 
       // 보기 좋게 별칭 라우트 제공
       { source: '/admin',   destination: '/order-system/admin.html' },
-      { source: '/admin-login',  destination: '/order-system/admin-login.html' },
+      { source: '/admin/login',  destination: '/order-system/admin-login.html' },
       { source: '/kitchen', destination: '/order-system/kitchen.html' },
       { source: '/waiting', destination: '/order-system/waiting.html' },
 
