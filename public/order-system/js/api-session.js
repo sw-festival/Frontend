@@ -37,54 +37,73 @@ function apiUrl(path, params) {
   return url.href;
 }
 
-function sessionHeaders(slug) {
-  const headers = {
+function sessionHeaders({ scheme = 'Session', idemKey, useOnlyX = false } = {}) {
+  const s = JSON.parse(localStorage.getItem('SESSION_META') || '{}');
+  const token = s?.token || (window.Tokens?.getSession?.() || null);
+  const h = {
     'Content-Type': 'application/json',
-    'Accept': 'application/json'
+    'Accept': 'application/json',
   };
-  
-  if (!slug) {
-    console.warn('[sessionHeaders] slug가 없습니다. 레거시 모드로 동작합니다.');
-    // 레거시 호환성
-    const token = Tokens.getSession?.();
-    const meta = Tokens.getSessionMeta?.();
-    
-    if (token) {
-      headers['x-session-token'] = token;
-      headers['Authorization'] = `Session ${token}`;
-    }
-    if (meta) {
-      if (meta.session_id) headers['X-Session-Id'] = String(meta.session_id);
-      if (meta.table_id) headers['X-Table-Id'] = String(meta.table_id);
-      if (meta.channel) headers['X-Channel'] = String(meta.channel);
-    }
-    return headers;
+  if (token) {
+    if (!useOnlyX) h['Authorization'] = `${scheme} ${token}`;
+    h['X-Session-Token'] = token; // 남겨두는 편이 안전
+    if (s.session_id) h['X-Session-Id'] = String(s.session_id);
+    if (s.table_id)   h['X-Table-Id']   = String(s.table_id);
+    if (s.channel)    h['X-Channel']    = String(s.channel); // TAKEOUT
+    if (s.slug)       h['X-Table-Slug'] = String(s.slug);
   }
-
-  // 새로운 SessionStore 기반
-  const session = SessionStore.getSession(slug);
-  
-  if (session) {
-    headers['x-session-token'] = session.token;               // 호환용
-    headers['Authorization'] = `Session ${session.token}`;    // 스펙
-    headers['X-Session-Id'] = String(session.session_id);
-    headers['X-Table-Id'] = String(session.table_id);
-    headers['X-Channel'] = String(session.channel);
-    headers['X-Table-Slug'] = String(session.slug);          // 선택사항
-  }
-  
-  // 디버깅 로그
-  console.log(`[sessionHeaders] ${slug}`, {
-    hasSession: !!session,
-    tokenPrefix: session?.token ? session.token.slice(0, 12) + '...' : null,
-    sessionId: session?.session_id,
-    tableId: session?.table_id,
-    channel: session?.channel,
-    expiresAt: session?.expiresAt
-  });
-  
-  return headers;
+  if (idemKey) h['X-Idempotency-Key'] = idemKey;
+  return h;
 }
+
+// function sessionHeaders(slug) {
+//   const headers = {
+//     'Content-Type': 'application/json',
+//     'Accept': 'application/json'
+//   };
+  
+//   if (!slug) {
+//     console.warn('[sessionHeaders] slug가 없습니다. 레거시 모드로 동작합니다.');
+//     // 레거시 호환성
+//     const token = Tokens.getSession?.();
+//     const meta = Tokens.getSessionMeta?.();
+    
+//     if (token) {
+//       headers['x-session-token'] = token;
+//       headers['Authorization'] = `Session ${token}`;
+//     }
+//     if (meta) {
+//       if (meta.session_id) headers['X-Session-Id'] = String(meta.session_id);
+//       if (meta.table_id) headers['X-Table-Id'] = String(meta.table_id);
+//       if (meta.channel) headers['X-Channel'] = String(meta.channel);
+//     }
+//     return headers;
+//   }
+
+//   // 새로운 SessionStore 기반
+//   const session = SessionStore.getSession(slug);
+  
+//   if (session) {
+//     headers['x-session-token'] = session.token;               // 호환용
+//     headers['Authorization'] = `Session ${session.token}`;    // 스펙
+//     headers['X-Session-Id'] = String(session.session_id);
+//     headers['X-Table-Id'] = String(session.table_id);
+//     headers['X-Channel'] = String(session.channel);
+//     headers['X-Table-Slug'] = String(session.slug);          // 선택사항
+//   }
+  
+//   // 디버깅 로그
+//   console.log(`[sessionHeaders] ${slug}`, {
+//     hasSession: !!session,
+//     tokenPrefix: session?.token ? session.token.slice(0, 12) + '...' : null,
+//     sessionId: session?.session_id,
+//     tableId: session?.table_id,
+//     channel: session?.channel,
+//     expiresAt: session?.expiresAt
+//   });
+  
+//   return headers;
+// }
 
 // slug로 세션 열기
 // 사용자로부터 받은 code가 없으면 요청 자체를 막는다.
@@ -323,25 +342,6 @@ function makeIdemKey(slug) {
     const rand = Math.random().toString(36).slice(2, 10);
     return `order-${slug}-${Date.now()}-${rand}`;
   }
-
-function sessionHeaders({ scheme = 'Session', idemKey, useOnlyX = false } = {}) {
-  const s = JSON.parse(localStorage.getItem('SESSION_META') || '{}');
-  const token = s?.token || (window.Tokens?.getSession?.() || null);
-  const h = {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
-  };
-  if (token) {
-    if (!useOnlyX) h['Authorization'] = `${scheme} ${token}`;
-    h['X-Session-Token'] = token; // 남겨두는 편이 안전
-    if (s.session_id) h['X-Session-Id'] = String(s.session_id);
-    if (s.table_id)   h['X-Table-Id']   = String(s.table_id);
-    if (s.channel)    h['X-Channel']    = String(s.channel); // TAKEOUT
-    if (s.slug)       h['X-Table-Slug'] = String(s.slug);
-  }
-  if (idemKey) h['X-Idempotency-Key'] = idemKey;
-  return h;
-}
 
 export async function createOrder(order, slug) {
   await waitForRuntime();
