@@ -397,23 +397,34 @@ document.addEventListener('DOMContentLoaded', () => {
   // 새로운 탭 기반 메뉴 시스템 함수들
   // -----------------------------
 
-  // TOP3 포디움 업데이트
+  // 인기 메뉴 컴포넌트 업데이트
   function updateTop3Podium(topMenus) {
-    const podiumItems = document.querySelectorAll('.podium-item');
-    const positions = ['second-place', 'first-place', 'third-place']; // 2, 1, 3 순서
+    const popularItems = document.querySelectorAll('.popular-item');
+    const ranks = ['first-rank', 'second-rank', 'third-rank'];
     
     topMenus.forEach((menu, index) => {
       if (index < 3) {
-        const podiumItem = document.querySelector(`.${positions[index]}`);
-        if (podiumItem) {
-          const nameElement = podiumItem.querySelector('.menu-name');
-          const ordersElement = podiumItem.querySelector('.menu-orders');
+        const popularItem = document.querySelector(`.${ranks[index]}`);
+        if (popularItem) {
+          const nameElement = popularItem.querySelector('.popular-name');
+          const countElement = popularItem.querySelector('.popular-count');
           
-          if (nameElement) nameElement.textContent = menu.name;
-          if (ordersElement) ordersElement.textContent = `${menu.qty_sold}건`;
+          if (nameElement) nameElement.textContent = menu.name || '데이터 없음';
+          if (countElement) countElement.textContent = `${menu.qty_sold || 0}건 주문`;
         }
       }
     });
+    
+    // 데이터가 없을 경우 기본값 설정
+    if (topMenus.length === 0) {
+      popularItems.forEach((item, index) => {
+        const nameElement = item.querySelector('.popular-name');
+        const countElement = item.querySelector('.popular-count');
+        
+        if (nameElement) nameElement.textContent = '데이터 로딩 중...';
+        if (countElement) countElement.textContent = '-';
+      });
+    }
   }
 
   // 메뉴를 카테고리별로 분류
@@ -443,7 +454,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return categories;
   }
 
-  // 카테고리별 메뉴 로드
+  // 카테고리별 메뉴 로드 (수량 유지)
   function loadMenusByCategory(category) {
     currentCategory = category;
     const menuList = document.getElementById('menu-list');
@@ -462,7 +473,23 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     menuList.innerHTML = menus.map(menu => createMenuItemHTML(menu)).join('');
+    
+    // 기존 장바구니 수량 복원
+    restoreQuantitiesFromCart();
     setupMenuItemEvents();
+  }
+
+  // 장바구니에서 수량 복원
+  function restoreQuantitiesFromCart() {
+    Object.keys(cart).forEach(menuId => {
+      const menuItem = document.querySelector(`[data-menu-id="${menuId}"]`);
+      if (menuItem) {
+        const quantitySpan = menuItem.querySelector('.quantity');
+        if (quantitySpan) {
+          quantitySpan.textContent = cart[menuId].quantity;
+        }
+      }
+    });
   }
 
   // 메뉴 아이템 HTML 생성
@@ -476,19 +503,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const icon = categoryIcons[currentCategory] || 'fas fa-utensils';
     
+    // 메뉴 설명 생성 (기본값 설정)
+    const description = menu.description || `맛있는 ${menu.name}입니다. 신선한 재료로 만든 인기 메뉴입니다.`;
+    
     return `
       <div class="menu-item" data-menu-id="${menu.id}" data-price="${menu.price}">
-        <div class="menu-img-placeholder">
-          <i class="${icon}"></i>
+        <div class="menu-image">
+          <div class="menu-img-placeholder">
+            <i class="${icon}"></i>
+          </div>
         </div>
-        <div class="menu-details">
-          <h3 class="menu-name">${menu.name}</h3>
-          <p class="menu-price" style="display: none;">${menu.price.toLocaleString()}원</p>
-        </div>
-        <div class="menu-quantity">
-          <button class="quantity-btn minus-btn" data-action="minus">-</button>
-          <span class="quantity">0</span>
-          <button class="quantity-btn plus-btn" data-action="plus">+</button>
+        <div class="menu-content">
+          <div class="menu-info">
+            <h3 class="menu-name">${menu.name}</h3>
+            <p class="menu-description">${description}</p>
+            <p class="menu-price" style="display: none;">${menu.price.toLocaleString()}원</p>
+          </div>
+          <div class="menu-quantity">
+            <button class="quantity-btn minus-btn" data-action="minus">
+              <i class="fas fa-minus"></i>
+            </button>
+            <span class="quantity">0</span>
+            <button class="quantity-btn plus-btn" data-action="plus">
+              <i class="fas fa-plus"></i>
+            </button>
+          </div>
         </div>
       </div>
     `;
@@ -511,36 +550,45 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // 메뉴 아이템 이벤트 설정
+  // 메뉴 아이템 이벤트 설정 (이벤트 위임 방식으로 중복 방지)
   function setupMenuItemEvents() {
-    const quantityBtns = document.querySelectorAll('.quantity-btn');
+    const menuList = document.getElementById('menu-list');
+    if (!menuList) return;
     
-    quantityBtns.forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        const action = btn.dataset.action;
-        const menuItem = btn.closest('.menu-item');
-        const menuId = menuItem.dataset.menuId;
-        const price = parseInt(menuItem.dataset.price);
-        const menuName = menuItem.querySelector('.menu-name').textContent;
-        const quantitySpan = menuItem.querySelector('.quantity');
-        
-        let currentQuantity = parseInt(quantitySpan.textContent) || 0;
-        
-        if (action === 'plus') {
-          currentQuantity++;
+    // 기존 이벤트 리스너 제거
+    const newMenuList = menuList.cloneNode(true);
+    menuList.parentNode.replaceChild(newMenuList, menuList);
+    
+    // 이벤트 위임으로 단일 이벤트 리스너 등록
+    newMenuList.addEventListener('click', (e) => {
+      const btn = e.target.closest('.quantity-btn');
+      if (!btn) return;
+      
+      e.preventDefault();
+      e.stopPropagation();
+      
+      const action = btn.dataset.action;
+      const menuItem = btn.closest('.menu-item');
+      const menuId = menuItem.dataset.menuId;
+      const price = parseInt(menuItem.dataset.price);
+      const menuName = menuItem.querySelector('.menu-name').textContent;
+      const quantitySpan = menuItem.querySelector('.quantity');
+      
+      let currentQuantity = parseInt(quantitySpan.textContent) || 0;
+      
+      if (action === 'plus') {
+        currentQuantity++;
+        updateCart(menuId, menuName, price, currentQuantity);
+      } else if (action === 'minus' && currentQuantity > 0) {
+        currentQuantity--;
+        if (currentQuantity === 0) {
+          removeFromCart(menuId);
+        } else {
           updateCart(menuId, menuName, price, currentQuantity);
-        } else if (action === 'minus' && currentQuantity > 0) {
-          currentQuantity--;
-          if (currentQuantity === 0) {
-            removeFromCart(menuId);
-          } else {
-            updateCart(menuId, menuName, price, currentQuantity);
-          }
         }
-        
-        quantitySpan.textContent = currentQuantity;
-      });
+      }
+      
+      quantitySpan.textContent = currentQuantity;
     });
   }
 
