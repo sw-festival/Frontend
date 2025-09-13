@@ -548,7 +548,7 @@ document.addEventListener('DOMContentLoaded', () => {
       name: '한화e글스-ㅔ트',
       description: '(회장이 한화 팬이라.. 절대적 권력에 의하여 세트 이름이 선정되었습니다...)',
       price: 149000,
-      image_url: 'images/grape-flavor-logos.png',
+      image_url: '/images/grape-flavor-logos.png',
       category: 'set'
     };
     categories.set.push(hanwhaSet);

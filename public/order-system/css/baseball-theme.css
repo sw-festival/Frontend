@@ -178,7 +178,7 @@ header::before {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-family: 'Courier New', monospace;
+    font-family: 'KBO Dia Gothic';
     font-weight: bold;
 }
 
@@ -838,7 +838,7 @@ input[type="password"]:focus {
     font-size: 1.5rem;
     font-weight: 700;
     margin-bottom: 12px;
-    font-family: 'Courier New', monospace;
+    font-family: 'KBO Dia Gothic';
 }
 
 .top-menu {

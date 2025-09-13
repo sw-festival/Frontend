@@ -112,7 +112,7 @@
 
         /* 인기 메뉴 컴포넌트 스타일 */
         .popular-menu-component {
-            background: url('images/top3-menu-bg.png') no-repeat center center;
+            background: url('/images/top3-menu-bg.png') no-repeat center center;
             background-size: cover;
             border-radius: 20px;
             padding: 2rem;
@@ -340,7 +340,7 @@
         }
         
         .menu-item {
-            background: url('images/menu-bg.png') no-repeat center center;
+            background: url('/images/menu-bg.png') no-repeat center center;
             background-size: cover;
             border-radius: 15px;
             padding: 1.5rem;
@@ -576,7 +576,7 @@
 
         /* 총 금액 컴포넌트 */
         .total-amount-component {
-            background: url('images/basic-bg.png') no-repeat center center;
+            background: url('/images/basic-bg.png') no-repeat center center;
             background-size: cover;
             color: #EDECED;
             border-radius: 15px;
@@ -593,13 +593,15 @@
         }
 
         .total-header {
-            display: flex;
+            display: block;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 1rem;
         }
 
         .total-header h3 {
+            text-align: left;
+            margin-bottom: 0.5rem;
             margin: 0;
             display: flex;
             align-items: center;
@@ -666,7 +668,7 @@
         .account-value {
             font-weight: bold;
             color: #28a745;
-            font-family: 'Courier New', monospace;
+            font-family: 'KBO Dia Gothic';
         }
 
         .payment-notice {
@@ -868,6 +870,7 @@
         }
         
         .total-price {
+            text-align: left;
             font-size: 1.5rem;
             font-weight: bold;
             color: #1a5490;
@@ -1142,7 +1145,7 @@
     <div class="container">
         <header>
             <div class="header-logo">
-                <img src="images/main-logo.png" alt="MEMORY 주점 로고" style="width: 152px; height: 124px; display: block; margin: 0 auto;">
+                <img src="/images/main-logo.png" alt="MEMORY 주점 로고" style="width: 152px; height: 124px; display: block; margin: 0 auto;">
             </div>
             <div class="baseball-scoreboard">
                 <div class="score-info">
@@ -1201,28 +1204,28 @@
                     </div>
                     <div class="popular-list">
                         <div class="popular-item first-rank">
-                            <!-- <div class="rank-badge">1</div>
+                            <div class="rank-badge">1</div>
                             <div class="popular-info">
                                 <div class="popular-name">-</div>
                                 <div class="popular-count">-건</div>
-                            </div> -->
+                            </div>
                             <!-- <div class="rank-icon">🥇</div> -->
                         </div>
                         <div class="popular-item second-rank">
-                            <!-- <div class="rank-badge">2</div>
+                            <div class="rank-badge">2</div>
                             <div class="popular-info">
                                 <div class="popular-name">-</div>
                                 <div class="popular-count">-건</div>
                             </div>
-                            <div class="rank-icon">🥈</div> -->
+                            <!-- <div class="rank-icon">🥈</div> -->
                         </div>
                         <div class="popular-item third-rank">
-                            <!-- <div class="rank-badge">3</div>
+                            <div class="rank-badge">3</div>
                             <div class="popular-info">
                                 <div class="popular-name">-</div>
                                 <div class="popular-count">-건</div>
                             </div>
-                            <div class="rank-icon">🥉</div> -->
+                            <!-- <div class="rank-icon">🥉</div> -->
                         </div>
                     </div>
                 </div>
@@ -1233,19 +1236,19 @@
                     <div class="menu-tabs-container">
                         <div class="menu-tabs">
                             <button class="menu-tab active" data-category="set">
-                                <i class="fas fa-utensils"></i>
+                                <!-- <i class="fas fa-utensils"></i> -->
                                 <span>세트메뉴</span>
                             </button>
                             <button class="menu-tab" data-category="main">
-                                <i class="fas fa-drumstick-bite"></i>
+                                <!-- <i class="fas fa-drumstick-bite"></i> -->
                                 <span>메인메뉴</span>
                             </button>
                             <button class="menu-tab" data-category="side">
-                                <i class="fas fa-pepper-hot"></i>
+                                <!-- <i class="fas fa-pepper-hot"></i> -->
                                 <span>사이드메뉴</span>
                             </button>
                             <button class="menu-tab" data-category="drink">
-                                <i class="fas fa-glass-cheers"></i>
+                                <!-- <i class="fas fa-glass-cheers"></i> -->
                                 <span>음료</span>
                             </button>
                         </div>
