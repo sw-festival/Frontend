@@ -101,6 +101,7 @@ export async function openSessionBySlug(slug, codeFromUser) {
     method: 'POST',
     headers: { 'Content-Type':'application/json', 'Accept':'application/json' },
     body: JSON.stringify({ slug, code: String(codeFromUser).trim() }),
+    credentials: 'include'
   });
 
   const text = await res.text(); // 서버가 HTML 에러를 줄 수도 있으니 우선 텍스트
@@ -318,97 +319,80 @@ export async function ensureSessionBeforeOrder(slug, expectedChannel, options = 
   
   return session;
 }
+function makeIdemKey(slug) {
+    const rand = Math.random().toString(36).slice(2, 10);
+    return `order-${slug}-${Date.now()}-${rand}`;
+  }
 
-// export async function createOrder({ order_type, payer_name, items }) {
-//   await waitForRuntime();
-//   const url = apiUrl('/orders');
-//   const isLocal = (window.RUNTIME?.API_BASE || '').includes('localhost');
-//   const headers = isLocal ? sessionHeaders() : { 'Content-Type':'application/json','Accept':'application/json' };
-//   const body = JSON.stringify({ order_type, payer_name, items });
-//   console.log('[createOrder] POST', url, { headers, body });
-//   const res = await fetch(url, { method:'POST', headers, body });
-//   const text = await res.text(); let data={}; try{ data = JSON.parse(text) } catch(e){}
-//   console.log('[createOrder] status:', res.status, text);
-//   if (!res.ok || !data?.success) throw new Error(data?.message || '주문 생성 실패');
-//   return data;
-// }
-export async function createOrder(orderData, slug) {
+function sessionHeaders({ scheme = 'Session', idemKey, useOnlyX = false } = {}) {
+  const s = JSON.parse(localStorage.getItem('SESSION_META') || '{}');
+  const token = s?.token || (window.Tokens?.getSession?.() || null);
+  const h = {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+  };
+  if (token) {
+    if (!useOnlyX) h['Authorization'] = `${scheme} ${token}`;
+    h['X-Session-Token'] = token; // 남겨두는 편이 안전
+    if (s.session_id) h['X-Session-Id'] = String(s.session_id);
+    if (s.table_id)   h['X-Table-Id']   = String(s.table_id);
+    if (s.channel)    h['X-Channel']    = String(s.channel); // TAKEOUT
+    if (s.slug)       h['X-Table-Slug'] = String(s.slug);
+  }
+  if (idemKey) h['X-Idempotency-Key'] = idemKey;
+  return h;
+}
+
+export async function createOrder(order, slug) {
   await waitForRuntime();
-  
-  if (!slug) {
-    throw new Error('slug가 필요합니다.');
-  }
+  const url  = apiUrl('/orders');
+  const body = JSON.stringify(order);
 
-  const url = apiUrl('/orders');
-  const headers = sessionHeaders(slug);
+  // --- 초시도 ---
+  const key1 = makeIdemKey(slug);
+  const h1   = sessionHeaders({ scheme: 'Session', idemKey: key1 });
+  let res = await fetch(url, { method:'POST', headers: h1, body, credentials: 'include' });
+  let txt = await res.text(); let data = {}; try { data = JSON.parse(txt); } catch {}
+  console.log('[createOrder] try1', res.status, txt);
 
-  // X-Idempotency-Key 추가 (중복 클릭/재전송 방지)
-  const idempotencyKey = `order-${slug}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-  headers['X-Idempotency-Key'] = idempotencyKey;
-
-  const body = JSON.stringify(orderData);
-  console.log(`[createOrder] POST ${url} (slug: ${slug})`, { headers, body });
-
-  const res = await fetch(url, { method: 'POST', headers, body });
-  const text = await res.text();
-  let data = {}; try { data = JSON.parse(text); } catch (e) {}
-  console.log(`[createOrder] ${res.status} (slug: ${slug})`, text);
-
-  if (!res.ok || !data?.success) {
-    // TAKEOUT 세션 관련 에러들에 대한 자동 재시도 (서버 측 세션 상태 불일치 해결)
-    const isSessionError = (
-      (res.status === 422 && (text.includes('token expired') || text.includes('Invalid') || text.includes('closed'))) ||
-      (res.status === 401) ||
-      (text.toLowerCase().includes('invalid') && text.toLowerCase().includes('session')) ||
-      (text.toLowerCase().includes('closed') && text.toLowerCase().includes('session'))
+  const isTakeout = (order?.order_type || '').toUpperCase() === 'TAKEOUT';
+  const msg = (data?.message || '').toLowerCase();
+  const needReopen =
+    isTakeout && (
+      res.status === 401 ||
+      (res.status === 422 && (
+        msg.includes('token expired') ||
+        msg.includes('invalid') ||
+        msg.includes('closed')
+      ))
     );
-    
-    if (isSessionError) {
-      const session = SessionStore.getSession(slug);
-      if (session?.channel === 'TAKEOUT') {
-        console.log(`[createOrder] TAKEOUT 세션 에러 감지, 자동 재오픈 & 재시도: ${slug}`, {
-          status: res.status,
-          errorSnippet: text.substring(0, 100)
-        });
-        
-        try {
-          // 기존 세션 제거 후 새로 열기
-          SessionStore.removeSession(slug);
-          await openTakeoutSession(slug);
-          
-          const newHeaders = sessionHeaders(slug);
-          newHeaders['X-Idempotency-Key'] = idempotencyKey; // 같은 키 사용
-          
-          console.log(`[createOrder] TAKEOUT 재시도 시작: ${slug}`);
-          const retryRes = await fetch(url, { method: 'POST', headers: newHeaders, body });
-          const retryText = await retryRes.text();
-          let retryData = {}; try { retryData = JSON.parse(retryText); } catch (e) {}
-          console.log(`[createOrder] TAKEOUT 재시도 결과 ${retryRes.status}:`, retryText.substring(0, 200));
-          
-          if (retryRes.ok && retryData?.success) {
-            console.log(`[createOrder] TAKEOUT 재시도 성공: ${slug}`);
-            return retryData;
-          }
-          throw new Error(retryData?.message || '주문 재시도 실패');
-        } catch (retryError) {
-          console.error(`[createOrder] TAKEOUT 재시도 실패: ${slug}`, retryError);
-          throw retryError;
-        }
-      } else {
-        // DINE-IN에서는 재시도 하지 않고 그대로 에러 반환 (자동 재오픈 절대 금지)
-        console.log(`[createOrder] DINE-IN 세션 에러, 재시도 안함: ${slug}`, {
-          status: res.status,
-          errorSnippet: text.substring(0, 100)
-        });
-        SessionStore.removeSession(slug);
-        throw new Error('DINEIN_TOKEN_EXPIRED');
-      }
-    }
-    
-    // 기타 에러
-    throw new Error(data?.message || `주문 생성 실패 (${res.status})`);
+
+  if (!needReopen) {
+    if (!res.ok || !data?.success) throw new Error(data?.message || `주문 실패 (${res.status})`);
+    return data;
   }
-  
+
+  // --- 재오픈 ---
+  console.log('[createOrder] takeout reopen & retry due to:', data?.message);
+  await openTakeoutSession(slug); // 새 토큰 발급
+  // 재시도는 반드시 "새 Idempotency-Key"
+  const key2 = makeIdemKey(slug);
+
+  // (A) 스킴 폴백: Bearer로 시도
+  const h2 = sessionHeaders({ scheme: 'Bearer', idemKey: key2 });
+  res = await fetch(url, { method:'POST', headers: h2, body, credentials: 'include' });
+  txt = await res.text(); data = {}; try { data = JSON.parse(txt); } catch {}
+  console.log('[createOrder] try2(Bearer)', res.status, txt);
+  if (res.ok && data?.success) return data;
+
+  // (B) 그래도 안되면 Authorization 제거, x-session-token만
+  const key3 = makeIdemKey(slug);
+  const h3 = sessionHeaders({ idemKey: key3, useOnlyX: true });
+  res = await fetch(url, { method:'POST', headers: h3, body, credentials: 'include' });
+  txt = await res.text(); data = {}; try { data = JSON.parse(txt); } catch {}
+  console.log('[createOrder] try3(x-only)', res.status, txt);
+
+  if (!res.ok || !data?.success) throw new Error(data?.message || `주문 실패 (${res.status})`);
   return data;
 }
 
