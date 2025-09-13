@@ -305,7 +305,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       let action = '';
       if (currentModalOrder.status === 'CONFIRMED') {
-        action = 'start_preparing';
+        action = 'start';
       } else if (currentModalOrder.status === 'IN_PROGRESS') {
         action = 'serve';
       }
@@ -320,7 +320,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       await patchOrderStatus(currentModalOrder.id, action);
 
       // 사운드 재생
-      if (action === 'start_preparing') {
+      if (action === 'start') {
         playKitchenSound('start-cooking');
       } else if (action === 'serve') {
         playKitchenSound('order-ready');

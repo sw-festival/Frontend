@@ -217,115 +217,45 @@ export async function getOrderDetails(orderId) {
  *  1차: /admin/orders/:id/status
  *  2차: /orders/:id/status
  * ----------------------------- */
-// 주문 상태 변경 (PATCH + 쿼리스트링)
-export async function patchOrderStatus(orderId, action, reason) {
-  await waitForRuntime();
-  if (!isTokenValid()) {
-    clearAdminSession();
-    throw new Error('로그인이 필요합니다. 다시 로그인해주세요.');
+// 주문 상태 변경 
+// 서버가 요구하는 바디 형식으로 보냄
+// /api/orders/:id/status 로 고정
+// UI 키워드(start_preparing) → 서버 키워드(start) 매핑
+export async function patchOrderStatus(orderId, uiAction, reason) {
+  const url = apiUrl(`/orders/${orderId}/status`);
+
+  // UI->서버 action 매핑
+  const ACTION_MAP = {
+    confirm: 'confirm',
+    start_preparing: 'start',  // 핵심 수정안
+    start: 'start',
+    serve: 'serve',
+    cancel: 'cancel',
+  };
+  const action = ACTION_MAP[uiAction] || uiAction; // 안전
+
+  const headers = {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+    // (필요시) 관리자 인증 헤더 추가
+    // 'Authorization': `Admin ${adminToken}`,
+  };
+
+  const body = JSON.stringify(
+    reason ? { action, reason } : { action }
+  );
+
+  console.log('[patchOrderStatus] PATCH', url, body);
+
+  const res  = await fetch(url, { method: 'PATCH', headers, body });
+  const text = await res.text();
+  let data = {}; try { data = JSON.parse(text); } catch {}
+  console.log('[patchOrderStatus] response', res.status, text);
+
+  if (!res.ok || !data?.success) {
+    throw new Error(data?.message || `상태 변경 실패 (${res.status})`);
   }
-
-  console.log(`[patchOrderStatus] 주문 #${orderId} 상태 변경 시도: ${action}`);
-
-  // 서버 요구사항에 따른 우선순위 시도
-  const attempts = [
-    // 1순위: PATCH + 쿼리스트링 (서버 요구사항)
-    {
-      method: 'PATCH',
-      path: `/orders/${orderId}/status`,
-      query: { action, ...(reason && { reason }) }
-    },
-    // 2순위: admin prefix
-    {
-      method: 'PATCH', 
-      path: `/admin/orders/${orderId}/status`,
-      query: { action, ...(reason && { reason }) }
-    },
-    // 3순위: JSON body (백업)
-    {
-      method: 'PATCH',
-      path: `/orders/${orderId}/status`,
-      body: { action, ...(reason && { reason }) }
-    }
-  ];
-
-  for (const attempt of attempts) {
-    try {
-      const url = attempt.query 
-        ? apiUrl(attempt.path, attempt.query)
-        : apiUrl(attempt.path);
-        
-      const options = {
-        method: attempt.method,
-        headers: adminHeaders()
-      };
-      
-      if (attempt.body) {
-        options.body = JSON.stringify(attempt.body);
-      }
-
-      console.log(`[patchOrderStatus] 시도: ${attempt.method} ${url}`);
-      
-      const res = await fetch(url, options);
-      const text = await res.text();
-      
-      console.log(`[patchOrderStatus] 응답: ${res.status} - ${text.substring(0, 200)}`);
-
-      if (res.status === 401) {
-        clearAdminSession();
-        throw new Error('인증이 만료되었습니다. 다시 로그인해주세요.');
-      }
-
-      if (res.status === 404 || res.status === 405) {
-        continue; // 다음 방법 시도
-      }
-
-      if (res.ok) {
-        try {
-          const data = JSON.parse(text);
-          if (data?.success === false) {
-            throw new Error(data?.message || '상태 변경 실패');
-          }
-          console.log(`✅ [patchOrderStatus] 성공`);
-          return data || { success: true };
-        } catch {
-          console.log(`✅ [patchOrderStatus] 성공 (JSON 파싱 불가하지만 HTTP 200)`);
-          return { success: true };
-        }
-      }
-
-      // 400 오류 - 메시지 확인 후 다음 방법 시도
-      if (res.status === 400) {
-        try {
-          const errorData = JSON.parse(text);
-          console.log(`[patchOrderStatus] 400 오류: ${errorData.message || text}`);
-          if (errorData.message?.includes('action required')) {
-            continue; // 다른 방법 시도
-          }
-        } catch {}
-      }
-
-      // 기타 오류는 즉시 throw
-      const errorMsg = `상태 변경 실패 (${res.status})`;
-      try {
-        const errorData = JSON.parse(text);
-        throw new Error(errorData.message || errorMsg);
-      } catch {
-        throw new Error(errorMsg);
-      }
-
-    } catch (error) {
-      console.error(`[patchOrderStatus] 시도 실패:`, error);
-      
-      // 마지막 시도였다면 throw
-      if (attempt === attempts[attempts.length - 1]) {
-        throw error;
-      }
-      // 아니면 다음 방법 시도
-    }
-  }
-
-  throw new Error('모든 상태 변경 방법이 실패했습니다.');
+  return data;
 }
 
 /* -----------------------------
