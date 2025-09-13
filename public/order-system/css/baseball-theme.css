@@ -6,7 +6,7 @@
 }
 
 body {
-    font-family: 'Roboto', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: "KBO Dia Gothic";
     margin: 0;
     padding: 0;
     background: linear-gradient(
@@ -533,7 +533,6 @@ input[type="password"]:focus {
 /* 반응형 디자인 */
 @media (max-width: 480px) {
     .container {
-        margin: 10px;
         border-radius: 16px;
     }
     
