@@ -17,6 +17,34 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentCategory = 'set';
   let isProcessing = false;
 
+  const CATEGORY_BY_ID = {
+  1: 'main', 2: 'main', 3: 'main', // 메인메뉴
+  4: 'side', 5: 'side', 6: 'side',
+  7: 'side', 8: 'side', 9: 'side',
+  10: 'side', // 사이드메뉴
+  11: 'drink', 12: 'drink', 13: 'drink',
+  14: 'drink', 15: 'drink', 16: 'drink' // 음료
+  };
+
+  const CATEGORY_BY_NAME_CONTAINS = [
+    { key: '문학철판구이', cat: 'main' },
+    { key: '빙하기공룡고기', cat: 'main' },
+    { key: '호랑이 생고기', cat: 'main' },
+
+    { key: 'LG라면', cat: 'side' },
+    { key: '김치말이국수', cat: 'side' },
+    { key: '볶음', cat: 'side' },
+    { key: '쫄', cat: 'side' },
+    { key: '화채', cat: 'side' }, // 기존 규칙에선 drink였지만, 요청에 따라 side로 고정
+    { key: '랍찜', cat: 'side' },
+    { key: '크봉밥', cat: 'side' },
+
+    { key: '칵테일', cat: 'drink' },
+    { key: '콜라', cat: 'drink' },
+    { key: '사이다', cat: 'drink' },
+    { key: '물', cat: 'drink' }
+  ];
+
   // -----------------------------
   // slug 추출
   // -----------------------------
@@ -533,42 +561,54 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // 메뉴를 카테고리별로 분류
-  function categorizeMenus(menuData) {
-    const categories = {
-      set: [],
-      main: [],
-      side: [],
-      drink: []
-    };
+// 카테고리 분류 함수
+function categorizeMenus(menuData) {
+  const categories = { set: [], main: [], side: [], drink: [] };
 
-    // 한화e글스-ㅔ트 세트메뉴 추가 (회장이 한화 팬이라.. 절대적 권력에 의하여 세트 이름이 선정되었습니다...)
-    const hanwhaSet = {
-      id: 'hanwha-set-001',
-      name: '한화e글스-ㅔ트',
-      description: '(회장이 한화 팬이라.. 절대적 권력에 의하여 세트 이름이 선정되었습니다...)',
-      price: 149000,
-      image_url: '/images/eagles.png',
-      category: 'set'
-    };
-    categories.set.push(hanwhaSet);
+  // 한화 세트 고정 추가
+  const hanwhaSet = {
+    id: 'hanwha-set-001',
+    name: '한화e글스-ㅔ트',
+    description: '(회장이 한화 팬이라.. 절대적 권력에 의하여 세트 이름이 선정되었습니다...)',
+    price: 149000,
+    image_url: '/images/eagles.png',
+    category: 'set'
+  };
+  categories.set.push(hanwhaSet);
 
-    menuData.forEach(menu => {
-      // 메뉴 이름이나 태그를 기반으로 카테고리 분류
-      const name = menu.name.toLowerCase();
-      
-      if (name.includes('세트') || name.includes('set') || menu.price >= 15000) {
-        categories.set.push(menu);
-      } else if (name.includes('콜라') || name.includes('사이다') || name.includes('물') || name.includes('칵테일') || name.includes('화채')) {
-        categories.drink.push(menu);
-      } else if (name.includes('밥') || name.includes('면') || menu.price <= 8000) {
-        categories.side.push(menu);
-      } else {
-        categories.main.push(menu);
-      }
-    });
+  menuData.forEach((menu) => {
+    const rawName = (menu.name || '').toString();
+    const name = rawName.toLowerCase();
+    const id = typeof menu.id === 'number' ? menu.id : (menu.id ? Number(menu.id) : null);
+    const priceNum = typeof menu.price === 'number' ? menu.price : Number(menu.price);
 
-    return categories;
-  }
+    // 1) ID 기반 매핑
+    if (id && CATEGORY_BY_ID[id]) {
+      categories[CATEGORY_BY_ID[id]].push(menu);
+      return;
+    }
+
+    // 2) 이름 포함 규칙
+    const hit = CATEGORY_BY_NAME_CONTAINS.find(rule => rawName.includes(rule.key));
+    if (hit) {
+      categories[hit.cat].push(menu);
+      return;
+    }
+
+    // 3) 폴백: 기존 휴리스틱
+    if (name.includes('세트') || name.includes('set') || (Number.isFinite(priceNum) && priceNum >= 15000)) {
+      categories.set.push(menu);
+    } else if (name.includes('콜라') || name.includes('사이다') || name.includes('물') || name.includes('칵테일')) {
+      categories.drink.push(menu);
+    } else if (name.includes('밥') || name.includes('면') || (Number.isFinite(priceNum) && priceNum <= 8000)) {
+      categories.side.push(menu);
+    } else {
+      categories.main.push(menu);
+    }
+  });
+
+  return categories;
+}
 
   // 카테고리별 메뉴 로드 (수량 유지)
   function loadMenusByCategory(category) {
@@ -624,7 +664,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // 메뉴 이미지 처리
     const imageHtml = menu.image_url 
-      ? `<img src="${menu.image_url}" alt="${menu.name}" class="menu-image" style="width: 100px; height: 100px; object-fit: cover; border-radius: 12px;">`
+      ? `<img src="${menu.image_url}" alt="${menu.name}">`
       : `<div class="menu-img-placeholder"><i class="${icon}"></i></div>`;
     
     return `
