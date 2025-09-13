@@ -37,26 +37,31 @@ function apiUrl(path, params) {
   return url.href;
 }
 
-function sessionHeaders({ scheme = 'Session', idemKey, useOnlyX = false } = {}) {
-  const s = JSON.parse(localStorage.getItem('SESSION_META') || '{}');
-  const token = s?.token || (window.Tokens?.getSession?.() || null);
-  const h = {
+function sessionHeaders(slug, { scheme = 'Session', idemKey, useOnlyX = false } = {}) {
+  const headers = {
     'Content-Type': 'application/json',
-    'Accept': 'application/json',
+    'Accept': 'application/json'
   };
+
+  // slug 기반으로 SessionStore에서 읽기 (단일 소스)
+  const session = slug ? SessionStore.getSession(slug) : null;
+  const token = session?.token || Tokens.getSession?.(); // 백업으로 Tokens 허용
+
   if (token) {
-    if (!useOnlyX) h['Authorization'] = `${scheme} ${token}`;
-    h['X-Session-Token'] = token; // 남겨두는 편이 안전
-    if (s.session_id) h['X-Session-Id'] = String(s.session_id);
-    if (s.table_id)   h['X-Table-Id']   = String(s.table_id);
-    if (s.channel)    h['X-Channel']    = String(s.channel); // TAKEOUT
-    if (s.slug)       h['X-Table-Slug'] = String(s.slug);
+    if (!useOnlyX) headers['Authorization'] = `${scheme} ${token}`;
+    headers['X-Session-Token'] = token; // 항상 포함
   }
-  if (idemKey) h['X-Idempotency-Key'] = idemKey;
-  return h;
+  if (session) {
+    if (session.session_id != null) headers['X-Session-Id'] = String(session.session_id);
+    if (session.table_id   != null) headers['X-Table-Id']   = String(session.table_id);
+    if (session.channel)            headers['X-Channel']     = String(session.channel);
+    if (session.slug)               headers['X-Table-Slug']  = String(session.slug);
+  }
+  if (idemKey) headers['X-Idempotency-Key'] = idemKey;
+
+  return headers;
 }
 
-// function sessionHeaders(slug) {
 //   const headers = {
 //     'Content-Type': 'application/json',
 //     'Accept': 'application/json'
@@ -159,7 +164,8 @@ export async function openSessionBySlug(slug, codeFromUser) {
       table_id: sessionData.table_id,
       channel: sessionData.channel,
       slug: slug,
-      opened_at: new Date().toISOString()
+      opened_at: new Date().toISOString(),
+      token: sessionData.session_token // 백업 메타에 token 포함
     };
     Tokens.setSessionMeta(legacyMeta);
     
@@ -243,7 +249,8 @@ export async function openTakeoutSession(slug) {
     table_id: sessionData.table_id,
     channel: sessionData.channel,
     slug: slug,
-    opened_at: new Date().toISOString()
+    opened_at: new Date().toISOString(),
+    token: sessionData.session_token // 백업 메타에 token 포함
   };
   Tokens.setSessionMeta(legacyMeta);
   
@@ -350,7 +357,7 @@ export async function createOrder(order, slug) {
 
   // --- 초시도 ---
   const key1 = makeIdemKey(slug);
-  const h1   = sessionHeaders({ scheme: 'Session', idemKey: key1 });
+  const h1   = sessionHeaders(slug, { scheme: 'Session', idemKey: key1 });
   let res = await fetch(url, { method:'POST', headers: h1, body, credentials: 'include' });
   let txt = await res.text(); let data = {}; try { data = JSON.parse(txt); } catch {}
   console.log('[createOrder] try1', res.status, txt);
@@ -379,7 +386,7 @@ export async function createOrder(order, slug) {
   const key2 = makeIdemKey(slug);
 
   // (A) 스킴 폴백: Bearer로 시도
-  const h2 = sessionHeaders({ scheme: 'Bearer', idemKey: key2 });
+  const h2 = sessionHeaders(slug, { scheme: 'Bearer', idemKey: key2 });
   res = await fetch(url, { method:'POST', headers: h2, body, credentials: 'include' });
   txt = await res.text(); data = {}; try { data = JSON.parse(txt); } catch {}
   console.log('[createOrder] try2(Bearer)', res.status, txt);
@@ -387,7 +394,7 @@ export async function createOrder(order, slug) {
 
   // (B) 그래도 안되면 Authorization 제거, x-session-token만
   const key3 = makeIdemKey(slug);
-  const h3 = sessionHeaders({ idemKey: key3, useOnlyX: true });
+  const h3 = sessionHeaders(slug, { idemKey: key3, useOnlyX: true });
   res = await fetch(url, { method:'POST', headers: h3, body, credentials: 'include' });
   txt = await res.text(); data = {}; try { data = JSON.parse(txt); } catch {}
   console.log('[createOrder] try3(x-only)', res.status, txt);
@@ -399,7 +406,7 @@ export async function createOrder(order, slug) {
 export async function getUserOrderDetails(orderId, slug) {
   await waitForRuntime();
   const url = apiUrl(`/orders/${orderId}`);
-  const headers = slug ? sessionHeaders(slug) : sessionHeaders(); // slug 선택사항
+  const headers = sessionHeaders(slug); // slug 필수로 사용
   
   const res = await fetch(url, { method: 'GET', headers });
   const text = await res.text();

@@ -32,6 +32,8 @@ async function init() {
 
   // 버튼 이벤트 리스너
   document.getElementById('refresh-btn')?.addEventListener('click', () => refreshWaitingInfo());
+
+  // 뒤로가기 버튼 수정 필요
   document.getElementById('back-btn')?.addEventListener('click', () => (location.href = '/'));
 
   // 주문 ID 추출
