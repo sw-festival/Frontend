@@ -45,7 +45,8 @@ async function parseJsonSafe(res) {
  * 인증/토큰 유틸
  * ----------------------------- */
 function getAdminToken() {
-  return sessionStorage.getItem('admin_token') || localStorage.getItem('accesstoken') || '';
+  return sessionStorage.getItem('admin_token') || '' || localStorage.getItem('admin_token');
+
 }
 function setAdminToken(jwt) {
   sessionStorage.setItem('admin_token', jwt);
@@ -56,14 +57,26 @@ function clearAdminSession() {
   sessionStorage.removeItem('admin_token');
   sessionStorage.removeItem('admin_logged_in');
   sessionStorage.removeItem('admin_login_time');
-  localStorage.removeItem('accesstoken'); // 구버전 호환
+  localStorage.removeItem('admin-token'); 
+  // localStorage.removeItem('accesstoken');
 }
+
 function adminHeaders() {
-  const token = getAdminToken();
-  const headers = { 'Content-Type':'application/json', 'Accept':'application/json' };
-  if (token) headers['Authorization'] = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
-  return headers;
+  const t = getAdminToken();
+  const h = {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+    ...extra,
+  };
+  if (t) {
+    // 서버가 'Authorization: Admin <jwt>'를 기본으로 받는다고 가정
+    h['Authorization'] = `Admin ${t}`;
+    // 혹시 모를 백엔드 호환용
+    h['X-Admin-Token'] = t;
+  }
+  return h;
 }
+
 function isTokenValid() {
   const token = getAdminToken();
   if (!token) return false;
