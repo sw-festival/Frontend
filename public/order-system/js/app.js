@@ -370,16 +370,10 @@ document.addEventListener('DOMContentLoaded', () => {
         : '\n\n포장 주문이 완료되었습니다.';
     alert(successMessage);
 
-    // slug를 포함해서 이동 (경로 또는 쿼리 중 하나 선택)
-    // 1) slug가 경로에 있는 라우팅을 쓰는 경우:
-    const waitingUrl = `/t/${encodeURIComponent(slug)}/waiting.html?orderId=${orderId}`;
-
-    // 2) 만약 /waiting.html 단일 파일만 쓰면 쿼리로 slug를 넘겨도 OK:
-    // const waitingUrl = `/waiting.html?orderId=${orderId}&slug=${encodeURIComponent(slug)}`;
-
-    console.log('대기 페이지로 이동:', waitingUrl);
+    // 루트 waiting.html로 보내고 slug는 쿼리로 전달
+    const waitingUrl = `/waiting.html?orderId=${orderId}&slug=${encodeURIComponent(slug)}`;
     window.location.href = waitingUrl;
-    }
+}
 
   // -----------------------------
   // 이벤트 바인딩
