@@ -29,8 +29,8 @@
         }
 
         /* 전체 페이지에 KBO Dia Gothic 폰트 기본 적용 */
-        * {
-            font-family: "KBO Dia Gothic", 'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+        body, h1, h2, h3, h4, h5, h6, p, span, div, button, input, textarea, select {
+            font-family: "KBO Dia Gothic", 'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
 
         /* News Text 스타일 (우선순위 높게) */
@@ -180,7 +180,7 @@
         }
 
         .popular-subtitle {
-            color: 1C355D;
+            color: #1C355D;
             font-size: 24px;
             font-weight: 700;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
@@ -236,7 +236,7 @@
 
         /* 메뉴 컴포넌트 스타일 */
         .menu-component {
-            background: white;
+            background: #1C355D;
             border-radius: 20px;
             box-shadow: 0 8px 25px rgba(0,0,0,0.1);
             overflow: hidden;
@@ -254,7 +254,6 @@
         .menu-tabs {
             display: flex;
             gap: 1rem;
-            flex-wrap: wrap;
             justify-content: center;
         }
 
@@ -274,7 +273,7 @@
             font-weight: 500;
             color: #6c757d;
             white-space: nowrap;
-            min-width: 80px;
+            min-width: 50px;
             text-align: center;
         }
 
@@ -306,12 +305,7 @@
         }
         
         .menu-item {
-            background: url('/images/menu-bg.png') no-repeat center center;
-            background-size: contain;
-            background-position: center;
             position: relative;
-            width: 100%;
-            height: 180px;
             border-radius: 20px;
             overflow: hidden;
             cursor: pointer;
@@ -324,30 +318,46 @@
             box-shadow: 0 8px 25px rgba(0,0,0,0.2);
         }
 
-        /* 메뉴 제목 (상단 중앙) */
-        .menu-title {
+        /* 메뉴 배경 이미지 (카드 크기 결정) */
+        .menu-bg {
+            display: block;
+            width: 100%;
+            height: auto;
+            object-fit: cover;
+        }
+
+        /* 오버레이 (텍스트와 버튼) */
+        .menu-overlay {
             position: absolute;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 16px;
+            pointer-events: none;
+        }
+
+        /* 메뉴 제목 (오버레이 상단) */
+        .menu-title {
             font-family: "KBO Dia Gothic";
             font-size: 18px;
             font-weight: 700;
             color: white;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
-            z-index: 10;
             text-align: center;
+            margin-bottom: auto;
         }
 
-        /* 메뉴 이미지 (왼쪽) */
-        .menu-image {
-            position: absolute;
-            left: 20px;
-            top: 50%;
-            transform: translateY(-50%);
-            z-index: 10;
+        /* 메뉴 이미지와 설명 컨테이너 (오버레이 중앙) */
+        .menu-content {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            flex: 1;
         }
 
+        /* 메뉴 이미지 */
         .menu-image img {
             width: 70px;
             height: 70px;
@@ -369,31 +379,24 @@
             border: 2px solid rgba(255,255,255,0.8);
         }
 
-        /* 메뉴 설명 (이미지 옆) */
+        /* 메뉴 설명 */
         .menu-description {
-            position: absolute;
-            left: 110px;
-            top: 50%;
-            transform: translateY(-50%);
             font-family: "KBO Dia Gothic";
             font-size: 13px;
             font-weight: 300;
             color: white;
             text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
-            z-index: 10;
             max-width: 120px;
             line-height: 1.3;
         }
 
-        /* 수량 조절 버튼 (우측 하단) */
+        /* 수량 조절 버튼 (오버레이 하단) */
         .menu-quantity {
-            position: absolute;
-            right: 20px;
-            bottom: 20px;
             display: flex;
             align-items: center;
+            justify-content: flex-end;
             gap: 0.5rem;
-            z-index: 10;
+            pointer-events: auto;
         }
 
         .quantity-btn {
@@ -793,18 +796,17 @@
                 gap: 1rem;
                 padding: 0;
             }
-
-            .menu-item {
-                height: 150px;
+            
+            .menu-overlay {
+                padding: 12px;
             }
             
             .menu-title {
                 font-size: 16px;
-                top: 15px;
             }
             
-            .menu-image {
-                left: 15px;
+            .menu-content {
+                gap: 0.8rem;
             }
             
             .menu-image img, .menu-img-placeholder {
@@ -813,14 +815,8 @@
             }
             
             .menu-description {
-                left: 85px;
                 font-size: 12px;
                 max-width: 100px;
-            }
-            
-            .menu-quantity {
-                right: 15px;
-                bottom: 15px;
             }
             
             .quantity-btn {
@@ -1163,33 +1159,26 @@
                 grid-template-columns: 1fr;
             }
             
-            .menu-item {
-                height: 130px;
+            .menu-overlay {
+                padding: 10px;
             }
             
             .menu-title {
-                font-size: 14px;
-                top: 10px;
+                font-size: 22px;
             }
             
-            .menu-image {
-                left: 10px;
+            .menu-content {
+                gap: 0.6rem;
             }
             
             .menu-image img, .menu-img-placeholder {
-                width: 50px;
-                height: 50px;
+                width: 117px;
+                height: 132px;
             }
             
             .menu-description {
-                left: 70px;
-                font-size: 11px;
+                font-size: 18px;
                 max-width: 80px;
-            }
-            
-            .menu-quantity {
-                right: 10px;
-                bottom: 10px;
             }
             
             .quantity-btn {
@@ -1218,39 +1207,38 @@
 
         <main>
             <!-- 1단계: 주문 방식 선택 -->
-            <section id="order-type-section">
+            <!-- <section id="order-type-section">
                 <div class="welcome-message">
                     <h2><i class="fas fa-baseball-ball"></i> 주문 방식을 선택해주세요</h2>
                     <p>매장 이용 또는 포장 주문을 선택하신 후 주문을 시작하세요.</p>
                 </div>
                 
                     <div class="order-type-buttons">
-                    <button type="button" id="dine-in-btn" class="order-type-btn selected">
-                        <i class="fas fa-utensils"></i> 
+                    <button type="button" id="dine-in-btn" class="order-type-btn selected"> -->
+                        <!-- <i class="fas fa-utensils"></i>  -->
                         <!-- <span>매장 이용</span> -->
                         <!-- <small>테이블에서 식사</small> -->
-                    </button>
-                    <button type="button" id="takeout-btn" class="order-type-btn">
-                        <i class="fas fa-shopping-bag"></i> 
+                    <!-- </button>
+                    <button type="button" id="takeout-btn" class="order-type-btn"> -->
+                        <!-- <i class="fas fa-shopping-bag"></i>  -->
                         <!-- <span>포장 주문</span> -->
                         <!-- <small>10% 할인 적용</small> -->
-                    </button>
+                    <!-- </button>
                 </div>
                 
                 <button id="start-order-btn" class="start-order-btn">
                     <i class="fas fa-arrow-right"></i> 주문하기
                 </button>
-                
+                 -->
                 <!-- 인기 메뉴 순위 -->
-                <div id="popular-menu-section">
+                <!-- <div id="popular-menu-section">
                     <h3><i class="fas fa-fire"></i> 실시간 인기 메뉴 TOP 3</h3>
                     <div id="popular-menu-list">
                         <div class="loading">인기 메뉴를 불러오는 중...</div>
                     </div>
-                </div>
-            </section>
+                </div> -->
+            <!-- </section> -->
 
-            <!-- 2단계: 메뉴 선택 섹션 (처음에는 숨김) -->
             <section id="menu-section" class="hidden">
                 <!-- 인기 메뉴 TOP 3 컴포넌트 -->
                 <div class="popular-menu-component">
@@ -1260,14 +1248,14 @@
                     </div> -->
                     <div class="popular-item first-rank">
                         <div class="popular-name">-</div>
-                    </div>
+                        </div>
                     <div class="popular-item second-rank">
                         <div class="popular-name">-</div>
-                    </div>
+                        </div>
                     <div class="popular-item third-rank">
                         <div class="popular-name">-</div>
+                        </div>
                     </div>
-                </div>
 
                 <!-- 메뉴 컴포넌트 -->
                 <div class="menu-component">
@@ -1285,8 +1273,8 @@
                 <div class="menu-content">
                     <div class="menu-grid" id="menu-list">
                         <!-- 동적으로 메뉴가 로드됩니다 -->
-                    </div>
-                </div>
+                        </div>
+                        </div>
                 </div> <!-- menu-component -->
 
                 <!-- 장바구니 컴포넌트 -->
@@ -1297,19 +1285,19 @@
                             <i class="fas fa-shopping-cart"></i>
                             <p>장바구니가 비어있습니다</p>
                         </div>
+                        </div>
                     </div>
-                </div>
 
                 <!-- 총 금액 표시 컴포넌트 -->
                 <div class="total-amount-component">
                     <div class="total-header">
                         <h3><i class="fas fa-calculator"></i> 총 입금 금액</h3>
                         <div class="total-price" id="total-price">0원</div>
-                    </div>
+                        </div>
                     <div class="selected-items-summary" id="selected-items-summary">
                         선택한 메뉴가 없습니다
+                        </div>
                     </div>
-                </div>
 
                 <!-- 입금 계좌 정보 -->
                 <div class="payment-info">
@@ -1326,16 +1314,16 @@
                         <div class="account-item">
                             <span class="account-label">예금주:</span>
                             <span class="account-value">소프트웨어융합대학 학생회</span>
-                        </div>
                     </div>
+                        </div>
                     <div class="payment-notice">
                         <i class="fas fa-info-circle"></i>
                         <span>
                             입금자명을 정확히 입력해주세요.<br>
                             입금 확인 후 주문이 접수됩니다.
                         </span>
+                        </div>
                     </div>
-                </div>
 
                 <!-- 주문 확인 버튼 -->
                 <div class="order-confirm-section">
