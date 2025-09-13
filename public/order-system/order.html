@@ -244,17 +244,18 @@
         }
 
         .menu-tabs-container {
-            position: relative;
-            margin-bottom: -1px;
+            display: flex;
+            justify-content: center;
+            margin: 2rem 0;
+            padding: 0 1rem;
         }
 
-        /* 메뉴 탭 네비게이션 (책갈피 스타일) */
+        /* 새로운 메뉴 탭 스타일 - 버튼 방식 */
         .menu-tabs {
             display: flex;
-            gap: 0;
-            overflow-x: auto;
-            scrollbar-width: none;
-            -ms-overflow-style: none;
+            gap: 1rem;
+            flex-wrap: wrap;
+            justify-content: center;
         }
 
         .menu-tabs::-webkit-scrollbar {
@@ -263,86 +264,45 @@
 
         .menu-tab {
             background: #f8f9fa;
-            border: none;
-            border-top: 3px solid transparent;
-            padding: 1rem 1.5rem;
+            border: 2px solid #e9ecef;
+            border-radius: 25px;
+            padding: 0.8rem 1.5rem;
             cursor: pointer;
             transition: all 0.3s ease;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 0.3rem;
-            min-width: 100px;
-            flex-shrink: 0;
-            position: relative;
-            color: #666;
-            border-radius: 15px 15px 0 0;
-            margin-right: 2px;
-            transform: translateY(1px);
+            font-family: "KBO Dia Gothic";
+            font-size: 14px;
+            font-weight: 500;
+            color: #6c757d;
             white-space: nowrap;
-        }
-
-        .menu-tab::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 3px;
-            background: transparent;
-            border-radius: 15px 15px 0 0;
-            transition: all 0.3s ease;
-        }
-
-        .menu-tab:hover {
-            background: #e9ecef;
-            color: #1a5490;
-            transform: translateY(-2px);
-        }
-
-        .menu-tab:hover::before {
-            background: #1a5490;
+            min-width: 80px;
+            text-align: center;
         }
 
         .menu-tab.active {
-            background: white;
-            color: #1a5490;
-            border-top-color: #1a5490;
-            transform: translateY(0);
-            z-index: 1;
-            box-shadow: 0 -2px 8px rgba(0,0,0,0.1);
-        }
-
-        .menu-tab.active::before {
             background: #1a5490;
+            border-color: #1a5490;
+            color: white;
+            font-weight: 700;
+            box-shadow: 0 4px 12px rgba(26, 84, 144, 0.3);
         }
 
-        .menu-tab i {
-            font-size: 1.3rem;
-            transition: all 0.3s ease;
-        }
-
-        .menu-tab span {
-            font-weight: 600;
-            font-size: 0.85rem;
-        }
-
-        .menu-tab.active i {
-            transform: scale(1.1);
+        .menu-tab:not(.active):hover {
+            background: #e9ecef;
+            border-color: #1a5490;
+            color: #1a5490;
         }
 
         /* 메뉴 컨텐츠 */
         .menu-content {
-            padding: 2rem;
-            border-radius: 0 0 20px 20px;
-            margin-top: -1px;
+            padding: 1rem;
         }
         
         .menu-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 1rem;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 1.5rem;
             margin: 2rem 0;
+            padding: 0 1rem;
         }
         
         .menu-item {
@@ -351,94 +311,122 @@
             background-position: center;
             position: relative;
             width: 100%;
-            height: 200px;
-            margin: 1rem 0;
-            border-radius: 15px;
+            height: 180px;
+            border-radius: 20px;
             overflow: hidden;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }
         
         .menu-item:hover {
-            transform: translateY(-2px);
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
         }
 
-        .menu-name {
+        /* 메뉴 제목 (상단 중앙) */
+        .menu-title {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
             font-family: "KBO Dia Gothic";
             font-size: 18px;
-            font-style: normal;
             font-weight: 700;
-            line-height: 22px;
-            letter-spacing: 0.4px;
-            background: linear-gradient(103deg, #EDECED 46.48%, #616161 98.27%);
-            background-clip: text;
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin: 0 0 5px 0;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            z-index: 10;
+            text-align: center;
         }
 
-        .menu-description {
-            background: linear-gradient(91deg, #EDECED 5.62%, #858585 108.16%);
-            background-clip: text;
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            font-family: "KBO Dia Gothic";
-            font-size: 14px;
-            font-weight: 300;
-            margin: 10px 0;
-        }
-
+        /* 메뉴 이미지 (왼쪽) */
         .menu-image {
             position: absolute;
-            left: 30px;
+            left: 20px;
             top: 50%;
             transform: translateY(-50%);
             z-index: 10;
         }
 
         .menu-image img {
-            width: 80px;
-            height: 80px;
+            width: 70px;
+            height: 70px;
             object-fit: cover;
-            border-radius: 12px;
+            border-radius: 10px;
+            border: 2px solid rgba(255,255,255,0.8);
         }
 
-        .menu-content {
-            position: absolute;
-            left: 130px;
-            top: 50%;
-            transform: translateY(-50%);
-            z-index: 10;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .menu-info {
-            margin-bottom: 1rem;
-        }
-
-        .menu-quantity {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-        
         .menu-img-placeholder {
-            width: 80px;
-            height: 80px;
+            width: 70px;
+            height: 70px;
             background: linear-gradient(135deg, #1a5490, #2c3e50);
-            border-radius: 12px;
+            border-radius: 10px;
             display: flex;
             align-items: center;
             justify-content: center;
             color: white;
-            font-size: 2rem;
-            box-shadow: 0 4px 8px rgba(26, 84, 144, 0.3);
+            font-size: 1.5rem;
+            border: 2px solid rgba(255,255,255,0.8);
+        }
+
+        /* 메뉴 설명 (이미지 옆) */
+        .menu-description {
+            position: absolute;
+            left: 110px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-family: "KBO Dia Gothic";
+            font-size: 13px;
+            font-weight: 300;
+            color: white;
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
+            z-index: 10;
+            max-width: 120px;
+            line-height: 1.3;
+        }
+
+        /* 수량 조절 버튼 (우측 하단) */
+        .menu-quantity {
+            position: absolute;
+            right: 20px;
+            bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            z-index: 10;
+        }
+
+        .quantity-btn {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            border: 2px solid white;
+            background: rgba(26, 84, 144, 0.8);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+
+        .quantity-btn:hover {
+            background: #1a5490;
+            transform: scale(1.1);
+        }
+
+        .quantity {
+            background: rgba(255,255,255,0.9);
+            color: #1a5490;
+            padding: 0.3rem 0.8rem;
+            border-radius: 15px;
+            font-weight: 700;
+            font-size: 14px;
+            min-width: 30px;
+            text-align: center;
         }
         
-        
-        .menu-info {
-            flex: 1;
-            margin-bottom: 1rem;
-        }
         
         .menu-name {
             font-size: 1.4rem;
@@ -791,37 +779,54 @@
             }
 
             .menu-tab {
-                padding: 0.8rem 1.2rem;
-                min-width: 90px;
-                margin-right: 0;
-            }
-
-            .menu-tab i {
-                font-size: 1.1rem;
-            }
-
-            .menu-tab span {
-                font-size: 0.75rem;
+                padding: 0.6rem 1rem;
+                min-width: 70px;
+                font-size: 12px;
             }
 
             .menu-content {
-                padding: 1rem;
+                padding: 0.5rem;
             }
 
             .menu-grid {
                 grid-template-columns: 1fr;
+                gap: 1rem;
+                padding: 0;
             }
 
             .menu-item {
                 height: 150px;
             }
             
-            .menu-image {
-                left: 20px;
+            .menu-title {
+                font-size: 16px;
+                top: 15px;
             }
             
-            .menu-content {
-                left: 110px;
+            .menu-image {
+                left: 15px;
+            }
+            
+            .menu-image img, .menu-img-placeholder {
+                width: 60px;
+                height: 60px;
+            }
+            
+            .menu-description {
+                left: 85px;
+                font-size: 12px;
+                max-width: 100px;
+            }
+            
+            .menu-quantity {
+                right: 15px;
+                bottom: 15px;
+            }
+            
+            .quantity-btn {
+                width: 25px;
+                height: 25px;
+                font-size: 12px;
             }
 
             .menu-image {
@@ -1162,12 +1167,35 @@
                 height: 130px;
             }
             
-            .menu-image {
-                left: 15px;
+            .menu-title {
+                font-size: 14px;
+                top: 10px;
             }
             
-            .menu-content {
-                left: 100px;
+            .menu-image {
+                left: 10px;
+            }
+            
+            .menu-image img, .menu-img-placeholder {
+                width: 50px;
+                height: 50px;
+            }
+            
+            .menu-description {
+                left: 70px;
+                font-size: 11px;
+                max-width: 80px;
+            }
+            
+            .menu-quantity {
+                right: 10px;
+                bottom: 10px;
+            }
+            
+            .quantity-btn {
+                width: 22px;
+                height: 22px;
+                font-size: 10px;
             }
         }
     </style>
@@ -1246,22 +1274,10 @@
                     <!-- 메뉴 탭 네비게이션 (책갈피 스타일) -->
                     <div class="menu-tabs-container">
                         <div class="menu-tabs">
-                            <button class="menu-tab active" data-category="set">
-                                <!-- <i class="fas fa-utensils"></i> -->
-                                <span>세트메뉴</span>
-                            </button>
-                            <button class="menu-tab" data-category="main">
-                                <!-- <i class="fas fa-drumstick-bite"></i> -->
-                                <span>메인메뉴</span>
-                            </button>
-                            <button class="menu-tab" data-category="side">
-                                <!-- <i class="fas fa-pepper-hot"></i> -->
-                                <span>사이드메뉴</span>
-                            </button>
-                            <button class="menu-tab" data-category="drink">
-                                <!-- <i class="fas fa-glass-cheers"></i> -->
-                                <span>음료</span>
-                            </button>
+                            <button class="menu-tab active" data-category="set">세트메뉴</button>
+                            <button class="menu-tab" data-category="main">메인메뉴</button>
+                            <button class="menu-tab" data-category="side">사이드메뉴</button>
+                            <button class="menu-tab" data-category="drink">음료</button>
                         </div>
                     </div>
 

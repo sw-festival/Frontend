@@ -669,20 +669,16 @@ function categorizeMenus(menuData) {
     
     return `
       <div class="menu-item" data-menu-id="${menu.id}" data-price="${menu.price}">
+        <div class="menu-title">${menu.name}</div>
         <div class="menu-image">
           ${imageHtml}
         </div>
-        <div class="menu-content">
-          <div class="menu-info">
-            <h3 class="menu-name">${menu.name}</h3>
-            <p class="menu-description">${description}</p>
-            <p class="menu-price" style="display: none;">${menu.price.toLocaleString()}원</p>
-          </div>
-          <div class="menu-quantity">
-            <button class="quantity-btn minus-btn" data-action="minus">
-              <i class="fas fa-minus"></i>
-            </button>
-            <span class="quantity">0</span>
+        <div class="menu-description">${description}</div>
+        <div class="menu-quantity">
+          <button class="quantity-btn minus-btn" data-action="minus">
+            <i class="fas fa-minus"></i>
+          </button>
+          <span class="quantity">0</span>
             <button class="quantity-btn plus-btn" data-action="plus">
               <i class="fas fa-plus"></i>
             </button>
