@@ -372,9 +372,15 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log(`[주문하기] 세션 보장 시작: ${slug}, 채널: ${expectedChannel}`);
     
     try {
+      // TAKEOUT 안전모드: 항상 새 세션 열기 (서버 측 세션 상태 불일치 방지)
+      const options = expectedChannel === 'TAKEOUT' ? { alwaysRefresh: true } : {};
+      
       // ensureSessionBeforeOrder로 세션 보장
-      await ensureSessionBeforeOrder(slug, expectedChannel);
-      console.log(`[주문하기] 세션 보장 완료: ${slug}`);
+      await ensureSessionBeforeOrder(slug, expectedChannel, options);
+      console.log(`[주문하기] 세션 보장 완료: ${slug}`, { 
+        channel: expectedChannel, 
+        safeMode: options.alwaysRefresh 
+      });
       
       // 주문 진행
       await placeOrderWithNewSession(slug, expectedChannel);

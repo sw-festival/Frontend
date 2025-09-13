@@ -241,8 +241,21 @@ export async function openTakeoutSession(slug) {
 /* -----------------------------
  *  세션 보장 함수 (주문 전 필수 체크)
  * ----------------------------- */
-export async function ensureSessionBeforeOrder(slug, expectedChannel) {
-  console.log(`[ensureSessionBeforeOrder] ${slug}, 채널: ${expectedChannel}`);
+export async function ensureSessionBeforeOrder(slug, expectedChannel, options = {}) {
+  console.log(`[ensureSessionBeforeOrder] ${slug}, 채널: ${expectedChannel}`, options);
+  
+  // TAKEOUT 안전모드: 항상 새 세션 열기 (서버 측 세션 상태 불일치 방지)
+  if (expectedChannel === 'TAKEOUT' && options.alwaysRefresh) {
+    console.log(`[ensureSessionBeforeOrder] TAKEOUT 안전모드: 기존 세션 무시하고 새로 열기 - ${slug}`);
+    SessionStore.removeSession(slug); // 기존 세션 제거
+    await openTakeoutSession(slug);
+    const newSession = SessionStore.getSession(slug);
+    console.log(`[ensureSessionBeforeOrder] TAKEOUT 안전모드 완료: ${slug}`, {
+      sessionId: newSession?.session_id,
+      expiresAt: newSession?.expiresAt
+    });
+    return newSession;
+  }
   
   const session = SessionStore.getSession(slug);
   
@@ -342,41 +355,57 @@ export async function createOrder(orderData, slug) {
   console.log(`[createOrder] ${res.status} (slug: ${slug})`, text);
 
   if (!res.ok || !data?.success) {
-    // 422 token expired 처리
-    if (res.status === 422 && text.includes('token expired')) {
+    // TAKEOUT 세션 관련 에러들에 대한 자동 재시도 (서버 측 세션 상태 불일치 해결)
+    const isSessionError = (
+      (res.status === 422 && (text.includes('token expired') || text.includes('Invalid') || text.includes('closed'))) ||
+      (res.status === 401) ||
+      (text.toLowerCase().includes('invalid') && text.toLowerCase().includes('session')) ||
+      (text.toLowerCase().includes('closed') && text.toLowerCase().includes('session'))
+    );
+    
+    if (isSessionError) {
       const session = SessionStore.getSession(slug);
       if (session?.channel === 'TAKEOUT') {
-        console.log(`[createOrder] TAKEOUT 토큰 만료, 자동 재시도: ${slug}`);
+        console.log(`[createOrder] TAKEOUT 세션 에러 감지, 자동 재오픈 & 재시도: ${slug}`, {
+          status: res.status,
+          errorSnippet: text.substring(0, 100)
+        });
+        
         try {
+          // 기존 세션 제거 후 새로 열기
+          SessionStore.removeSession(slug);
           await openTakeoutSession(slug);
+          
           const newHeaders = sessionHeaders(slug);
           newHeaders['X-Idempotency-Key'] = idempotencyKey; // 같은 키 사용
           
+          console.log(`[createOrder] TAKEOUT 재시도 시작: ${slug}`);
           const retryRes = await fetch(url, { method: 'POST', headers: newHeaders, body });
           const retryText = await retryRes.text();
           let retryData = {}; try { retryData = JSON.parse(retryText); } catch (e) {}
-          console.log(`[createOrder] 재시도 결과 ${retryRes.status}:`, retryText);
+          console.log(`[createOrder] TAKEOUT 재시도 결과 ${retryRes.status}:`, retryText.substring(0, 200));
           
           if (retryRes.ok && retryData?.success) {
+            console.log(`[createOrder] TAKEOUT 재시도 성공: ${slug}`);
             return retryData;
           }
           throw new Error(retryData?.message || '주문 재시도 실패');
         } catch (retryError) {
-          console.error('[createOrder] TAKEOUT 재시도 실패:', retryError);
+          console.error(`[createOrder] TAKEOUT 재시도 실패: ${slug}`, retryError);
           throw retryError;
         }
       } else {
-        // DINE-IN에서는 재시도 하지 않고 그대로 에러 반환
-        console.log(`[createOrder] DINE-IN 토큰 만료, 재시도 안함: ${slug}`);
+        // DINE-IN에서는 재시도 하지 않고 그대로 에러 반환 (자동 재오픈 절대 금지)
+        console.log(`[createOrder] DINE-IN 세션 에러, 재시도 안함: ${slug}`, {
+          status: res.status,
+          errorSnippet: text.substring(0, 100)
+        });
         SessionStore.removeSession(slug);
         throw new Error('DINEIN_TOKEN_EXPIRED');
       }
     }
     
-    if (res.status === 401) {
-      SessionStore.removeSession(slug);
-    }
-    
+    // 기타 에러
     throw new Error(data?.message || `주문 생성 실패 (${res.status})`);
   }
   
