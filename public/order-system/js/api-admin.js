@@ -44,10 +44,19 @@ async function parseJsonSafe(res) {
 /* -----------------------------
  * 인증/토큰 유틸
  * ----------------------------- */
-function getAdminToken() {
-  return sessionStorage.getItem('admin_token') || '' || localStorage.getItem('admin_token');
 
+// --- 관리자 토큰 읽기 (세션저장소 우선, 로컬스토리지 보조) ---
+export function getAdminTokenStrict() {
+  try {
+    const t =
+      sessionStorage.getItem('admin_token') ||
+      localStorage.getItem('admin_token') ||
+      localStorage.getItem('access_token') ||
+      localStorage.getItem('accesstoken') || ''; // 레거시 키 호환
+    return (t || '').replace(/^"|"$/g, ''); // 따옴표 방지
+  } catch { return ''; }
 }
+
 function setAdminToken(jwt) {
   sessionStorage.setItem('admin_token', jwt);
   sessionStorage.setItem('admin_logged_in', 'true');
@@ -57,27 +66,44 @@ function clearAdminSession() {
   sessionStorage.removeItem('admin_token');
   sessionStorage.removeItem('admin_logged_in');
   sessionStorage.removeItem('admin_login_time');
-  localStorage.removeItem('admin-token'); 
-  // localStorage.removeItem('accesstoken');
+  localStorage.removeItem('admin_token');
+  localStorage.removeItem('admin-token');   // 혹시 레거시 키
+  localStorage.removeItem('access_token');  // 레거시 키
+  localStorage.removeItem('accesstoken');   // 레거시 철자 실수 대비
 }
 
-function adminHeaders() {
-  const t = getAdminToken();
+// --- 모든 관리자 API 공통 헤더 ---
+export function adminHeaders(extra) {
+  extra = (extra && typeof extra === 'object') ? extra : {};
+  const token = getAdminTokenStrict();
+
   const h = {
     'Content-Type': 'application/json',
-    'Accept': 'application/json'
+    'Accept': 'application/json',
   };
-  if (t) {
-    // 서버가 'Authorization: Admin <jwt>'를 기본으로 받는다고 가정
-    h['Authorization'] = `Admin ${t}`;
-    // 혹시 모를 백엔드 호환용
-    h['X-Admin-Token'] = t;
+  Object.assign(h, extra);
+
+  if (token) {
+    // 서버가 읽는 대표 헤더
+    h['Authorization'] = `Bearer ${token}`;
+
+    // 혹시 모를 백엔드 호환(옵션)
+    h['X-Admin-Token']  = token;
+    h['X-Access-Token'] = token;
   }
+
+  // 디버깅: 실제로 뭐가 나가는지 눈으로 확인
+  console.log('[adminHeaders] sending headers =', {
+    hasAuth: !!h.Authorization,
+    preview: h.Authorization ? h.Authorization.slice(0, 24) + '...' : null,
+    xAdmin: !!h['X-Admin-Token'],
+  });
+
   return h;
 }
 
 function isTokenValid() {
-  const token = getAdminToken();
+  const token = getAdminTokenStrict();
   if (!token) return false;
 
   // JWT exp 확인
@@ -124,7 +150,7 @@ export async function adminLogin(pin) {
  *  (선택) 토큰 서버 검증
  * ----------------------------- */
 export async function validateAndRefreshToken() {
-  const token = getAdminToken();
+  const token = getAdminTokenStrict();
   if (!token) {
     console.log('❌ No token found');
     return false;
@@ -229,6 +255,7 @@ export async function getOrderDetails(orderId) {
  *  1차: /admin/orders/:id/status
  *  2차: /orders/:id/status
  * ----------------------------- */
+
 // 주문 상태 변경 
 // 서버가 요구하는 바디 형식으로 보냄
 // /api/orders/:id/status 로 고정
@@ -246,12 +273,7 @@ export async function patchOrderStatus(orderId, uiAction, reason) {
   };
   const action = ACTION_MAP[uiAction] || uiAction; // 안전
 
-  const headers = {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
-    // (필요시) 관리자 인증 헤더 추가
-    // 'Authorization': `Admin ${adminToken}`,
-  };
+  const headers = adminHeaders();
 
   const body = JSON.stringify(
     reason ? { action, reason } : { action }
@@ -261,11 +283,23 @@ export async function patchOrderStatus(orderId, uiAction, reason) {
 
   const res  = await fetch(url, { method: 'PATCH', headers, body });
   const text = await res.text();
-  let data = {}; try { data = JSON.parse(text); } catch {}
   console.log('[patchOrderStatus] response', res.status, text);
 
+  let data = {}; try { data = JSON.parse(text); } catch {}
   if (!res.ok || !data?.success) {
-    throw new Error(data?.message || `상태 변경 실패 (${res.status})`);
+    // 혹시 서버가 "No token provided"면 스킴 호환 재시도(일부 백엔드가 'Admin '을 요구할 때)
+    if (res.status === 401 && /no token/i.test(data?.message || '')) {
+      const tok = getAdminTokenStrict();
+      if (tok) {
+        const headers2 = adminHeaders();
+        headers2.Authorization = `Admin ${tok}`; // 👈 대안 스킴
+        const res2 = await fetch(url, { method: 'PATCH', headers: headers2, body, credentials: 'include' });
+        const t2 = await res2.text(); let d2={}; try{ d2=JSON.parse(t2) }catch{}
+        console.log('[patchOrderStatus] retry(Admin-scheme)', res2.status, t2);
+        if (res2.ok && d2?.success) return d2;
+      }
+    }
+    throw new Error(data?.message || `HTTP ${res.status}`);
   }
   return data;
 }
