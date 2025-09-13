@@ -65,8 +65,7 @@ function adminHeaders() {
   const t = getAdminToken();
   const h = {
     'Content-Type': 'application/json',
-    'Accept': 'application/json',
-    ...extra,
+    'Accept': 'application/json'
   };
   if (t) {
     // 서버가 'Authorization: Admin <jwt>'를 기본으로 받는다고 가정

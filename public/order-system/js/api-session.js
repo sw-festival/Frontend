@@ -456,7 +456,7 @@ export async function getWaitingInfo(orderId) {
   
   try {
     // 1. 현재 주문 정보 조회
-    const orderUrl = apiUrl(`/orders/session/${orderId}`);
+    const orderUrl = apiUrl(`/orders/${orderId}`);
     const orderRes = await fetch(orderUrl, { method: 'GET', headers });
     const orderText = await orderRes.text();
     let orderData = {};
