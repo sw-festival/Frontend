@@ -379,3 +379,316 @@
 @media (orientation: landscape) and (min-width: 1024px) and (max-width: 1366px) {
   .orders-grid { grid-template-columns: repeat(4, minmax(240px, 1fr)); }
 }
+
+/* 새로운 상태별 섹션 스타일 */
+.confirmed-orders {
+    border-color: #27ae60;
+    background: linear-gradient(135deg, #1b2d1b, #2d2d2d);
+}
+
+.in-progress-orders {
+    border-color: #3498db;
+    background: linear-gradient(135deg, #1b1b2d, #2d2d2d);
+}
+
+.served-orders {
+    border-color: #2ecc71;
+    background: linear-gradient(135deg, #1b2d1b, #2d2d2d);
+}
+
+.confirmed-orders h2 {
+    color: #27ae60;
+}
+
+.in-progress-orders h2 {
+    color: #3498db;
+}
+
+.served-orders h2 {
+    color: #2ecc71;
+}
+
+/* 주문 카드 상태별 스타일 */
+.kitchen-order-card.confirmed {
+    border-left-color: #27ae60;
+    background: linear-gradient(135deg, #2d4d2d, #3d3d3d);
+}
+
+.kitchen-order-card.in-progress {
+    border-left-color: #3498db;
+    background: linear-gradient(135deg, #2d2d4d, #3d3d3d);
+}
+
+.kitchen-order-card.served {
+    border-left-color: #2ecc71;
+    background: linear-gradient(135deg, #2d4d2d, #3d3d3d);
+    opacity: 0.8;
+}
+
+/* 주문 상태 배지 */
+.order-status {
+    margin: 10px 0;
+}
+
+.status-badge {
+    padding: 4px 12px;
+    border-radius: 15px;
+    font-size: 0.85em;
+    font-weight: bold;
+    color: white;
+}
+
+/* 주문 총액 */
+.order-total {
+    text-align: right;
+    font-weight: bold;
+    color: #FF6B35;
+    font-size: 1.1em;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #4d4d4d;
+}
+
+/* 항목 없음 스타일 */
+.no-items {
+    color: #666;
+    font-style: italic;
+    text-align: center;
+    padding: 10px;
+}
+
+/* 모달 스타일 */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(5px);
+}
+
+.modal-content {
+    background-color: #2d2d2d;
+    margin: 5% auto;
+    padding: 0;
+    border: none;
+    border-radius: 15px;
+    width: 90%;
+    max-width: 600px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-50px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 25px;
+    background: linear-gradient(135deg, #FF6B35, #FF8C42);
+    border-radius: 15px 15px 0 0;
+    color: white;
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 1.5em;
+    font-weight: bold;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 2em;
+    cursor: pointer;
+    padding: 0;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background-color 0.3s;
+}
+
+.modal-close:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+.modal-body {
+    padding: 25px;
+    color: white;
+}
+
+.modal-order-details h4,
+.status-change-info h4 {
+    color: #FF6B35;
+    margin: 0 0 15px 0;
+    font-size: 1.2em;
+}
+
+.modal-order-details p {
+    margin: 8px 0;
+    font-size: 1em;
+}
+
+.order-items {
+    margin-top: 15px;
+}
+
+.order-items h5 {
+    color: #cccccc;
+    margin: 10px 0 8px 0;
+    font-size: 1em;
+}
+
+.order-items ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    background: #3d3d3d;
+    border-radius: 8px;
+    padding: 12px;
+}
+
+.order-items li {
+    padding: 5px 0;
+    color: #ffffff;
+    border-bottom: 1px solid #4d4d4d;
+}
+
+.order-items li:last-child {
+    border-bottom: none;
+}
+
+.status-flow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+    margin: 20px 0;
+}
+
+.current-status,
+.next-status {
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-weight: bold;
+    color: white;
+    font-size: 1em;
+}
+
+.arrow {
+    font-size: 1.5em;
+    color: #FF6B35;
+    font-weight: bold;
+}
+
+.action-question {
+    text-align: center;
+    font-size: 1.1em;
+    color: #ffffff;
+    margin: 20px 0;
+    font-weight: 500;
+}
+
+.modal-footer {
+    padding: 20px 25px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 15px;
+    background: #1a1a1a;
+    border-radius: 0 0 15px 15px;
+}
+
+.modal-btn {
+    padding: 12px 25px;
+    border: none;
+    border-radius: 25px;
+    font-size: 1em;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s;
+    min-width: 100px;
+}
+
+.modal-btn.confirm {
+    background: #27ae60;
+    color: white;
+}
+
+.modal-btn.confirm:hover {
+    background: #2ecc71;
+    transform: translateY(-2px);
+}
+
+.modal-btn.confirm:disabled {
+    background: #666;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.modal-btn.cancel {
+    background: #6c757d;
+    color: white;
+}
+
+.modal-btn.cancel:hover {
+    background: #5a6268;
+    transform: translateY(-2px);
+}
+
+/* 빈 상태 추가 스타일 */
+.empty-state.confirmed {
+    color: #27ae60;
+}
+
+.empty-state.in-progress {
+    color: #3498db;
+}
+
+.empty-state.served {
+    color: #2ecc71;
+}
+
+.empty-state.error {
+    color: #dc3545;
+}
+
+/* 모바일에서 모달 최적화 */
+@media (max-width: 768px) {
+    .modal-content {
+        width: 95%;
+        margin: 10% auto;
+    }
+    
+    .modal-header,
+    .modal-body,
+    .modal-footer {
+        padding: 15px 20px;
+    }
+    
+    .status-flow {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .arrow {
+        transform: rotate(90deg);
+    }
+}

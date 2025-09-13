@@ -1,6 +1,6 @@
 // public/order-system/js/app.js
 import './config.js';
-import { createOrder, openSessionBySlug, getPublicMenu, getTopMenu } from './api-session.js';
+import { createOrder, openSessionBySlug, openTakeoutSession, getPublicMenu, getTopMenu } from './api-session.js';
 import { PRODUCT_ID_MAP } from './product-map.js';
 import { Tokens } from './tokens.js';
 
@@ -13,6 +13,8 @@ document.addEventListener('DOMContentLoaded', () => {
   let orderType = 'dine-in';
   let discountRate = 0;
   const cart = {};
+  let allMenus = {}; // 카테고리별 메뉴 데이터
+  let currentCategory = 'set';
   let isProcessing = false;
 
   // -----------------------------
@@ -316,7 +318,15 @@ document.addEventListener('DOMContentLoaded', () => {
     verifyBtn.disabled = true;
 
     try {
-      await openSessionBySlug(slug, code);
+      // 포장 주문인지 확인하여 적절한 API 사용
+      if (orderType === 'takeout') {
+        console.log('포장 주문으로 멀티세션 API 사용');
+        await openTakeoutSession(slug, code);
+      } else {
+        console.log('매장 주문으로 기존 세션 API 사용');
+        await openSessionBySlug(slug, code);
+      }
+      
       const tokenPreview = (Tokens.getSession?.() || '').slice(0, 12);
       console.log('세션 열기 성공, token=', tokenPreview ? tokenPreview + '...' : '(없음)');
 
@@ -328,6 +338,16 @@ document.addEventListener('DOMContentLoaded', () => {
       console.error('주문 처리 실패:', error);
       codeLoading?.classList.add('hidden');
       codeError?.classList.remove('hidden');
+      
+      // 에러 메시지 개선
+      if (codeError) {
+        codeError.innerHTML = `
+          <div class="error-content">
+            <i class="fas fa-exclamation-triangle"></i>
+            <span>${error?.message || '알 수 없는 오류가 발생했습니다.'}</span>
+          </div>
+        `;
+      }
     } finally {
       isProcessing = false;
       verifyBtn.disabled = false;
@@ -352,33 +372,291 @@ document.addEventListener('DOMContentLoaded', () => {
       // 인기/메뉴 병렬 로드 (한쪽 실패해도 나머지 진행)
       const [topRes, menuRes] = await Promise.allSettled([ getTopMenu(3), getPublicMenu() ]);
 
-      // 인기 메뉴
+      // 인기 메뉴 TOP3 포디움
       if (topRes.status === 'fulfilled') {
         const topMenus = topRes.value || [];
-        const popularMenuList = document.getElementById('popular-menu-list');
-        if (popularMenuList && topMenus.length) {
-          const medals = ['🥇','🥈','🥉'];
-          popularMenuList.innerHTML = topMenus.map((m,i)=>`
-            <div class="popular-menu-item">
-              <span class="medal">${medals[i]||'🏆'}</span>
-              <span class="menu-name">${m.name}</span>
-              <span class="order-count">판매 ${m.qty_sold}개</span>
-            </div>
-          `).join('');
-        }
+        updateTop3Podium(topMenus);
       }
 
-      // 메뉴
+      // 전체 메뉴 데이터 저장 및 초기 탭 로드
       if (menuRes.status === 'fulfilled') {
         const menuData = menuRes.value || [];
-        if (menuData.length) updateMenuAvailability(menuData);
+        allMenus = categorizeMenus(menuData);
+        loadMenusByCategory('set'); // 기본적으로 세트메뉴 탭 표시
+        setupMenuTabEvents();
+        setupCartEvents();
       }
 
-      console.log('주문 시스템 초기화 완료');
+      console.log('새로운 탭 기반 주문 시스템 초기화 완료');
     } catch (e) {
       console.error('초기화 중 오류:', e);
     }
   })();
+
+  // -----------------------------
+  // 새로운 탭 기반 메뉴 시스템 함수들
+  // -----------------------------
+
+  // TOP3 포디움 업데이트
+  function updateTop3Podium(topMenus) {
+    const podiumItems = document.querySelectorAll('.podium-item');
+    const positions = ['second-place', 'first-place', 'third-place']; // 2, 1, 3 순서
+    
+    topMenus.forEach((menu, index) => {
+      if (index < 3) {
+        const podiumItem = document.querySelector(`.${positions[index]}`);
+        if (podiumItem) {
+          const nameElement = podiumItem.querySelector('.menu-name');
+          const ordersElement = podiumItem.querySelector('.menu-orders');
+          
+          if (nameElement) nameElement.textContent = menu.name;
+          if (ordersElement) ordersElement.textContent = `${menu.qty_sold}건`;
+        }
+      }
+    });
+  }
+
+  // 메뉴를 카테고리별로 분류
+  function categorizeMenus(menuData) {
+    const categories = {
+      set: [],
+      main: [],
+      side: [],
+      drink: []
+    };
+
+    menuData.forEach(menu => {
+      // 메뉴 이름이나 태그를 기반으로 카테고리 분류
+      const name = menu.name.toLowerCase();
+      
+      if (name.includes('세트') || name.includes('set') || menu.price >= 15000) {
+        categories.set.push(menu);
+      } else if (name.includes('콜라') || name.includes('사이다') || name.includes('물') || name.includes('칵테일') || name.includes('화채')) {
+        categories.drink.push(menu);
+      } else if (name.includes('밥') || name.includes('면') || menu.price <= 8000) {
+        categories.side.push(menu);
+      } else {
+        categories.main.push(menu);
+      }
+    });
+
+    return categories;
+  }
+
+  // 카테고리별 메뉴 로드
+  function loadMenusByCategory(category) {
+    currentCategory = category;
+    const menuList = document.getElementById('menu-list');
+    const menus = allMenus[category] || [];
+
+    if (!menuList) return;
+
+    if (menus.length === 0) {
+      menuList.innerHTML = `
+        <div style="text-align: center; padding: 3rem; color: #666;">
+          <i class="fas fa-utensils" style="font-size: 3rem; margin-bottom: 1rem; color: #ddd;"></i>
+          <p>이 카테고리에 메뉴가 없습니다.</p>
+        </div>
+      `;
+      return;
+    }
+
+    menuList.innerHTML = menus.map(menu => createMenuItemHTML(menu)).join('');
+    setupMenuItemEvents();
+  }
+
+  // 메뉴 아이템 HTML 생성
+  function createMenuItemHTML(menu) {
+    const categoryIcons = {
+      set: 'fas fa-utensils',
+      main: 'fas fa-drumstick-bite',
+      side: 'fas fa-pepper-hot',
+      drink: 'fas fa-glass-cheers'
+    };
+
+    const icon = categoryIcons[currentCategory] || 'fas fa-utensils';
+    
+    return `
+      <div class="menu-item" data-menu-id="${menu.id}" data-price="${menu.price}">
+        <div class="menu-img-placeholder">
+          <i class="${icon}"></i>
+        </div>
+        <div class="menu-details">
+          <h3 class="menu-name">${menu.name}</h3>
+          <p class="menu-price" style="display: none;">${menu.price.toLocaleString()}원</p>
+        </div>
+        <div class="menu-quantity">
+          <button class="quantity-btn minus-btn" data-action="minus">-</button>
+          <span class="quantity">0</span>
+          <button class="quantity-btn plus-btn" data-action="plus">+</button>
+        </div>
+      </div>
+    `;
+  }
+
+  // 메뉴 탭 이벤트 설정
+  function setupMenuTabEvents() {
+    const menuTabs = document.querySelectorAll('.menu-tab');
+    
+    menuTabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        // 활성 탭 변경
+        menuTabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        
+        // 해당 카테고리 메뉴 로드
+        const category = tab.dataset.category;
+        loadMenusByCategory(category);
+      });
+    });
+  }
+
+  // 메뉴 아이템 이벤트 설정
+  function setupMenuItemEvents() {
+    const quantityBtns = document.querySelectorAll('.quantity-btn');
+    
+    quantityBtns.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const action = btn.dataset.action;
+        const menuItem = btn.closest('.menu-item');
+        const menuId = menuItem.dataset.menuId;
+        const price = parseInt(menuItem.dataset.price);
+        const menuName = menuItem.querySelector('.menu-name').textContent;
+        const quantitySpan = menuItem.querySelector('.quantity');
+        
+        let currentQuantity = parseInt(quantitySpan.textContent) || 0;
+        
+        if (action === 'plus') {
+          currentQuantity++;
+          updateCart(menuId, menuName, price, currentQuantity);
+        } else if (action === 'minus' && currentQuantity > 0) {
+          currentQuantity--;
+          if (currentQuantity === 0) {
+            removeFromCart(menuId);
+          } else {
+            updateCart(menuId, menuName, price, currentQuantity);
+          }
+        }
+        
+        quantitySpan.textContent = currentQuantity;
+      });
+    });
+  }
+
+  // 장바구니 업데이트
+  function updateCart(menuId, menuName, price, quantity) {
+    cart[menuId] = {
+      name: menuName,
+      price: price,
+      quantity: quantity
+    };
+    
+    renderCart();
+    updateTotalAmount();
+  }
+
+  // 장바구니에서 제거
+  function removeFromCart(menuId) {
+    delete cart[menuId];
+    renderCart();
+    updateTotalAmount();
+  }
+
+  // 장바구니 렌더링
+  function renderCart() {
+    const cartItems = document.getElementById('cart-items');
+    if (!cartItems) return;
+
+    const cartKeys = Object.keys(cart);
+    
+    if (cartKeys.length === 0) {
+      cartItems.innerHTML = `
+        <div class="empty-cart">
+          <i class="fas fa-shopping-cart"></i>
+          <p>장바구니가 비어있습니다</p>
+        </div>
+      `;
+      return;
+    }
+
+    cartItems.innerHTML = cartKeys.map(menuId => {
+      const item = cart[menuId];
+      return `
+        <div class="cart-item" data-menu-id="${menuId}">
+          <div class="cart-item-info">
+            <div class="cart-item-name">${item.name}</div>
+            <div class="cart-item-quantity">${item.quantity}개</div>
+          </div>
+          <button class="cart-item-remove" data-menu-id="${menuId}">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // 총 금액 업데이트
+  function updateTotalAmount() {
+    const totalPriceElement = document.getElementById('total-price');
+    const summaryElement = document.getElementById('selected-items-summary');
+    
+    if (!totalPriceElement || !summaryElement) return;
+
+    let totalAmount = 0;
+    const cartKeys = Object.keys(cart);
+    
+    cartKeys.forEach(menuId => {
+      const item = cart[menuId];
+      totalAmount += item.price * item.quantity;
+    });
+
+    // 포장 주문 할인 적용
+    if (orderType === 'takeout') {
+      totalAmount = Math.floor(totalAmount * 0.9);
+    }
+
+    totalPriceElement.textContent = `${totalAmount.toLocaleString()}원`;
+    
+    // 선택된 메뉴 요약 (메뉴명만 표시, 가격 숨김)
+    if (cartKeys.length === 0) {
+      summaryElement.textContent = '선택한 메뉴가 없습니다';
+    } else {
+      const summary = cartKeys.map(menuId => {
+        const item = cart[menuId];
+        return `${item.name} × ${item.quantity}`;
+      }).join(', ');
+      
+      summaryElement.innerHTML = `
+        <div style="margin-bottom: 0.5rem;">선택한 메뉴:</div>
+        <div style="font-size: 0.9em; line-height: 1.4;">${summary}</div>
+        ${orderType === 'takeout' ? '<div style="margin-top: 0.5rem; color: #28a745; font-weight: bold;">포장 주문 10% 할인 적용</div>' : ''}
+      `;
+    }
+  }
+
+  // 장바구니 이벤트 설정
+  function setupCartEvents() {
+    const cartItems = document.getElementById('cart-items');
+    
+    if (cartItems) {
+      cartItems.addEventListener('click', (e) => {
+        const removeBtn = e.target.closest('.cart-item-remove');
+        if (removeBtn) {
+          const menuId = removeBtn.dataset.menuId;
+          removeFromCart(menuId);
+          
+          // 해당 메뉴의 수량도 0으로 업데이트
+          const menuItem = document.querySelector(`[data-menu-id="${menuId}"]`);
+          if (menuItem) {
+            const quantitySpan = menuItem.querySelector('.quantity');
+            if (quantitySpan) quantitySpan.textContent = '0';
+          }
+        }
+      });
+    }
+  }
+
 });
 
 // import './config.js';

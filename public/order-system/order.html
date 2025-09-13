@@ -87,6 +87,147 @@
         /* 2단계: 메뉴 선택 */
         #menu-section {
             padding: 1rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* TOP 3 포디움 스타일 */
+        .top3-podium {
+            margin: 2rem 0;
+            text-align: center;
+        }
+
+        .top3-podium h2 {
+            color: #1a5490;
+            margin-bottom: 2rem;
+            font-size: 1.8rem;
+        }
+
+        .podium-container {
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            gap: 1rem;
+            margin: 2rem 0;
+            height: 200px;
+        }
+
+        .podium-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            border-radius: 15px 15px 0 0;
+            color: white;
+            font-weight: bold;
+            min-width: 120px;
+            padding: 1rem;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .first-place {
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+            height: 160px;
+            order: 2;
+        }
+
+        .second-place {
+            background: linear-gradient(135deg, #C0C0C0, #A9A9A9);
+            height: 130px;
+            order: 1;
+        }
+
+        .third-place {
+            background: linear-gradient(135deg, #CD7F32, #A0522D);
+            height: 100px;
+            order: 3;
+        }
+
+        .podium-rank {
+            position: absolute;
+            top: -15px;
+            background: rgba(255,255,255,0.9);
+            color: #333;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+
+        .podium-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .menu-icon {
+            font-size: 2rem;
+        }
+
+        .menu-name {
+            font-size: 0.9rem;
+            text-align: center;
+            line-height: 1.2;
+        }
+
+        .menu-orders {
+            font-size: 0.8rem;
+            opacity: 0.9;
+        }
+
+        /* 메뉴 탭 네비게이션 */
+        .menu-tabs {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            margin: 2rem 0;
+            flex-wrap: wrap;
+        }
+
+        .menu-tab {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 1rem 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+            min-width: 100px;
+        }
+
+        .menu-tab:hover {
+            border-color: #1a5490;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(26, 84, 144, 0.2);
+        }
+
+        .menu-tab.active {
+            background: linear-gradient(135deg, #1a5490, #2c3e50);
+            color: white;
+            border-color: #1a5490;
+        }
+
+        .menu-tab i {
+            font-size: 1.5rem;
+        }
+
+        .menu-tab span {
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        /* 메뉴 컨텐츠 */
+        .menu-content {
+            margin: 2rem 0;
         }
         
         .menu-grid {
@@ -174,6 +315,305 @@
             font-weight: bold;
             min-width: 30px;
             text-align: center;
+        }
+
+        /* 장바구니 컴포넌트 */
+        .cart-component {
+            background: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin: 2rem 0;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            border: 2px solid #f0f8ff;
+        }
+
+        .cart-component h3 {
+            color: #1a5490;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .cart-items {
+            min-height: 100px;
+        }
+
+        .empty-cart {
+            text-align: center;
+            color: #666;
+            padding: 2rem;
+        }
+
+        .empty-cart i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            color: #ddd;
+        }
+
+        .cart-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            border-bottom: 1px solid #f0f0f0;
+            background: #f9f9f9;
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+        }
+
+        .cart-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+
+        .cart-item-info {
+            flex: 1;
+        }
+
+        .cart-item-name {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 0.25rem;
+        }
+
+        .cart-item-quantity {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .cart-item-remove {
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+
+        .cart-item-remove:hover {
+            background: #c82333;
+            transform: scale(1.1);
+        }
+
+        /* 총 금액 컴포넌트 */
+        .total-amount-component {
+            background: linear-gradient(135deg, #1a5490, #2c3e50);
+            color: white;
+            border-radius: 15px;
+            padding: 2rem;
+            margin: 2rem 0;
+            box-shadow: 0 6px 20px rgba(26, 84, 144, 0.3);
+        }
+
+        .total-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .total-header h3 {
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .total-price {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #FFD700;
+        }
+
+        .selected-items-summary {
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+            padding: 1rem;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        /* 입금 계좌 정보 */
+        .payment-info {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            margin: 2rem 0;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            border: 2px solid #28a745;
+        }
+
+        .payment-info h3 {
+            color: #28a745;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .account-details {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .account-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .account-item:last-child {
+            border-bottom: none;
+        }
+
+        .account-label {
+            font-weight: bold;
+            color: #495057;
+        }
+
+        .account-value {
+            font-weight: bold;
+            color: #28a745;
+            font-family: 'Courier New', monospace;
+        }
+
+        .payment-notice {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: #d1ecf1;
+            color: #0c5460;
+            padding: 1rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+
+        .payment-notice i {
+            color: #17a2b8;
+        }
+
+        /* 주문 확인 섹션 */
+        .order-confirm-section {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            margin: 2rem 0;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            border: 2px solid #1a5490;
+        }
+
+        .customer-info {
+            margin-bottom: 2rem;
+        }
+
+        .customer-info label {
+            display: block;
+            font-weight: bold;
+            color: #1a5490;
+            margin-bottom: 0.5rem;
+        }
+
+        .customer-info input {
+            width: 100%;
+            padding: 1rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: all 0.3s;
+        }
+
+        .customer-info input:focus {
+            border-color: #1a5490;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(26, 84, 144, 0.1);
+        }
+
+        .place-order-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 1.5rem;
+            font-size: 1.3rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .place-order-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(40, 167, 69, 0.3);
+        }
+
+        .place-order-btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* 반응형 디자인 */
+        @media (max-width: 768px) {
+            .podium-container {
+                height: 150px;
+                gap: 0.5rem;
+            }
+
+            .podium-item {
+                min-width: 80px;
+                padding: 0.5rem;
+            }
+
+            .first-place { height: 120px; }
+            .second-place { height: 100px; }
+            .third-place { height: 80px; }
+
+            .menu-tabs {
+                gap: 0.25rem;
+            }
+
+            .menu-tab {
+                padding: 0.75rem 1rem;
+                min-width: 80px;
+            }
+
+            .menu-tab i {
+                font-size: 1.2rem;
+            }
+
+            .menu-tab span {
+                font-size: 0.8rem;
+            }
+
+            .menu-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .total-header {
+                flex-direction: column;
+                gap: 1rem;
+                text-align: center;
+            }
+
+            .total-price {
+                font-size: 1.5rem;
+            }
         }
         
         /* 주문 요약 */
@@ -485,226 +925,111 @@
 
             <!-- 2단계: 메뉴 선택 섹션 (처음에는 숨김) -->
             <section id="menu-section" class="hidden">
-                <h2><i class="fas fa-utensils"></i> 스타디움 메뉴</h2>
-                
-                <div class="menu-grid" id="menu-list">
-                    <!-- 메뉴 항목들 -->
-                    <div class="menu-item" data-price="25900">
-                        <div class="menu-img-placeholder"><i class="fas fa-fire"></i></div>
-                        <div class="menu-details">
-                            <h3 class="menu-name">SSG 문학철판구이(400g)</h3>
-                            <p class="menu-price">25,900원</p>
+                <!-- 인기 메뉴 TOP 3 포디움 -->
+                <div class="top3-podium">
+                    <h2><i class="fas fa-trophy"></i> 실시간 인기 메뉴 TOP 3</h2>
+                    <div class="podium-container">
+                        <div class="podium-item second-place">
+                            <div class="podium-rank">2</div>
+                            <div class="podium-content">
+                                <div class="menu-icon">🥈</div>
+                                <div class="menu-name">-</div>
+                                <div class="menu-orders">-건</div>
+                            </div>
                         </div>
-                        <div class="menu-quantity">
-                            <button class="quantity-btn minus-btn">-</button>
-                            <span class="quantity">0</span>
-                            <button class="quantity-btn plus-btn">+</button>
+                        <div class="podium-item first-place">
+                            <div class="podium-rank">1</div>
+                            <div class="podium-content">
+                                <div class="menu-icon">🥇</div>
+                                <div class="menu-name">-</div>
+                                <div class="menu-orders">-건</div>
+                            </div>
                         </div>
-                    </div>
-
-                    <div class="menu-item" data-price="19900">
-                        <div class="menu-img-placeholder"><i class="fas fa-drumstick-bite"></i></div>
-                        <div class="menu-details">
-                            <h3 class="menu-name">NC 빙하기공룡고기(400g)</h3>
-                            <p class="menu-price">19,900원</p>
-                        </div>
-                        <div class="menu-quantity">
-                            <button class="quantity-btn minus-btn">-</button>
-                            <span class="quantity">0</span>
-                            <button class="quantity-btn plus-btn">+</button>
-                        </div>
-                    </div>
-
-                    <div class="menu-item" data-price="21900">
-                        <div class="menu-img-placeholder"><i class="fas fa-pepper-hot"></i></div>
-                        <div class="menu-details">
-                            <h3 class="menu-name">KIA 호랑이 생고기</h3>
-                            <p class="menu-price">21,900원</p>
-                        </div>
-                        <div class="menu-quantity">
-                            <button class="quantity-btn minus-btn">-</button>
-                            <span class="quantity">0</span>
-                            <button class="quantity-btn plus-btn">+</button>
-                        </div>
-                    </div>
-
-                    <div class="menu-item" data-price="7900">
-                        <div class="menu-img-placeholder"><i class="fas fa-leaf"></i></div>
-                        <div class="menu-details">
-                            <h3 class="menu-name">라팍 김치말이국수</h3>
-                            <p class="menu-price">7,900원</p>
-                        </div>
-                        <div class="menu-quantity">
-                            <button class="quantity-btn minus-btn">-</button>
-                            <span class="quantity">0</span>
-                            <button class="quantity-btn plus-btn">+</button>
-                        </div>
-                    </div>
-
-                    <div class="menu-item" data-price="5900">
-                        <div class="menu-img-placeholder"><i class="fas fa-utensils"></i></div>
-                        <div class="menu-details">
-                            <h3 class="menu-name">키움쫄?쫄면</h3>
-                            <p class="menu-price">5,900원</p>
-                        </div>
-                        <div class="menu-quantity">
-                            <button class="quantity-btn minus-btn">-</button>
-                            <span class="quantity">0</span>
-                            <button class="quantity-btn plus-btn">+</button>
-                        </div>
-                    </div>
-
-                    <div class="menu-item" data-price="5900">
-                        <div class="menu-img-placeholder"><i class="fas fa-bowl-hot"></i></div>
-                        <div class="menu-details">
-                            <h3 class="menu-name">LG라ㄹ면</h3>
-                            <p class="menu-price">5,900원</p>
-                        </div>
-                        <div class="menu-quantity">
-                            <button class="quantity-btn minus-btn">-</button>
-                            <span class="quantity">0</span>
-                            <button class="quantity-btn plus-btn">+</button>
-                        </div>
-                    </div>
-
-                    <div class="menu-item" data-price="6900">
-                        <div class="menu-img-placeholder"><i class="fas fa-glass-whiskey"></i></div>
-                        <div class="menu-details">
-                            <h3 class="menu-name">롯데 자이언츠 화채</h3>
-                            <p class="menu-price">6,900원</p>
-                        </div>
-                        <div class="menu-quantity">
-                            <button class="quantity-btn minus-btn">-</button>
-                            <span class="quantity">0</span>
-                            <button class="quantity-btn plus-btn">+</button>
-                        </div>
-                    </div>
-
-                    <div class="menu-item" data-price="8900">
-                        <div class="menu-img-placeholder"><i class="fas fa-fire"></i></div>
-                        <div class="menu-details">
-                            <h3 class="menu-name">두산 B볶rs</h3>
-                            <p class="menu-price">8,900원</p>
-                        </div>
-                        <div class="menu-quantity">
-                            <button class="quantity-btn minus-btn">-</button>
-                            <span class="quantity">0</span>
-                            <button class="quantity-btn plus-btn">+</button>
-                        </div>
-                    </div>
-
-                    <div class="menu-item" data-price="2500">
-                        <div class="menu-img-placeholder"><i class="fas fa-bowl-rice"></i></div>
-                        <div class="menu-details">
-                            <h3 class="menu-name">후리카케크봉밥</h3>
-                            <p class="menu-price">2,500원</p>
-                        </div>
-                        <div class="menu-quantity">
-                            <button class="quantity-btn minus-btn">-</button>
-                            <span class="quantity">0</span>
-                            <button class="quantity-btn plus-btn">+</button>
-                        </div>
-                    </div>
-
-                    <div class="menu-item" data-price="3000">
-                        <div class="menu-img-placeholder"><i class="fas fa-wine-bottle"></i></div>
-                        <div class="menu-details">
-                            <h3 class="menu-name">제로콜라</h3>
-                            <p class="menu-price">3,000원</p>
-                        </div>
-                        <div class="menu-quantity">
-                            <button class="quantity-btn minus-btn">-</button>
-                            <span class="quantity">0</span>
-                            <button class="quantity-btn plus-btn">+</button>
-                        </div>
-                    </div>
-
-                    <div class="menu-item" data-price="3000">
-                        <div class="menu-img-placeholder"><i class="fas fa-wine-bottle"></i></div>
-                        <div class="menu-details">
-                            <h3 class="menu-name">사이다</h3>
-                            <p class="menu-price">3,000원</p>
-                        </div>
-                        <div class="menu-quantity">
-                            <button class="quantity-btn minus-btn">-</button>
-                            <span class="quantity">0</span>
-                            <button class="quantity-btn plus-btn">+</button>
-                        </div>
-                    </div>
-
-                    <div class="menu-item" data-price="2000">
-                        <div class="menu-img-placeholder"><i class="fas fa-tint"></i></div>
-                        <div class="menu-details">
-                            <h3 class="menu-name">물</h3>
-                            <p class="menu-price">2,000원</p>
-                        </div>
-                        <div class="menu-quantity">
-                            <button class="quantity-btn minus-btn">-</button>
-                            <span class="quantity">0</span>
-                            <button class="quantity-btn plus-btn">+</button>
-                        </div>
-                    </div>
-
-                    <div class="menu-item" data-price="3500">
-                        <div class="menu-img-placeholder"><i class="fas fa-cocktail"></i></div>
-                        <div class="menu-details">
-                            <h3 class="menu-name">포도맛 (두산/KT/롯데/LG/키움) 칵테일</h3>
-                            <p class="menu-price">3,500원</p>
-                        </div>
-                        <div class="menu-quantity">
-                            <button class="quantity-btn minus-btn">-</button>
-                            <span class="quantity">0</span>
-                            <button class="quantity-btn plus-btn">+</button>
-                        </div>
-                    </div>
-                    <div class="menu-item" data-price="3500">
-                        <div class="menu-img-placeholder"><i class="fas fa-cocktail"></i></div>
-                        <div class="menu-details">
-                            <h3 class="menu-name">자몽맛 (한화/SSG/기아) 칵테일</h3>
-                            <p class="menu-price">3,500원</p>
-                        </div>
-                        <div class="menu-quantity">
-                            <button class="quantity-btn minus-btn">-</button>
-                            <span class="quantity">0</span>
-                            <button class="quantity-btn plus-btn">+</button>
-                        </div>
-                    </div>
-                    <div class="menu-item" data-price="3500">
-                        <div class="menu-img-placeholder"><i class="fas fa-cocktail"></i></div>
-                        <div class="menu-details">
-                            <h3 class="menu-name">소다맛 (NC/삼성) 칵테일</h3>
-                            <p class="menu-price">3,500원</p>
-                        </div>
-                        <div class="menu-quantity">
-                            <button class="quantity-btn minus-btn">-</button>
-                            <span class="quantity">0</span>
-                            <button class="quantity-btn plus-btn">+</button>
+                        <div class="podium-item third-place">
+                            <div class="podium-rank">3</div>
+                            <div class="podium-content">
+                                <div class="menu-icon">🥉</div>
+                                <div class="menu-name">-</div>
+                                <div class="menu-orders">-건</div>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- 주문 요약 섹션 -->
-                <div class="order-summary">
-                    <h3><i class="fas fa-shopping-cart"></i> 주문 내역</h3>
-                    <div id="cart-items">
-                        <p style="text-align: center; color: #666; padding: 2rem;">
-                            선택한 메뉴가 여기에 표시됩니다.
-                        </p>
-                    </div>
-                    <div class="total-price">
-                        총 금액: <span id="total-price">0</span>원
+                <!-- 메뉴 탭 네비게이션 -->
+                <div class="menu-tabs">
+                    <button class="menu-tab active" data-category="set">
+                        <i class="fas fa-utensils"></i>
+                        <span>세트메뉴</span>
+                    </button>
+                    <button class="menu-tab" data-category="main">
+                        <i class="fas fa-drumstick-bite"></i>
+                        <span>메인메뉴</span>
+                    </button>
+                    <button class="menu-tab" data-category="side">
+                        <i class="fas fa-pepper-hot"></i>
+                        <span>사이드메뉴</span>
+                    </button>
+                    <button class="menu-tab" data-category="drink">
+                        <i class="fas fa-glass-cheers"></i>
+                        <span>음료</span>
+                    </button>
                 </div>
 
-                    <div class="payment-info">
-                        <h4><i class="fas fa-university"></i> 계좌이체 정보</h4>
-                        <div class="account-details">
-                        <p><strong>은행:</strong> 신한은행</p>
-                        <p><strong>계좌번호:</strong> 110-123-456789</p>
-                        <p><strong>예금주:</strong> 소프트웨어융합대학 학생회</p>
-                        <p class="notice">* 주문 후 위 계좌로 이체해주세요</p>
+                <!-- 메뉴 컨텐츠 -->
+                <div class="menu-content">
+                    <div class="menu-grid" id="menu-list">
+                        <!-- 동적으로 메뉴가 로드됩니다 -->
                     </div>
+                </div>
+
+                <!-- 장바구니 컴포넌트 -->
+                <div class="cart-component">
+                    <h3><i class="fas fa-shopping-cart"></i> 장바구니</h3>
+                    <div class="cart-items" id="cart-items">
+                        <div class="empty-cart">
+                            <i class="fas fa-shopping-cart"></i>
+                            <p>장바구니가 비어있습니다</p>
+                        </div>
                     </div>
-                    
+                </div>
+
+                <!-- 총 금액 표시 컴포넌트 -->
+                <div class="total-amount-component">
+                    <div class="total-header">
+                        <h3><i class="fas fa-calculator"></i> 총 입금 금액</h3>
+                        <div class="total-price" id="total-price">0원</div>
+                    </div>
+                    <div class="selected-items-summary" id="selected-items-summary">
+                        선택한 메뉴가 없습니다
+                    </div>
+                </div>
+
+                <!-- 입금 계좌 정보 -->
+                <div class="payment-info">
+                    <h3><i class="fas fa-university"></i> 입금 계좌 정보</h3>
+                    <div class="account-details">
+                        <div class="account-item">
+                            <span class="account-label">은행명:</span>
+                            <span class="account-value">국민은행</span>
+                        </div>
+                        <div class="account-item">
+                            <span class="account-label">계좌번호:</span>
+                            <span class="account-value">123-456-789012</span>
+                        </div>
+                        <div class="account-item">
+                            <span class="account-label">예금주:</span>
+                            <span class="account-value">소프트웨어융합대학 학생회</span>
+                        </div>
+                    </div>
+                    <div class="payment-notice">
+                        <i class="fas fa-info-circle"></i>
+                        <span>입금자명을 정확히 입력해주세요. 입금 확인 후 주문이 접수됩니다.</span>
+                    </div>
+                </div>
+
+                <!-- 주문 확인 버튼 -->
+                <div class="order-confirm-section">
                     <div class="customer-info">
                         <label for="customer-name">
                             <i class="fas fa-user"></i> 입금자명:

@@ -439,3 +439,41 @@ export function createOrderStream(onMessage, onError) {
     }
   });
 }
+
+/* -----------------------------
+ *  전체 주문 조회 (관리자) - 페이지네이션
+ * ----------------------------- */
+export async function getAllOrders(options = {}) {
+  await waitForRuntime();
+  if (!isTokenValid()) {
+    clearAdminSession();
+    throw new Error('로그인이 필요합니다. 다시 로그인해주세요.');
+  }
+
+  const params = {};
+  if (options.limit) params.limit = options.limit;
+  if (options.after) params.after = options.after;
+  if (options.before) params.before = options.before;
+  if (options.status) params.status = options.status;
+  if (options.order_type) params.order_type = options.order_type;
+  if (options.table_slug) params.table_slug = options.table_slug;
+  if (options.from) params.from = options.from;
+  if (options.to) params.to = options.to;
+
+  const url = apiUrl('/orders/admin', params);
+  const res = await fetch(url, { method: 'GET', headers: adminHeaders() });
+  const { data, text } = await parseJsonSafe(res);
+  
+  console.log('[getAllOrders]', url, res.status, text);
+  
+  if (res.status === 401) {
+    clearAdminSession();
+    throw new Error('인증이 만료되었습니다. 다시 로그인해주세요.');
+  }
+  
+  if (!res.ok || !data?.success) {
+    throw new Error(data?.message || `전체 주문 조회 실패 (${res.status})`);
+  }
+  
+  return data?.data || data; // { items: [...], page_info: {...} }
+}

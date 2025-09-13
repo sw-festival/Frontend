@@ -16,12 +16,16 @@
             </div>
             <div class="kitchen-stats">
                 <div class="kitchen-stat">
-                    <span class="stat-value" id="pending-count">0</span>
-                    <span class="stat-label">대기</span>
+                    <span class="stat-value" id="confirmed-count">0</span>
+                    <span class="stat-label">대기중</span>
                 </div>
                 <div class="kitchen-stat">
-                    <span class="stat-value" id="preparing-count">0</span>
-                    <span class="stat-label">준비중</span>
+                    <span class="stat-value" id="in-progress-count">0</span>
+                    <span class="stat-label">조리중</span>
+                </div>
+                <div class="kitchen-stat">
+                    <span class="stat-value" id="served-count">0</span>
+                    <span class="stat-label">완료</span>
                 </div>
                 <div class="kitchen-stat urgent">
                     <span class="stat-value" id="urgent-count">0</span>
@@ -39,19 +43,27 @@
                 </div>
             </section>
 
-            <!-- 일반 주문 섹션 -->
-            <section class="normal-orders">
+            <!-- 대기중인 주문 섹션 (CONFIRMED) -->
+            <section class="confirmed-orders">
                 <h2>📋 대기중인 주문</h2>
-                <div id="normal-orders-list" class="orders-grid">
-                    <!-- 일반 주문이 여기에 표시됩니다 -->
+                <div id="confirmed-orders-list" class="orders-grid">
+                    <!-- CONFIRMED 상태 주문이 여기에 표시됩니다 -->
                 </div>
             </section>
 
-            <!-- 준비중 주문 섹션 -->
-            <section class="preparing-orders">
-                <h2>👨‍🍳 준비중인 주문</h2>
-                <div id="preparing-orders-list" class="orders-grid">
-                    <!-- 준비중 주문이 여기에 표시됩니다 -->
+            <!-- 조리중인 주문 섹션 (IN_PROGRESS) -->
+            <section class="in-progress-orders">
+                <h2>👨‍🍳 조리중인 주문</h2>
+                <div id="in-progress-orders-list" class="orders-grid">
+                    <!-- IN_PROGRESS 상태 주문이 여기에 표시됩니다 -->
+                </div>
+            </section>
+
+            <!-- 조리 완료된 주문 섹션 (SERVED) -->
+            <section class="served-orders">
+                <h2>🍽️ 조리 완료된 주문</h2>
+                <div id="served-orders-list" class="orders-grid">
+                    <!-- SERVED 상태 주문이 여기에 표시됩니다 -->
                 </div>
             </section>
         </main>
@@ -61,6 +73,28 @@
             <button id="refresh-btn" class="action-btn">🔄 새로고침</button>
             <button id="fullscreen-btn" class="action-btn">📺 전체화면</button>
             <button id="sound-toggle-btn" class="action-btn">🔔 알림음</button>
+        </div>
+    </div>
+
+    <!-- 주문 상태 변경 모달 -->
+    <div id="order-status-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-title">주문 상태 변경</h3>
+                <button id="modal-close" class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="modal-order-info" class="order-info">
+                    <!-- 주문 정보가 여기에 표시됩니다 -->
+                </div>
+                <div id="modal-status-info" class="status-info">
+                    <!-- 상태 변경 정보가 여기에 표시됩니다 -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="modal-confirm" class="modal-btn confirm">확인</button>
+                <button id="modal-cancel" class="modal-btn cancel">취소</button>
+            </div>
         </div>
     </div>
 

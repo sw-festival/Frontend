@@ -1,6 +1,6 @@
 // admin.js (수정본)
 import './config.js';
-import { adminLogin, patchOrderStatus, ensureTable, getOrderDetails, getActiveOrders, getAdminMenu, createOrderStream, forceCloseSession } from './api-admin.js';
+import { adminLogin, patchOrderStatus, ensureTable, getOrderDetails, getActiveOrders, getAdminMenu, createOrderStream, forceCloseSession, getAllOrders } from './api-admin.js';
 
 /* =========================
    공통 유틸 / 인증 처리
@@ -691,6 +691,327 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       });
     });
+  }
+
+  /* ============ 전체 주문 관리 ============ */
+  
+  // 전역 변수
+  let currentPageCursor = null;  // 현재 페이지 커서
+  let prevPageCursor = null;     // 이전 페이지 커서
+  let currentLimit = 10;         // 페이지당 주문 수
+  let currentStatusFilter = '';  // 상태 필터
+
+  // 새로운 전체 주문 관리 요소들
+  const allOrdersContainer    = document.getElementById('all-orders-container');
+  const ordersPerPageSelect   = document.getElementById('orders-per-page');
+  const statusFilterSelect    = document.getElementById('status-filter');
+  const refreshAllOrdersBtn   = document.getElementById('refresh-all-orders');
+  const prevPageBtn           = document.getElementById('prev-page-btn');
+  const nextPageBtn           = document.getElementById('next-page-btn');
+  const pageInfo              = document.getElementById('page-info');
+
+  // 주문 카드 컴포넌트 렌더링
+  function renderOrderComponent(order) {
+    const statusK = mapStatusK(order.status);
+    const tableLabel = order.table?.label || '테이블 정보 없음';
+    const createdTime = new Date(order.created_at).toLocaleString('ko-KR');
+    const total = Number(order.total_amount || 0).toLocaleString();
+    
+    const itemsHtml = (order.items || [])
+      .map(item => `
+        <div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid #ecf0f1;">
+          <span>${item.name} × ${item.quantity}개</span>
+          <span>${Number(item.line_total || 0).toLocaleString()}원</span>
+        </div>
+      `).join('');
+
+    // 상태별 액션 버튼
+    const actionButtons = getOrderActionButtons(order);
+
+    return `
+      <div class="order-component" id="order-component-${order.id}" style="border:1px solid #ddd; border-radius:8px; padding:16px; margin-bottom:12px; background:white; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
+        <!-- 주문 헤더 -->
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; padding-bottom:8px; border-bottom:2px solid #ecf0f1;">
+          <div>
+            <h4 style="margin:0; color:#2c3e50;">주문 #${order.id}</h4>
+            <span style="display:inline-block; margin-top:4px; padding:4px 12px; border-radius:20px; font-size:0.85em; font-weight:bold; background:${getStatusColor(order.status)}; color:white;">
+              ${statusK}
+            </span>
+          </div>
+          <div style="text-align:right; color:#666; font-size:0.9em;">
+            <div><i class="fas fa-clock"></i> ${createdTime}</div>
+            <div><i class="fas fa-won-sign"></i> ${total}원</div>
+          </div>
+        </div>
+
+        <!-- 주문 정보 -->
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:12px;">
+          <div>
+            <div style="margin-bottom:4px;"><i class="fas fa-table" style="color:#3498db;"></i> <strong>테이블:</strong> ${tableLabel}</div>
+            <div><i class="fas fa-user" style="color:#27ae60;"></i> <strong>입금자:</strong> ${order.payer_name || '정보 없음'}</div>
+          </div>
+          <div>
+            <div style="margin-bottom:4px;"><i class="fas fa-utensils" style="color:#e67e22;"></i> <strong>주문 유형:</strong> ${order.order_type === 'TAKEOUT' ? '포장' : '매장'}</div>
+            <div><i class="fas fa-list" style="color:#9b59b6;"></i> <strong>항목 수:</strong> ${(order.items || []).length}개</div>
+          </div>
+        </div>
+
+        <!-- 주문 항목 -->
+        <div style="margin-bottom:16px;">
+          <h5 style="margin:0 0 8px 0; color:#2c3e50;"><i class="fas fa-shopping-cart"></i> 주문 항목</h5>
+          <div style="background:#f8f9fa; padding:12px; border-radius:6px; max-height:150px; overflow-y:auto;">
+            ${itemsHtml || '<div style="text-align:center; color:#95a5a6;">주문 항목 정보 없음</div>'}
+          </div>
+        </div>
+
+        <!-- 액션 버튼들 -->
+        <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end;">
+          ${actionButtons}
+        </div>
+      </div>
+    `;
+  }
+
+  // 주문별 액션 버튼 생성
+  function getOrderActionButtons(order) {
+    const status = order.status;
+    const orderId = order.id;
+    
+    switch (status) {
+      case 'PENDING':
+        return `
+          <button class="order-action-btn" data-action="confirm" data-order-id="${orderId}" style="background:#27ae60; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-size:0.85em;">
+            <i class="fas fa-check-circle"></i> 입금 확인
+          </button>
+          <button class="order-action-btn" data-action="cancel" data-order-id="${orderId}" style="background:#e74c3c; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-size:0.85em;">
+            <i class="fas fa-times-circle"></i> 취소
+          </button>
+        `;
+      
+      case 'CONFIRMED':
+        return `
+          <button class="order-action-btn" data-action="start_preparing" data-order-id="${orderId}" style="background:#3498db; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-size:0.85em;">
+            <i class="fas fa-utensils"></i> 조리 시작
+          </button>
+          <button class="order-action-btn" data-action="cancel" data-order-id="${orderId}" style="background:#e74c3c; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-size:0.85em;">
+            <i class="fas fa-times-circle"></i> 취소
+          </button>
+        `;
+      
+      case 'IN_PROGRESS':
+        return `
+          <button class="order-action-btn" data-action="serve" data-order-id="${orderId}" style="background:#2ecc71; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-size:0.85em;">
+            <i class="fas fa-concierge-bell"></i> 서빙 완료
+          </button>
+          <button class="order-action-btn" data-action="cancel" data-order-id="${orderId}" style="background:#e74c3c; color:white; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-size:0.85em;">
+            <i class="fas fa-times-circle"></i> 취소
+          </button>
+        `;
+      
+      case 'SERVED':
+        return `<span style="color:#2ecc71; font-weight:bold; font-size:0.9em;"><i class="fas fa-check-double"></i> 서빙 완료</span>`;
+      
+      case 'CANCELED':
+        return `<span style="color:#e74c3c; font-weight:bold; font-size:0.9em;"><i class="fas fa-ban"></i> 취소됨</span>`;
+      
+      default:
+        return '';
+    }
+  }
+
+  // 전체 주문 목록 로드
+  async function loadAllOrders(options = {}) {
+    if (!allOrdersContainer) return;
+
+    try {
+      // 로딩 표시
+      allOrdersContainer.innerHTML = `
+        <div style="text-align:center; color:#666; padding:20px;">
+          <i class="fas fa-spinner fa-spin" style="font-size:2em; margin-bottom:8px;"></i><br>
+          주문 목록을 불러오는 중...
+        </div>
+      `;
+
+      const queryOptions = {
+        limit: currentLimit,
+        ...options
+      };
+
+      if (currentStatusFilter) {
+        queryOptions.status = currentStatusFilter;
+      }
+
+      const result = await getAllOrders(queryOptions);
+      const orders = result.items || [];
+      const pageInfoData = result.page_info || {};
+
+      if (orders.length === 0) {
+        allOrdersContainer.innerHTML = `
+          <div style="text-align:center; color:#666; padding:40px; border:1px dashed #ddd; border-radius:8px;">
+            <i class="fas fa-inbox" style="font-size:3em; margin-bottom:12px; color:#bdc3c7;"></i><br>
+            <h4 style="margin:0 0 8px 0;">주문이 없습니다</h4>
+            <p style="margin:0; color:#95a5a6;">현재 조건에 맞는 주문이 없습니다.</p>
+          </div>
+        `;
+      } else {
+        // 주문 목록 렌더링
+        const ordersHtml = orders.map(order => renderOrderComponent(order)).join('');
+        allOrdersContainer.innerHTML = ordersHtml;
+      }
+
+      // 페이지네이션 업데이트
+      updatePaginationControls(pageInfoData);
+
+      console.log(`✅ 전체 주문 로드 완료: ${orders.length}건`);
+
+    } catch (err) {
+      if (handleAuthError(err)) return;
+      console.error('❌ 전체 주문 로드 실패:', err);
+      allOrdersContainer.innerHTML = `
+        <div style="text-align:center; color:#e74c3c; padding:40px; border:1px solid #e74c3c; border-radius:8px; background:#fdf2f2;">
+          <i class="fas fa-exclamation-triangle" style="font-size:3em; margin-bottom:12px;"></i><br>
+          <h4 style="margin:0 0 8px 0;">주문 목록 로드 실패</h4>
+          <p style="margin:0;">${err?.message || '알 수 없는 오류가 발생했습니다.'}</p>
+        </div>
+      `;
+    }
+  }
+
+  // 페이지네이션 컨트롤 업데이트
+  function updatePaginationControls(pageInfoData) {
+    if (!pageInfoData) return;
+
+    // 버튼 상태 업데이트
+    if (prevPageBtn) {
+      prevPageBtn.disabled = !pageInfoData.prev_cursor;
+      prevPageBtn.style.background = pageInfoData.prev_cursor ? '#3498db' : '#95a5a6';
+    }
+
+    if (nextPageBtn) {
+      nextPageBtn.disabled = !pageInfoData.has_more;
+      nextPageBtn.style.background = pageInfoData.has_more ? '#3498db' : '#95a5a6';
+    }
+
+    // 페이지 정보 업데이트
+    if (pageInfo) {
+      const pageText = pageInfoData.has_more ? '페이지 진행중' : '마지막 페이지';
+      pageInfo.textContent = pageText;
+    }
+
+    // 커서 정보 저장
+    currentPageCursor = pageInfoData.next_cursor;
+    prevPageCursor = pageInfoData.prev_cursor;
+  }
+
+  // 주문 액션 처리
+  async function handleOrderAction(orderId, action) {
+    try {
+      // 취소 액션인 경우 확인 받기
+      if (action === 'cancel') {
+        const confirmMessage = `주문 #${orderId}를 취소하시겠습니까?\n\n이 작업은 되돌릴 수 없습니다.`;
+        if (!confirm(confirmMessage)) {
+          return;
+        }
+      }
+
+      // 해당 주문 컴포넌트 찾기
+      const orderComponent = document.getElementById(`order-component-${orderId}`);
+      if (orderComponent) {
+        // 로딩 상태 표시
+        const actionButtons = orderComponent.querySelectorAll('.order-action-btn');
+        actionButtons.forEach(btn => {
+          btn.disabled = true;
+          btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 처리중...';
+        });
+      }
+
+      // 상태 변경 API 호출
+      await patchOrderStatus(orderId, action);
+
+      // 성공 메시지
+      const actionMessages = {
+        'confirm': '입금이 확인되었습니다.',
+        'start_preparing': '조리를 시작합니다.',
+        'serve': '서빙이 완료되었습니다.',
+        'cancel': '주문이 취소되었습니다.'
+      };
+
+      console.log(`✅ 주문 #${orderId}: ${actionMessages[action] || '상태 변경 완료'}`);
+
+      // 주문 목록 새로고침
+      await loadAllOrders();
+      
+      // 활성 주문 목록도 새로고침
+      await loadActiveOrders();
+
+    } catch (err) {
+      if (handleAuthError(err)) return;
+      console.error('주문 액션 처리 실패:', err);
+      alert(`상태 변경 실패: ${err?.message || '알 수 없는 오류'}`);
+      
+      // 실패 시 주문 목록 새로고침하여 원래 상태로 복원
+      await loadAllOrders();
+    }
+  }
+
+  // 이벤트 리스너 설정
+  if (ordersPerPageSelect) {
+    ordersPerPageSelect.addEventListener('change', (e) => {
+      currentLimit = parseInt(e.target.value);
+      currentPageCursor = null; // 페이지 리셋
+      loadAllOrders();
+    });
+  }
+
+  if (statusFilterSelect) {
+    statusFilterSelect.addEventListener('change', (e) => {
+      currentStatusFilter = e.target.value;
+      currentPageCursor = null; // 페이지 리셋
+      loadAllOrders();
+    });
+  }
+
+  if (refreshAllOrdersBtn) {
+    refreshAllOrdersBtn.addEventListener('click', () => {
+      currentPageCursor = null; // 페이지 리셋
+      loadAllOrders();
+    });
+  }
+
+  if (prevPageBtn) {
+    prevPageBtn.addEventListener('click', () => {
+      if (prevPageCursor) {
+        loadAllOrders({ before: prevPageCursor });
+      }
+    });
+  }
+
+  if (nextPageBtn) {
+    nextPageBtn.addEventListener('click', () => {
+      if (currentPageCursor) {
+        loadAllOrders({ after: currentPageCursor });
+      }
+    });
+  }
+
+  // 주문 액션 버튼 이벤트 위임
+  if (allOrdersContainer) {
+    allOrdersContainer.addEventListener('click', async (e) => {
+      const actionBtn = e.target.closest('.order-action-btn[data-action][data-order-id]');
+      if (!actionBtn) return;
+
+      const action = actionBtn.getAttribute('data-action');
+      const orderId = parseInt(actionBtn.getAttribute('data-order-id'));
+      
+      if (orderId && action) {
+        await handleOrderAction(orderId, action);
+      }
+    });
+  }
+
+  // 초기 전체 주문 목록 로드
+  if (allOrdersContainer) {
+    loadAllOrders();
   }
 
   // 필요 시 호출

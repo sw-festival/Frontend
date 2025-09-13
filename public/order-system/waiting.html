@@ -21,6 +21,10 @@
                     <span class="inning">🏟️ 조리 현황</span>
                     <span class="score">잠시만 기다려주세요!</span>
                 </div>
+                <div class="live-indicator">
+                    <span class="live-dot"></span>
+                    <span class="live-text">실시간</span>
+                </div>
             </div>
         </header>
 
@@ -42,22 +46,46 @@
                         <div class="waiting-subtitle">앞에 <span id="ahead-count">-</span>팀이 기다리고 있습니다</div>
                     </div>
                     
-                    <div class="status-indicator">
-                        <div class="status-item" id="status-received">
-                            <div class="status-icon">📝</div>
-                            <div class="status-text">주문 접수</div>
+                    <div class="status-progress">
+                        <div class="progress-header">
+                            <h3>📍 주문 진행 상황</h3>
+                            <div class="auto-refresh-indicator">
+                                <span class="refresh-dot"></span>
+                                <span>30초마다 자동 새로고침</span>
+                            </div>
                         </div>
-                        <div class="status-item" id="status-payment">
-                            <div class="status-icon">💳</div>
-                            <div class="status-text">입금 확인</div>
+                        
+                        <div class="status-indicator">
+                            <div class="status-item" id="status-received">
+                                <div class="status-icon">📝</div>
+                                <div class="status-text">주문 접수</div>
+                                <div class="status-time"></div>
+                            </div>
+                            <div class="status-connector"></div>
+                            <div class="status-item" id="status-payment">
+                                <div class="status-icon">💳</div>
+                                <div class="status-text">입금 확인</div>
+                                <div class="status-time"></div>
+                            </div>
+                            <div class="status-connector"></div>
+                            <div class="status-item" id="status-preparing">
+                                <div class="status-icon">👨‍🍳</div>
+                                <div class="status-text">조리중</div>
+                                <div class="status-time"></div>
+                            </div>
+                            <div class="status-connector"></div>
+                            <div class="status-item" id="status-complete">
+                                <div class="status-icon">🎉</div>
+                                <div class="status-text">완료</div>
+                                <div class="status-time"></div>
+                            </div>
                         </div>
-                        <div class="status-item" id="status-preparing">
-                            <div class="status-icon">👨‍🍳</div>
-                            <div class="status-text">조리중</div>
-                        </div>
-                        <div class="status-item" id="status-complete">
-                            <div class="status-icon">✅</div>
-                            <div class="status-text">완료</div>
+                        
+                        <div class="estimated-time">
+                            <div class="time-info">
+                                <span class="time-label">예상 완료 시간</span>
+                                <span class="time-value" id="estimated-completion">계산중...</span>
+                            </div>
                         </div>
                     </div>
                 </div>

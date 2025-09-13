@@ -23,6 +23,59 @@
                 </div>
             </div>
 
+            <!-- 전체 주문 관리 섹션 -->
+            <section style="margin:16px 0; padding:16px; border:2px solid #2ecc71; border-radius:8px; background-color:#f8f9fa;">
+                <h3><i class="fas fa-list"></i> 전체 주문 관리</h3>
+                <p style="color:#666; margin-bottom:12px;">모든 주문을 페이지별로 조회하고 관리할 수 있습니다.</p>
+                
+                <!-- 필터 및 설정 -->
+                <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:16px; padding:12px; background:white; border-radius:6px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label for="orders-per-page" style="font-weight:bold;">페이지당:</label>
+                        <select id="orders-per-page" style="padding:4px 8px; border:1px solid #ddd; border-radius:4px;">
+                            <option value="10" selected>10개</option>
+                            <option value="20">20개</option>
+                            <option value="50">50개</option>
+                        </select>
+                    </div>
+                    
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label for="status-filter" style="font-weight:bold;">상태:</label>
+                        <select id="status-filter" style="padding:4px 8px; border:1px solid #ddd; border-radius:4px;">
+                            <option value="">전체</option>
+                            <option value="PENDING">입금 대기</option>
+                            <option value="CONFIRMED">입금 확인</option>
+                            <option value="IN_PROGRESS">조리중</option>
+                            <option value="SERVED">서빙 완료</option>
+                            <option value="CANCELED">취소됨</option>
+                        </select>
+                    </div>
+                    
+                    <button id="refresh-all-orders" style="padding:8px 16px; background:#3498db; color:white; border:none; border-radius:4px; cursor:pointer;">
+                        <i class="fas fa-sync"></i> 새로고침
+                    </button>
+                </div>
+
+                <!-- 주문 목록 컨테이너 -->
+                <div id="all-orders-container" style="margin-top:16px;">
+                    <div style="text-align:center; color:#666; padding:20px;">
+                        <i class="fas fa-spinner fa-spin" style="font-size:2em; margin-bottom:8px;"></i><br>
+                        주문 목록을 불러오는 중...
+                    </div>
+                </div>
+
+                <!-- 페이지네이션 -->
+                <div id="pagination-controls" style="display:flex; justify-content:center; align-items:center; gap:12px; margin-top:16px; padding:12px;">
+                    <button id="prev-page-btn" style="padding:8px 16px; background:#95a5a6; color:white; border:none; border-radius:4px; cursor:pointer;" disabled>
+                        <i class="fas fa-chevron-left"></i> 이전
+                    </button>
+                    <span id="page-info" style="font-weight:bold; color:#2c3e50;">페이지 1</span>
+                    <button id="next-page-btn" style="padding:8px 16px; background:#95a5a6; color:white; border:none; border-radius:4px; cursor:pointer;" disabled>
+                        다음 <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+            </section>
+
             <!-- 주문 관리 섹션 -->
             <section style="margin:16px 0; padding:16px; border:2px solid #3498db; border-radius:8px; background-color:#f8f9fa;">
                 <h3><i class="fas fa-search"></i> 주문 조회 및 상태 관리</h3>
