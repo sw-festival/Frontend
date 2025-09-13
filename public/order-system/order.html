@@ -11,21 +11,26 @@
         /* KBO Dia Gothic 폰트 추가 */
         @font-face {
             font-family: "KBO Dia Gothic";
-            src: url("../src/fonts/KBODiaGothicTTF/KBO Dia Gothic_light.ttf") format("truetype");
+            src: url("../../../src/fonts/KBODiaGothicTTF/KBODiaGothic_light.ttf") format("truetype");
             font-weight: 300;
             font-style: normal;
         }
         @font-face {
             font-family: "KBO Dia Gothic";
-            src: url("../src/fonts/KBODiaGothicTTF/KBO Dia Gothic_medium.ttf") format("truetype");
+            src: url("../../../src/fonts/KBODiaGothicTTF/KBODiaGothic_medium.ttf") format("truetype");
             font-weight: 500;
             font-style: normal;
         }
         @font-face {
             font-family: "KBO Dia Gothic";
-            src: url("../src/fonts/KBODiaGothicTTF/KBO Dia Gothic_bold.ttf") format("truetype");
+            src: url("../../../src/fonts/KBODiaGothicTTF/KBODiaGothic_bold.ttf") format("truetype");
             font-weight: 700;
             font-style: normal;
+        }
+
+        /* 전체 페이지에 KBO Dia Gothic 폰트 기본 적용 */
+        * {
+            font-family: "KBO Dia Gothic", 'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
         }
         /* 추가 스타일 */
         .hidden { display: none !important; }
@@ -112,27 +117,32 @@
 
         /* 인기 메뉴 컴포넌트 스타일 */
         .popular-menu-component {
-            background: url('/images/top3-menu-bg.png') no-repeat center center;
-            background-size: cover;
-            border-radius: 20px;
-            padding: 2rem;
+            position: relative;
+            width: 100%;
+            height: 400px;
             margin: 2rem 0;
-            color: white;
+            border-radius: 20px;
+            overflow: hidden;
+            background: url('/images/top3-menu-bg.png') no-repeat center center;
+            background-size: contain;
+            background-position: center;
         }
 
         .popular-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1.5rem;
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+            z-index: 10;
         }
 
         .popular-title {
-            display: flex;
-            align-items: center;
-            gap: 0.8rem;
-            font-size: 1.5rem;
-            font-weight: bold;
+            color: white;
+            font-size: 14px;
+            font-weight: 500;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            margin-bottom: 5px;
         }
 
         .popular-title i {
@@ -147,66 +157,42 @@
         }
 
         .popular-subtitle {
-            background: rgba(255,255,255,0.2);
-            padding: 0.5rem 1rem;
-            border-radius: 20px;
-            font-size: 1.2rem;
-            font-weight: bold;
-            backdrop-filter: blur(10px);
+            color: white;
+            font-size: 24px;
+            font-weight: 700;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
         }
 
-        .popular-list {
-            display: flex;
-            gap: 1rem;
-            justify-content: space-between;
-        }
-
+        /* 인기 메뉴 개별 위치 지정 */
         .popular-item {
-            flex: 1;
-            background: rgba(255,255,255,0.1);
-            border-radius: 15px;
-            padding: 1.5rem;
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            backdrop-filter: blur(10px);
-            border: 2px solid rgba(255,255,255,0.2);
-            transition: all 0.3s ease;
+            position: absolute;
+            color: white;
+            text-align: center;
+            font-weight: 700;
+            font-size: 16px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            z-index: 10;
         }
 
-        .popular-item:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-            border-color: rgba(255,255,255,0.4);
+        .popular-item.first-rank {
+            left: 157px;
+            top: 464px;
         }
 
-        .rank-badge {
-            background: linear-gradient(135deg, #ffd700, #ffed4e);
-            color: #333;
-            width: 35px;
-            height: 35px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            font-size: 1.2rem;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        .popular-item.second-rank {
+            left: 16px;
+            top: 576px;
         }
 
-        .popular-info {
-            flex: 1;
+        .popular-item.third-rank {
+            left: 311px;
+            top: 576px;
         }
 
         .popular-name {
-            font-size: 1.1rem;
-            font-weight: bold;
-            margin-bottom: 0.3rem;
-        }
-
-        .popular-count {
-            font-size: 0.9rem;
-            opacity: 0.8;
+            font-size: 16px;
+            font-weight: 700;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
         }
 
         .rank-icon {
@@ -243,7 +229,6 @@
         .menu-tabs {
             display: flex;
             gap: 0;
-            padding: 0 1rem;
             overflow-x: auto;
             scrollbar-width: none;
             -ms-overflow-style: none;
@@ -339,15 +324,19 @@
         
         .menu-item {
             background: url('/images/menu-bg.png') no-repeat center center;
-            background-size: cover;
+            background-size: contain;
+            background-position: center;
             border-radius: 15px;
             padding: 1.5rem;
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
             display: flex;
+            flex-direction: row;
+            align-items: center;
             gap: 1.5rem;
             transition: all 0.3s;
             border: 2px solid transparent;
             position: relative;
+            min-height: 120px;
         }
         
         .menu-item:hover {
@@ -382,16 +371,23 @@
         }
 
         .menu-image {
-            margin-left: 35px;
+            flex-shrink: 0;
+            align-self: center;
+            margin-right: 1rem;
         }
 
-        .menu-quantity-controls {
-            margin-top: 15px;
+        .menu-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
         }
-        
-        .menu-image {
-            flex-shrink: 0;
-            align-self: flex-start;
+
+        .menu-quantity {
+            margin-top: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
         }
         
         .menu-img-placeholder {
@@ -765,9 +761,7 @@
             }
 
             .menu-tabs {
-                flex-wrap: wrap;
                 gap: 0.5rem;
-                padding: 0 1rem;
             }
 
             .menu-tab {
@@ -793,9 +787,10 @@
             }
 
             .menu-item {
-                flex-direction: column;
-                text-align: center;
+                flex-direction: row;
+                align-items: center;
                 gap: 1rem;
+                padding: 1rem;
             }
 
             .menu-image {
@@ -1133,8 +1128,9 @@
             }
             
             .menu-item {
-                flex-direction: column;
-                text-align: center;
+                flex-direction: row;
+                align-items: center;
+                padding: 1rem;
             }
         }
     </style>
@@ -1194,37 +1190,17 @@
                 <!-- 인기 메뉴 TOP 3 컴포넌트 -->
                 <div class="popular-menu-component">
                     <div class="popular-header">
-                        <div class="popular-title">
-                            <i class="fas fa-fire"></i>
-                            <!-- <span>실시간 인기 메뉴</span> -->
-                        </div>
-                        <!-- <div class="popular-subtitle">TOP 3</div> -->
+                        <div class="popular-title">메모리베이스볼파크 대표 맛집 '주사만루'</div>
+                        <div class="popular-subtitle">현재 인기 메뉴 TOP 3</div>
                     </div>
-                    <div class="popular-list">
-                        <div class="popular-item first-rank">
-                            <div class="rank-badge">1</div>
-                            <div class="popular-info">
-                                <div class="popular-name">-</div>
-                                <div class="popular-count">-건</div>
-                            </div>
-                            <!-- <div class="rank-icon">🥇</div> -->
-                        </div>
-                        <div class="popular-item second-rank">
-                            <div class="rank-badge">2</div>
-                            <div class="popular-info">
-                                <div class="popular-name">-</div>
-                                <div class="popular-count">-건</div>
-                            </div>
-                            <!-- <div class="rank-icon">🥈</div> -->
-                        </div>
-                        <div class="popular-item third-rank">
-                            <div class="rank-badge">3</div>
-                            <div class="popular-info">
-                                <div class="popular-name">-</div>
-                                <div class="popular-count">-건</div>
-                            </div>
-                            <!-- <div class="rank-icon">🥉</div> -->
-                        </div>
+                    <div class="popular-item first-rank">
+                        <div class="popular-name">-</div>
+                    </div>
+                    <div class="popular-item second-rank">
+                        <div class="popular-name">-</div>
+                    </div>
+                    <div class="popular-item third-rank">
+                        <div class="popular-name">-</div>
                     </div>
                 </div>
 
@@ -1301,7 +1277,10 @@
                     </div>
                     <div class="payment-notice">
                         <i class="fas fa-info-circle"></i>
-                        <span>입금자명을 정확히 입력해주세요. 입금 확인 후 주문이 접수됩니다.</span>
+                        <span>
+                            입금자명을 정확히 입력해주세요.<br>
+                            입금 확인 후 주문이 접수됩니다.
+                        </span>
                     </div>
                 </div>
 

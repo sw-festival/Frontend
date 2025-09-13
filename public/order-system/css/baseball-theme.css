@@ -9,15 +9,8 @@ body {
     font-family: "KBO Dia Gothic";
     margin: 0;
     padding: 0;
-    background: linear-gradient(
-        135deg,
-        #1a472a 0%,    /* 진한 잔디색 */
-        #2d5a3d 25%,   /* 중간 잔디색 */
-        #3d6b4e 50%,   /* 밝은 잔디색 */
-        #2d5a3d 75%,   /* 중간 잔디색 */
-        #1a472a 100%   /* 진한 잔디색 */
-    );
-    background-attachment: fixed;
+    background: url('/images/order-backgorund.png') no-repeat center center fixed;
+    background-size: cover;
     color: #333;
     min-height: 100vh;
     position: relative;
@@ -179,7 +172,7 @@ header::before {
     justify-content: space-between;
     align-items: center;
     font-family: 'KBO Dia Gothic';
-    font-weight: bold;
+    font-weight: light;
 }
 
 .inning {
@@ -196,20 +189,20 @@ header::before {
 
 /* 메뉴 아이템 카드 (야구 카드 스타일) */
 .menu-item {
-    background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
-    border: 2px solid #e9ecef;
+    /* background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
+    border: 2px solid #e9ecef; */
     border-radius: 16px;
-    margin: 12px;
-    padding: 20px;
+    /* margin: 12px;
+    padding: 20px; */
     display: flex;
     align-items: center;
-    gap: 16px;
+    /* gap: 16px; */
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
     overflow: hidden;
-    box-shadow: 
+    /* box-shadow: 
         0 4px 12px rgba(0, 0, 0, 0.08),
-        0 2px 4px rgba(0, 0, 0, 0.04);
+        0 2px 4px rgba(0, 0, 0, 0.04); */
 }
 
 .menu-item::before {

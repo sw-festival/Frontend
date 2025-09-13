@@ -246,7 +246,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // cart는 { [menuId]: { name, price, quantity } }
     const items = Object.entries(cart).map(([menuId, item]) => ({
         product_id: Number(menuId),
-        quantity: item.quantity,
+      quantity: item.quantity,
     }));
     
     const orderData = {
@@ -347,7 +347,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 루트 waiting.html로 보내고 slug는 쿼리로 전달
     const waitingUrl = `/waiting.html?orderId=${orderId}&slug=${encodeURIComponent(slug)}`;
     window.location.href = waitingUrl;
-}
+  }
 
   // 주문하기 클릭
   placeOrderBtn?.addEventListener('click', async () => {
@@ -513,22 +513,21 @@ document.addEventListener('DOMContentLoaded', () => {
         const popularItem = document.querySelector(`.${ranks[index]}`);
         if (popularItem) {
           const nameElement = popularItem.querySelector('.popular-name');
-          const countElement = popularItem.querySelector('.popular-count');
           
           if (nameElement) nameElement.textContent = menu.name || '데이터 없음';
-          if (countElement) countElement.textContent = `${menu.qty_sold || 0}건 주문`;
         }
       }
     });
     
     // 데이터가 없을 경우 기본값 설정
     if (topMenus.length === 0) {
-      popularItems.forEach((item, index) => {
-        const nameElement = item.querySelector('.popular-name');
-        const countElement = item.querySelector('.popular-count');
-        
-        if (nameElement) nameElement.textContent = '데이터 로딩 중...';
-        if (countElement) countElement.textContent = '-';
+      const ranks = ['first-rank', 'second-rank', 'third-rank'];
+      ranks.forEach((rank) => {
+        const popularItem = document.querySelector(`.${rank}`);
+        if (popularItem) {
+          const nameElement = popularItem.querySelector('.popular-name');
+          if (nameElement) nameElement.textContent = '-';
+        }
       });
     }
   }
@@ -548,7 +547,7 @@ document.addEventListener('DOMContentLoaded', () => {
       name: '한화e글스-ㅔ트',
       description: '(회장이 한화 팬이라.. 절대적 권력에 의하여 세트 이름이 선정되었습니다...)',
       price: 149000,
-      image_url: '/images/grape-flavor-logos.png',
+      image_url: '/images/eagles.png',
       category: 'set'
     };
     categories.set.push(hanwhaSet);
