@@ -191,57 +191,62 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  function updateCartDisplay() {
-    if (!cartItems || !totalPriceEl) return;
+//   function updateCartDisplay() {
+//     if (!cartItems || !totalPriceEl) return;
 
-    const keys = Object.keys(cart);
-    if (!keys.length) {
-      cartItems.innerHTML = `
-        <p style="text-align: center; color: #666; padding: 2rem;">
-          선택한 메뉴가 여기에 표시됩니다.
-        </p>`;
-      totalPriceEl.textContent = '0';
-      return;
-    }
+//     const keys = Object.keys(cart);
+//     if (!keys.length) {
+//       cartItems.innerHTML = `
+//         <p style="text-align: center; color: #666; padding: 2rem;">
+//           선택한 메뉴가 여기에 표시됩니다.
+//         </p>`;
+//       totalPriceEl.textContent = '0';
+//       return;
+//     }
 
-    let html = '';
-    let subtotal = 0;
-    keys.forEach(name => {
-      const item = cart[name];
-      const itemTotal = item.price * item.quantity;
-      subtotal += itemTotal;
-      html += `
-        <div class="cart-item">
-          <div>
-            <strong>${item.name}</strong><br>
-            <small>${item.price.toLocaleString()}원 × ${item.quantity}개</small>
-          </div>
-          <div style="font-weight: bold; color: #1a5490;">
-            ${itemTotal.toLocaleString()}원
-          </div>
-        </div>`;
-    });
+//     let html = '';
+//     let subtotal = 0;
+//     keys.forEach(name => {
+//       const item = cart[name];
+//       const itemTotal = item.price * item.quantity;
+//       subtotal += itemTotal;
+//       html += `
+//         <div class="cart-item">
+//           <div>
+//             <strong>${item.name}</strong><br>
+//             <small>${item.price.toLocaleString()}원 × ${item.quantity}개</small>
+//           </div>
+//           <div style="font-weight: bold; color: #1a5490;">
+//             ${itemTotal.toLocaleString()}원
+//           </div>
+//         </div>`;
+//     });
 
-    cartItems.innerHTML = html;
+//     cartItems.innerHTML = html;
 
-    const discount = Math.round(subtotal * discountRate);
-    const total = subtotal - discount;
-    if (discount > 0) {
-      cartItems.innerHTML += `
-        <div class="cart-item" style="color: #28a745;">
-          <div>포장 할인 (10%)</div>
-          <div>-${discount.toLocaleString()}원</div>
-        </div>`;
-    }
-    totalPriceEl.textContent = total.toLocaleString();
+//     const discount = Math.round(subtotal * discountRate);
+//     const total = subtotal - discount;
+//     if (discount > 0) {
+//       cartItems.innerHTML += `
+//         <div class="cart-item" style="color: #28a745;">
+//           <div>포장 할인 (10%)</div>
+//           <div>-${discount.toLocaleString()}원</div>
+//         </div>`;
+//     }
+//     totalPriceEl.textContent = total.toLocaleString();
 
-    console.log('장바구니 업데이트:', { subtotal, discount, total, items: keys.length });
-  }
+//     console.log('장바구니 업데이트:', { subtotal, discount, total, items: keys.length });
+//   }
 
   function prepareOrderData() {
-    const items = Object.values(cart).map(item => ({
-      product_id: PRODUCT_ID_MAP[item.name],
-      quantity: item.quantity,
+    // const items = Object.values(cart).map(item => ({
+    //   product_id: PRODUCT_ID_MAP[item.name],
+    //   quantity: item.quantity,
+    // }));
+    // cart는 { [menuId]: { name, price, quantity } }
+    const items = Object.entries(cart).map(([menuId, item]) => ({
+        product_id: Number(menuId),
+        quantity: item.quantity,
     }));
     
     const orderData = {
@@ -303,63 +308,109 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // 레거시 호환성 유지
-  async function placeOrderWithExistingSession() {
-    const expectedChannel = orderType === 'takeout' ? 'TAKEOUT' : 'DINEIN';
-    await placeOrderWithNewSession(slug, expectedChannel);
-  }
+//   async function placeOrderWithExistingSession() {
+//     const expectedChannel = orderType === 'takeout' ? 'TAKEOUT' : 'DINEIN';
+//     await placeOrderWithNewSession(slug, expectedChannel);
+//   }
 
+//   function handleOrderSuccess(orderId) {
+//     console.log('주문 성공 처리:', orderId, 'orderType:', orderType);
+//     hideCodeModal();
+    
+//     // 매장/포장 주문에 따른 다른 메시지
+//     let successMessage = '주문이 성공적으로 완료되었습니다!';
+    
+//     if (orderType === 'dine-in') {
+//       // 매장 주문: 이용시간 안내 추가
+//       successMessage += '\n\n매장 이용시간은 2시간입니다.';
+//     } else {
+//       // 포장 주문: 이용시간 안내 없음
+//       successMessage += '\n\n포장 주문이 완료되었습니다.';
+//     }
+    
+//     alert(successMessage);
+    
+//     const waitingUrl = `/waiting.html?orderId=${orderId}`;
+//     console.log('대기 페이지로 이동:', waitingUrl);
+//     window.location.href = waitingUrl;
+//   }
   function handleOrderSuccess(orderId) {
     console.log('주문 성공 처리:', orderId, 'orderType:', orderType);
     hideCodeModal();
-    
-    // 매장/포장 주문에 따른 다른 메시지
-    let successMessage = '주문이 성공적으로 완료되었습니다!';
-    
-    if (orderType === 'dine-in') {
-      // 매장 주문: 이용시간 안내 추가
-      successMessage += '\n\n매장 이용시간은 2시간입니다.';
-    } else {
-      // 포장 주문: 이용시간 안내 없음
-      successMessage += '\n\n포장 주문이 완료되었습니다.';
+
+    // 주문 당시 세션 스냅샷 저장 (waiting 페이지 복원용)
+    try {
+        const s = SessionStore.getSession?.(slug);
+        if (s?.token) {
+        localStorage.setItem(
+            `ORDER_SESSION_${orderId}`,
+            JSON.stringify({
+            token: s.token,
+            session_id: s.session_id,
+            table_id: s.table_id,
+            channel: s.channel,    // 'DINEIN' | 'TAKEOUT'
+            slug,
+            createdAt: new Date().toISOString(),
+            expiresAt: s.expiresAt
+            })
+        );
+        }
+        // 최근 주문 맵도 갱신(선택)
+        const map = JSON.parse(localStorage.getItem('LAST_ORDER_BY_SLUG') || '{}');
+        map[slug] = orderId;
+        localStorage.setItem('LAST_ORDER_BY_SLUG', JSON.stringify(map));
+    } catch (e) {
+        console.warn('[handleOrderSuccess] 세션 스냅샷 저장 실패', e);
     }
-    
+
+    // 알림 문구
+    let successMessage = '주문이 성공적으로 완료되었습니다!';
+    successMessage += (orderType === 'dine-in')
+        ? '\n\n매장 이용시간은 2시간입니다.'
+        : '\n\n포장 주문이 완료되었습니다.';
     alert(successMessage);
-    
-    const waitingUrl = `/waiting.html?orderId=${orderId}`;
+
+    // slug를 포함해서 이동 (경로 또는 쿼리 중 하나 선택)
+    // 1) slug가 경로에 있는 라우팅을 쓰는 경우:
+    const waitingUrl = `/t/${encodeURIComponent(slug)}/waiting.html?orderId=${orderId}`;
+
+    // 2) 만약 /waiting.html 단일 파일만 쓰면 쿼리로 slug를 넘겨도 OK:
+    // const waitingUrl = `/waiting.html?orderId=${orderId}&slug=${encodeURIComponent(slug)}`;
+
     console.log('대기 페이지로 이동:', waitingUrl);
     window.location.href = waitingUrl;
-  }
+    }
 
   // -----------------------------
   // 이벤트 바인딩
   // -----------------------------
   // 메뉴 수량 조절
-  if (menuList) {
-    menuList.addEventListener('click', (e) => {
-      const menuItem = e.target.closest('.menu-item');
-      if (!menuItem) return;
+//   if (menuList) {
+//     menuList.addEventListener('click', (e) => {
+//       const menuItem = e.target.closest('.menu-item');
+//       if (!menuItem) return;
 
-      const name = menuItem.querySelector('.menu-name')?.textContent;
-      const price = parseInt(menuItem.dataset.price);
-      const quantityEl = menuItem.querySelector('.quantity');
-      let qty = parseInt(quantityEl.textContent);
+//       const name = menuItem.querySelector('.menu-name')?.textContent;
+//       const price = parseInt(menuItem.dataset.price);
+//       const quantityEl = menuItem.querySelector('.quantity');
+//       let qty = parseInt(quantityEl.textContent);
 
-      if (e.target.classList.contains('plus-btn')) {
-        qty++;
-        quantityEl.textContent = qty;
-        if (cart[name]) cart[name].quantity = qty;
-        else cart[name] = { name, price, quantity: qty };
-        console.log(`${name} 수량 증가: ${qty}`);
-      } else if (e.target.classList.contains('minus-btn') && qty > 0) {
-        qty--;
-        quantityEl.textContent = qty;
-        if (qty === 0) delete cart[name];
-        else cart[name].quantity = qty;
-        console.log(`${name} 수량 감소: ${qty}`);
-      }
-      updateCartDisplay();
-    });
-  }
+//       if (e.target.classList.contains('plus-btn')) {
+//         qty++;
+//         quantityEl.textContent = qty;
+//         if (cart[name]) cart[name].quantity = qty;
+//         else cart[name] = { name, price, quantity: qty };
+//         console.log(`${name} 수량 증가: ${qty}`);
+//       } else if (e.target.classList.contains('minus-btn') && qty > 0) {
+//         qty--;
+//         quantityEl.textContent = qty;
+//         if (qty === 0) delete cart[name];
+//         else cart[name].quantity = qty;
+//         console.log(`${name} 수량 감소: ${qty}`);
+//       }
+//       updateCartDisplay();
+//     });
+//   }
 
   // 주문하기 클릭
   placeOrderBtn?.addEventListener('click', async () => {

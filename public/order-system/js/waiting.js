@@ -1,12 +1,14 @@
 // public/order-system/js/waiting.js - 새로운 API 시스템을 위한 대기 화면
 import './config.js';
-import { getUserOrderDetails, getWaitingInfo } from './api-session.js';
-import { Tokens } from './tokens.js';
+import { getUserOrderDetails, openTakeoutSession } from './api-session.js';
+import { Tokens, SessionStore } from './tokens.js';
+
 
 /* =========================
    전역 변수
 ========================= */
 let currentOrderId = null;
+let currentSlug = '';
 let refreshInterval = null;
 let isRefreshing = false;
 
@@ -24,87 +26,136 @@ document.addEventListener('DOMContentLoaded', () => {
    초기화 및 메인 로직
 ========================= */
 async function init() {
-  // DOM 요소 참조
-  const $info = document.getElementById('waiting-info');
-  const $sectionDetails = document.getElementById('order-details');
-  const $summary = document.getElementById('order-summary');
-  const $sectionStatus = document.getElementById('waiting-status');
-
-  // 버튼 이벤트 리스너
+  // 버튼
   document.getElementById('refresh-btn')?.addEventListener('click', () => refreshWaitingInfo());
-
-  // 뒤로가기 버튼 수정 필요
   document.getElementById('back-btn')?.addEventListener('click', () => (location.href = '/'));
 
-  // 주문 ID 추출
+  // 주문 ID & slug 파싱 (/t/:slug/ 경로 또는 쿼리)
   const sp = new URL(location.href).searchParams;
   currentOrderId = sp.get('orderId') || sp.get('id');
+  currentSlug = (location.pathname.match(/\/t\/([^/]+)/)?.[1]) || sp.get('slug') || '';
+
   if (!currentOrderId) {
     return renderError('주문 ID가 없습니다. 올바른 링크로 접근해주세요.');
   }
 
-  // 세션 토큰 확인
-  const token = Tokens.getSession?.();
-  console.log('[waiting] token', token ? token.slice(0, 12) + '...' : '(없음)');
-  if (!token) {
-    return renderError('세션이 만료되었거나 처음 접속입니다. 주문 페이지에서 코드를 다시 입력해주세요.');
+  // ✅ 주문 당시 세션으로 복원(필수)
+  const ok = await ensureOrderSessionForOrder(currentOrderId, currentSlug);
+  if (!ok) {
+    return renderError('세션이 만료되었거나 찾을 수 없습니다. 주문 페이지에서 다시 접속해주세요.');
   }
 
-  // 초기 데이터 로드
+  // 첫 로드 + 자동 새로고침
   await loadWaitingData();
-
-  // 자동 새로고침 시작 (30초마다)
   startAutoRefresh();
 }
 
 /* =========================
-   데이터 로드 함수들
+   주문 세션 보장(복원/재오픈)
+========================= */
+async function ensureOrderSessionForOrder(orderId, slug) {
+  try {
+    const key = `ORDER_SESSION_${orderId}`;
+    const saved = JSON.parse(localStorage.getItem(key) || 'null');
+
+    // 1) 주문 스냅샷이 있으면 그대로 복원
+    if (saved && saved.token) {
+      const useSlug = slug || saved.slug || '';
+      SessionStore.setSession(useSlug, saved);
+      // 레거시 헤더 호환
+      Tokens.setSession(saved.token);
+      Tokens.setSessionMeta({
+        session_id: saved.session_id,
+        table_id: saved.table_id,
+        channel: saved.channel,
+        slug: useSlug,
+        opened_at: saved.createdAt || new Date().toISOString(),
+      });
+
+      // 만료면 채널별 처리
+      if (saved.expiresAt && new Date(saved.expiresAt) <= new Date()) {
+        if ((saved.channel || '').toUpperCase() === 'TAKEOUT' && useSlug) {
+          // 포장은 자동 재오픈 가능
+          await openTakeoutSession(useSlug);
+        } else {
+          // 매장은 자동 재오픈 금지
+          return false;
+        }
+      }
+      return true;
+    }
+
+    // 2) 스냅샷이 없어도 현재 slug 세션이 살아있으면 사용
+    const cur = slug ? SessionStore.getSession(slug) : null;
+    if (cur?.token && new Date(cur.expiresAt) > new Date()) {
+      Tokens.setSession(cur.token);
+      Tokens.setSessionMeta({
+        session_id: cur.session_id,
+        table_id: cur.table_id,
+        channel: cur.channel,
+        slug: slug,
+        opened_at: cur.createdAt || new Date().toISOString(),
+      });
+      return true;
+    }
+
+    // 3) 포장 + slug 있으면 새로 세션 오픈 시도
+    if (slug) {
+      try {
+        await openTakeoutSession(slug);
+        return true;
+      } catch (_) { /* ignore */ }
+    }
+
+    return false;
+  } catch (e) {
+    console.warn('[ensureOrderSessionForOrder] error', e);
+    return false;
+  }
+}
+
+/* =========================
+   데이터 로드
 ========================= */
 async function loadWaitingData() {
   if (isRefreshing) return;
   isRefreshing = true;
 
   const $info = document.getElementById('waiting-info');
-  const $sectionDetails = document.getElementById('order-details');
   const $summary = document.getElementById('order-summary');
   const $sectionStatus = document.getElementById('waiting-status');
 
   try {
-    // 로딩 표시
+    // 로딩 UI
     $info?.classList.remove('hidden');
-    $info.textContent = '대기 순번을 확인하는 중...';
-    $sectionDetails?.classList.add('hidden');
+    $info.textContent = '주문 정보를 불러오는 중...';
     $sectionStatus?.classList.add('hidden');
 
-    // 대기 정보 조회 (주문 정보 + 대기 번호 포함)
-    const waitingData = await getWaitingInfo(currentOrderId);
-    console.log('[waiting] waiting data:', waitingData);
+    // ✅ 주문 상세(본인 세션 인증) 조회
+    const res = await getUserOrderDetails(currentOrderId, currentSlug);
+    const order = res?.data || res; // 함수 구현체에 따라
 
-    const { order, waitingPosition, totalWaiting, estimatedWaitTime } = waitingData;
+    // 간이 대기 수치(서버 대기열 API가 없어서 추정)
+    const wait = estimateWaiting(order);
 
-    // 주문 상세 정보 렌더링
+    // 렌더링
     renderSummary($summary, order);
-
-    // 상태 보드 렌더링 (새로운 상태 시스템 적용)
-    renderStatusBoard($sectionStatus, order.status, waitingPosition, totalWaiting, estimatedWaitTime);
-
-    // 스코어보드 업데이트
-    updateScoreboard(order.status, waitingPosition, estimatedWaitTime);
+    renderStatusBoard($sectionStatus, order.status, wait.waitingPosition, wait.totalWaiting, wait.estimatedWaitTime);
+    updateScoreboard(order.status, wait.waitingPosition, wait.estimatedWaitTime);
 
     // 표시 전환
     $info?.classList.add('hidden');
-    $sectionDetails?.classList.remove('hidden');
     $sectionStatus?.classList.remove('hidden');
 
   } catch (e) {
     const msg = String(e?.message || e);
     console.error('[waiting] loadWaitingData failed:', msg);
-    
-    if (msg.includes('401') || msg.toLowerCase().includes('token') || msg.includes('세션')) {
-      Tokens.clearSession?.();
-      return renderError('세션이 만료되었습니다. 주문 페이지에서 코드를 다시 입력해주세요.');
+
+    // 세션 이슈 공통 처리
+    if (msg.includes('401') || /token|세션|invalid|closed/i.test(msg)) {
+      return renderError('세션이 만료되었거나 권한이 없습니다. 주문 페이지에서 다시 접속해주세요.');
     }
-    
+
     return renderError('주문 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.');
   } finally {
     isRefreshing = false;
@@ -112,8 +163,50 @@ async function loadWaitingData() {
 }
 
 async function refreshWaitingInfo() {
-  console.log('[waiting] 수동 새로고침 시작');
+  console.log('[waiting] 수동 새로고침');
   await loadWaitingData();
+}
+
+/* =========================
+   대기 추정(임시)
+========================= */
+function estimateWaiting(order) {
+  const status = String(order?.status || '').toUpperCase();
+  let waitingPosition = 0;
+  let totalWaiting = 0;
+  let estimatedWaitTime = 0;
+
+  const created = order?.created_at ? new Date(order.created_at).getTime() : Date.now();
+  const mins = Math.max(0, Math.floor((Date.now() - created) / 60000));
+
+  switch (status) {
+    case 'PENDING':
+      waitingPosition = Math.max(1, Math.floor(mins / 5));
+      totalWaiting = waitingPosition + 1;
+      estimatedWaitTime = waitingPosition * 3;
+      break;
+    case 'CONFIRMED':
+      waitingPosition = Math.max(1, Math.floor(mins / 8));
+      totalWaiting = waitingPosition + 1;
+      estimatedWaitTime = waitingPosition * 8;
+      break;
+    case 'IN_PROGRESS':
+      waitingPosition = 0;
+      totalWaiting = Math.floor(Math.random() * 5);
+      estimatedWaitTime = 5;
+      break;
+    case 'SERVED':
+      waitingPosition = 0;
+      totalWaiting = 0;
+      estimatedWaitTime = 0;
+      break;
+    default:
+      waitingPosition = Math.floor(Math.random() * 3);
+      totalWaiting = waitingPosition + Math.floor(Math.random() * 2);
+      estimatedWaitTime = waitingPosition * 5;
+  }
+
+  return { waitingPosition, totalWaiting, estimatedWaitTime };
 }
 
 /* =========================
@@ -255,6 +348,7 @@ function updateScoreboard(status, waitingPosition, estimatedWaitTime) {
       break;
     case 'SERVED':
       message = '🎉 조리 완료! 픽업 가능합니다';
+      stopAutoRefresh();
       break;
     default:
       message = '주문 처리중입니다';
