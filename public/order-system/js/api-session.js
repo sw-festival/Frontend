@@ -1,5 +1,5 @@
 import './config.js';
-import { Tokens } from './tokens.js';
+import { Tokens, SessionStore } from './tokens.js';
 
 function waitForRuntime() {
   return new Promise((resolve) => {
@@ -37,21 +37,52 @@ function apiUrl(path, params) {
   return url.href;
 }
 
-function sessionHeaders() {
-  const token = Tokens.getSession?.();
+function sessionHeaders(slug) {
   const headers = {
     'Content-Type': 'application/json',
     'Accept': 'application/json'
   };
-  if (token) {
-    headers['x-session-token'] = token;               // 호환용
-    headers['Authorization']  = `Session ${token}`;    // 스펙
+  
+  if (!slug) {
+    console.warn('[sessionHeaders] slug가 없습니다. 레거시 모드로 동작합니다.');
+    // 레거시 호환성
+    const token = Tokens.getSession?.();
+    const meta = Tokens.getSessionMeta?.();
+    
+    if (token) {
+      headers['x-session-token'] = token;
+      headers['Authorization'] = `Session ${token}`;
+    }
+    if (meta) {
+      if (meta.session_id) headers['X-Session-Id'] = String(meta.session_id);
+      if (meta.table_id) headers['X-Table-Id'] = String(meta.table_id);
+      if (meta.channel) headers['X-Channel'] = String(meta.channel);
+    }
+    return headers;
   }
+
+  // 새로운 SessionStore 기반
+  const session = SessionStore.getSession(slug);
+  
+  if (session) {
+    headers['x-session-token'] = session.token;               // 호환용
+    headers['Authorization'] = `Session ${session.token}`;    // 스펙
+    headers['X-Session-Id'] = String(session.session_id);
+    headers['X-Table-Id'] = String(session.table_id);
+    headers['X-Channel'] = String(session.channel);
+    headers['X-Table-Slug'] = String(session.slug);          // 선택사항
+  }
+  
   // 디버깅 로그
-  console.log('[sessionHeaders]', {
-    hasToken: !!token,
-    tokenPrefix: token ? token.slice(0, 12) + '...' : null
+  console.log(`[sessionHeaders] ${slug}`, {
+    hasSession: !!session,
+    tokenPrefix: session?.token ? session.token.slice(0, 12) + '...' : null,
+    sessionId: session?.session_id,
+    tableId: session?.table_id,
+    channel: session?.channel,
+    expiresAt: session?.expiresAt
   });
+  
   return headers;
 }
 
@@ -88,9 +119,37 @@ export async function openSessionBySlug(slug, codeFromUser) {
     throw new Error(data?.message || `세션 열기 실패 (${res.status})`);
   }
 
-  // 세션 토큰 저장
-  const token = data?.data?.session_token;
-  if (token) Tokens.setSession(token);
+  // SessionStore에 세션 저장
+  const sessionData = {
+    session_token: data?.data?.session_token,
+    session_id: data?.data?.session_id,
+    table: data?.data?.table,
+    table_id: data?.data?.table?.id,
+    channel: data?.data?.channel || 'DINEIN',
+    abs_ttl_min: data?.data?.abs_ttl_min
+  };
+  
+  if (sessionData.session_token) {
+    SessionStore.setSession(slug, sessionData);
+    
+    // 레거시 호환성 유지
+    Tokens.setSession(sessionData.session_token);
+    const legacyMeta = {
+      session_id: sessionData.session_id,
+      table_id: sessionData.table_id,
+      channel: sessionData.channel,
+      slug: slug,
+      opened_at: new Date().toISOString()
+    };
+    Tokens.setSessionMeta(legacyMeta);
+    
+    console.log(`[openSessionBySlug] DINE-IN 세션 저장: ${slug}`, {
+      channel: sessionData.channel,
+      sessionId: sessionData.session_id,
+      tableId: sessionData.table_id,
+      expiresAt: SessionStore.getSession(slug)?.expiresAt
+    });
+  }
 
   return data; // 호출측에서 code_verified 플래그를 세움
 }
@@ -141,16 +200,110 @@ export async function openTakeoutSession(slug) {
     throw new Error(data?.message || `포장 세션 열기 실패 (${res.status})`);
   }
 
-  // 세션 토큰 저장
-  const token = data?.data?.session_token;
-  if (!token) {
+  // SessionStore에 세션 저장
+  const sessionData = {
+    session_token: data?.data?.session_token,
+    session_id: data?.data?.session_id,
+    table: data?.data?.table,
+    table_id: data?.data?.table?.id,
+    channel: data?.data?.channel || 'TAKEOUT',
+    abs_ttl_min: data?.data?.abs_ttl_min
+  };
+  
+  if (!sessionData.session_token) {
     throw new Error('서버에서 세션 토큰을 반환하지 않았습니다.');
   }
   
-  Tokens.setSession(token);
-  console.log('[openTakeoutSession] 세션 토큰 저장 완료:', token.substring(0, 20) + '...');
+  SessionStore.setSession(slug, sessionData);
+  
+  // 레거시 호환성 유지
+  Tokens.setSession(sessionData.session_token);
+  const legacyMeta = {
+    session_id: sessionData.session_id,
+    table_id: sessionData.table_id,
+    channel: sessionData.channel,
+    slug: slug,
+    opened_at: new Date().toISOString()
+  };
+  Tokens.setSessionMeta(legacyMeta);
+  
+  console.log(`[openTakeoutSession] TAKEOUT 세션 저장: ${slug}`, {
+    channel: sessionData.channel,
+    sessionId: sessionData.session_id,
+    tableId: sessionData.table_id,
+    token: sessionData.session_token.substring(0, 20) + '...',
+    expiresAt: SessionStore.getSession(slug)?.expiresAt
+  });
 
   return data; // { success: true, data: { session_token, session_id, table, ... } }
+}
+
+/* -----------------------------
+ *  세션 보장 함수 (주문 전 필수 체크)
+ * ----------------------------- */
+export async function ensureSessionBeforeOrder(slug, expectedChannel) {
+  console.log(`[ensureSessionBeforeOrder] ${slug}, 채널: ${expectedChannel}`);
+  
+  const session = SessionStore.getSession(slug);
+  
+  // 1. 토큰 없음
+  if (!session || !session.token) {
+    console.log(`[ensureSessionBeforeOrder] 세션 없음: ${slug}`);
+    if (expectedChannel === 'DINEIN') {
+      throw new Error('DINEIN_NO_SESSION'); // 코드 모달 유도
+    } else if (expectedChannel === 'TAKEOUT') {
+      console.log(`[ensureSessionBeforeOrder] TAKEOUT 자동 재오픈: ${slug}`);
+      await openTakeoutSession(slug);
+      return SessionStore.getSession(slug);
+    }
+  }
+
+  // 2. 채널 불일치
+  if (session.channel !== expectedChannel) {
+    console.log(`[ensureSessionBeforeOrder] 채널 불일치: ${session.channel} ≠ ${expectedChannel}`);
+    SessionStore.removeSession(slug);
+    if (expectedChannel === 'DINEIN') {
+      throw new Error('DINEIN_CHANNEL_MISMATCH'); // 코드 모달 유도
+    } else if (expectedChannel === 'TAKEOUT') {
+      console.log(`[ensureSessionBeforeOrder] TAKEOUT 자동 재오픈: ${slug}`);
+      await openTakeoutSession(slug);
+      return SessionStore.getSession(slug);
+    }
+  }
+
+  // 3. 슬러그 불일치
+  if (session.slug !== slug) {
+    console.log(`[ensureSessionBeforeOrder] 슬러그 불일치: ${session.slug} ≠ ${slug}`);
+    SessionStore.removeSession(slug);
+    if (expectedChannel === 'DINEIN') {
+      throw new Error('DINEIN_SLUG_MISMATCH'); // 코드 모달 유도
+    } else if (expectedChannel === 'TAKEOUT') {
+      console.log(`[ensureSessionBeforeOrder] TAKEOUT 자동 재오픈: ${slug}`);
+      await openTakeoutSession(slug);
+      return SessionStore.getSession(slug);
+    }
+  }
+
+  // 4. 만료 체크 (SessionStore.getSession에서 이미 체크하지만 명시적으로)
+  if (new Date(session.expiresAt) <= new Date()) {
+    console.log(`[ensureSessionBeforeOrder] 세션 만료: ${slug}, expiresAt: ${session.expiresAt}`);
+    SessionStore.removeSession(slug);
+    if (expectedChannel === 'DINEIN') {
+      throw new Error('DINEIN_EXPIRED'); // 코드 모달 유도
+    } else if (expectedChannel === 'TAKEOUT') {
+      console.log(`[ensureSessionBeforeOrder] TAKEOUT 자동 재오픈: ${slug}`);
+      await openTakeoutSession(slug);
+      return SessionStore.getSession(slug);
+    }
+  }
+
+  console.log(`[ensureSessionBeforeOrder] 세션 유효: ${slug}`, {
+    channel: session.channel,
+    sessionId: session.session_id,
+    expiresAt: session.expiresAt
+  });
+  
+  return session;
 }
 
 // export async function createOrder({ order_type, payer_name, items }) {
@@ -166,42 +319,80 @@ export async function openTakeoutSession(slug) {
 //   if (!res.ok || !data?.success) throw new Error(data?.message || '주문 생성 실패');
 //   return data;
 // }
-export async function createOrder({ order_type, payer_name, items }) {
+export async function createOrder(orderData, slug) {
   await waitForRuntime();
+  
+  if (!slug) {
+    throw new Error('slug가 필요합니다.');
+  }
+
   const url = apiUrl('/orders');
+  const headers = sessionHeaders(slug);
 
-  // 항상 세션 헤더 사용 (토큰 있으면 자동으로 Authorization/x-session-token 포함)
-  const headers = sessionHeaders();
+  // X-Idempotency-Key 추가 (중복 클릭/재전송 방지)
+  const idempotencyKey = `order-${slug}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  headers['X-Idempotency-Key'] = idempotencyKey;
 
-  const body = JSON.stringify({ order_type, payer_name, items });
-  console.log('[createOrder] POST', url, { headers, body });
+  const body = JSON.stringify(orderData);
+  console.log(`[createOrder] POST ${url} (slug: ${slug})`, { headers, body });
 
   const res = await fetch(url, { method: 'POST', headers, body });
   const text = await res.text();
   let data = {}; try { data = JSON.parse(text); } catch (e) {}
-  console.log('[createOrder] status:', res.status, text);
+  console.log(`[createOrder] ${res.status} (slug: ${slug})`, text);
 
   if (!res.ok || !data?.success) {
-    if (res.status === 401) {
-      // 선택: 토큰 만료/부재 방어
-      Tokens.clearSession?.();
+    // 422 token expired 처리
+    if (res.status === 422 && text.includes('token expired')) {
+      const session = SessionStore.getSession(slug);
+      if (session?.channel === 'TAKEOUT') {
+        console.log(`[createOrder] TAKEOUT 토큰 만료, 자동 재시도: ${slug}`);
+        try {
+          await openTakeoutSession(slug);
+          const newHeaders = sessionHeaders(slug);
+          newHeaders['X-Idempotency-Key'] = idempotencyKey; // 같은 키 사용
+          
+          const retryRes = await fetch(url, { method: 'POST', headers: newHeaders, body });
+          const retryText = await retryRes.text();
+          let retryData = {}; try { retryData = JSON.parse(retryText); } catch (e) {}
+          console.log(`[createOrder] 재시도 결과 ${retryRes.status}:`, retryText);
+          
+          if (retryRes.ok && retryData?.success) {
+            return retryData;
+          }
+          throw new Error(retryData?.message || '주문 재시도 실패');
+        } catch (retryError) {
+          console.error('[createOrder] TAKEOUT 재시도 실패:', retryError);
+          throw retryError;
+        }
+      } else {
+        // DINE-IN에서는 재시도 하지 않고 그대로 에러 반환
+        console.log(`[createOrder] DINE-IN 토큰 만료, 재시도 안함: ${slug}`);
+        SessionStore.removeSession(slug);
+        throw new Error('DINEIN_TOKEN_EXPIRED');
+      }
     }
-    throw new Error(data?.message || '주문 생성 실패');
+    
+    if (res.status === 401) {
+      SessionStore.removeSession(slug);
+    }
+    
+    throw new Error(data?.message || `주문 생성 실패 (${res.status})`);
   }
+  
   return data;
 }
 
-export async function getUserOrderDetails(orderId) {
+export async function getUserOrderDetails(orderId, slug) {
   await waitForRuntime();
   const url = apiUrl(`/orders/${orderId}`);
-  const res = await fetch(url, {
-    method: 'GET',
-    headers: sessionHeaders(),
-  });
+  const headers = slug ? sessionHeaders(slug) : sessionHeaders(); // slug 선택사항
+  
+  const res = await fetch(url, { method: 'GET', headers });
   const text = await res.text();
   let data = {};
   try { data = JSON.parse(text); } catch(e) {}
-  console.log('[getUserOrderDetails]', res.status, url, text);
+  console.log(`[getUserOrderDetails] ${orderId} (slug: ${slug || 'legacy'})`, res.status, text);
 
   if (!res.ok || !data?.success) {
     throw new Error(data?.message || '주문 조회 실패');

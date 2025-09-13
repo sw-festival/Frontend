@@ -224,26 +224,35 @@
         .menu-tabs {
             display: flex;
             gap: 0;
-            padding: 0 2rem;
+            padding: 0 1rem;
+            overflow-x: auto;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+
+        .menu-tabs::-webkit-scrollbar {
+            display: none;
         }
 
         .menu-tab {
             background: #f8f9fa;
             border: none;
             border-top: 3px solid transparent;
-            padding: 1rem 2rem;
+            padding: 1rem 1.5rem;
             cursor: pointer;
             transition: all 0.3s ease;
             display: flex;
             flex-direction: column;
             align-items: center;
             gap: 0.3rem;
-            min-width: 120px;
+            min-width: 100px;
+            flex-shrink: 0;
             position: relative;
             color: #666;
             border-radius: 15px 15px 0 0;
             margin-right: 2px;
             transform: translateY(1px);
+            white-space: nowrap;
         }
 
         .menu-tab::before {
@@ -329,18 +338,19 @@
         
         .menu-image {
             flex-shrink: 0;
+            align-self: flex-start;
         }
         
         .menu-img-placeholder {
-            width: 80px;
-            height: 80px;
+            width: 100px;
+            height: 100px;
             background: linear-gradient(135deg, #1a5490, #2c3e50);
             border-radius: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
             color: white;
-            font-size: 2rem;
+            font-size: 2.5rem;
             box-shadow: 0 4px 8px rgba(26, 84, 144, 0.3);
         }
         
@@ -348,26 +358,26 @@
             flex: 1;
             display: flex;
             flex-direction: column;
-            gap: 1rem;
         }
         
         .menu-info {
             flex: 1;
+            margin-bottom: 1rem;
         }
         
         .menu-name {
-            font-size: 1.3rem;
+            font-size: 1.4rem;
             font-weight: bold;
-            margin: 0 0 0.5rem 0;
+            margin: 0 0 0.8rem 0;
             color: #333;
             line-height: 1.2;
         }
         
         .menu-description {
-            font-size: 0.9rem;
+            font-size: 0.95rem;
             color: #666;
-            line-height: 1.4;
-            margin: 0 0 0.5rem 0;
+            line-height: 1.5;
+            margin: 0;
         }
         
         .menu-price {
@@ -375,13 +385,15 @@
             color: #1a5490;
             font-weight: bold;
             margin: 0;
+            display: none;
         }
         
         .menu-quantity {
             display: flex;
             align-items: center;
             gap: 0.8rem;
-            justify-content: flex-end;
+            justify-content: center;
+            margin-top: auto;
         }
         
         .quantity-btn {
@@ -975,6 +987,55 @@
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
         }
+
+        .verify-btn.disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .verify-btn.disabled:hover {
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* 모달 안내 및 유효성 검사 메시지 */
+        .modal-guide {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            border-radius: 4px;
+        }
+
+        .guide-text {
+            margin: 0;
+            color: #1565c0;
+            font-weight: 500;
+            font-size: 0.95rem;
+        }
+
+        .validation-message {
+            font-size: 0.85rem;
+            padding: 0.5rem 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+
+        .validation-message.error {
+            color: #dc3545;
+        }
+
+        .validation-message.success {
+            color: #28a745;
+        }
+
+        .validation-message i {
+            font-size: 0.9rem;
+        }
         
         .error-message {
             color: #dc3545;
@@ -1206,12 +1267,18 @@
                 <button id="modal-close-btn" class="modal-close">&times;</button>
             </div>
             <div class="modal-body">
+                <div class="modal-guide">
+                    <p class="guide-text">접속하기 버튼을 누른 후 다시 주문하기 버튼을 클릭해주세요.</p>
+                </div>
                 <p>주문을 완료하려면 접속 코드를 입력해주세요.</p>
                 <div class="code-input-group">
                     <input type="text" id="code-input" placeholder="접속 코드 입력" maxlength="10">
-                    <button id="verify-btn" class="verify-btn">
+                    <button id="verify-btn" class="verify-btn disabled">
                         <i class="fas fa-check"></i> 접속하기
                     </button>
+                </div>
+                <div id="code-validation-message" class="validation-message error">
+                    <i class="fas fa-exclamation-circle"></i> 올바른 코드를 입력해주세요
                 </div>
                 <div id="code-error" class="error-message hidden">
                     정상처리되지않았습니다. 다시 시도해주세요.
