@@ -340,26 +340,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 주문 당시 세션 스냅샷 저장 (waiting 페이지 복원용)
     try {
-        const s = SessionStore.getSession?.(slug);
-        if (s?.token) {
-        localStorage.setItem(
+        const s = SessionStore.getSession?.(slug) || {};
+        const tokenForSnapshot = s.token || Tokens.getSession?.();   // 폴백 추가
+
+        if (tokenForSnapshot) {
+            localStorage.setItem(
             `ORDER_SESSION_${orderId}`,
             JSON.stringify({
-            token: s.token,
-            session_id: s.session_id,
-            table_id: s.table_id,
-            channel: s.channel,    // 'DINEIN' | 'TAKEOUT'
-            slug,
-            createdAt: new Date().toISOString(),
-            expiresAt: s.expiresAt
+                token: tokenForSnapshot,        // 항상 토큰이 저장되도록
+                session_id: s.session_id,
+                table_id: s.table_id,
+                channel: s.channel,             // 'DINEIN' | 'TAKEOUT'
+                slug,
+                createdAt: new Date().toISOString(),
+                expiresAt: s.expiresAt
             })
-        );
+            );
         }
-        // 최근 주문 맵도 갱신(선택)
         const map = JSON.parse(localStorage.getItem('LAST_ORDER_BY_SLUG') || '{}');
         map[slug] = orderId;
         localStorage.setItem('LAST_ORDER_BY_SLUG', JSON.stringify(map));
-    } catch (e) {
+        } catch (e) {
         console.warn('[handleOrderSuccess] 세션 스냅샷 저장 실패', e);
     }
 

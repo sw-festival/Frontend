@@ -26,44 +26,46 @@ document.addEventListener('DOMContentLoaded', () => {
    초기화 및 메인 로직
 ========================= */
 async function init() {
-  // 버튼
-  document.getElementById('refresh-btn')?.addEventListener('click', () => refreshWaitingInfo());
-  document.getElementById('back-btn')?.addEventListener('click', () => (location.href = '/'));
-
-  // 주문 ID & slug 파싱 (/t/:slug/ 경로 또는 쿼리)
   const sp = new URL(location.href).searchParams;
   currentOrderId = sp.get('orderId') || sp.get('id');
-  currentSlug = (location.pathname.match(/\/t\/([^/]+)/)?.[1]) || sp.get('slug') || '';
+  currentSlug    = (location.pathname.match(/\/t\/([^/]+)/)?.[1]) || sp.get('slug') || '';
 
-  if (!currentOrderId) {
-    return renderError('주문 ID가 없습니다. 올바른 링크로 접근해주세요.');
-  }
+  if (!currentOrderId) return renderError('주문 ID가 없습니다.');
 
-  // ✅ 주문 당시 세션으로 복원(필수)
   const ok = await ensureOrderSessionForOrder(currentOrderId, currentSlug);
-  if (!ok) {
-    return renderError('세션이 만료되었거나 찾을 수 없습니다. 주문 페이지에서 다시 접속해주세요.');
-  }
+  if (!ok) return renderError('세션이 만료되었거나 찾을 수 없습니다.');
 
-  // 첫 로드 + 자동 새로고침
-  await loadWaitingData();
+  await loadWaitingData();  // 세션 보장 후 호출
   startAutoRefresh();
 }
+
 
 /* =========================
    주문 세션 보장(복원/재오픈)
 ========================= */
 async function ensureOrderSessionForOrder(orderId, slug) {
   try {
-    const key = `ORDER_SESSION_${orderId}`;
+    const key   = `ORDER_SESSION_${orderId}`;
     const saved = JSON.parse(localStorage.getItem(key) || 'null');
 
-    // 1) 주문 스냅샷이 있으면 그대로 복원
-    if (saved && saved.token) {
-      const useSlug = slug || saved.slug || '';
-      SessionStore.setSession(useSlug, saved);
-      // 레거시 헤더 호환
-      Tokens.setSession(saved.token);
+    // 1) 스냅샷 있으면 무조건 복원
+    if (saved) {
+      const token   = saved.token || Tokens.getSession?.();
+      const useSlug = slug || saved.slug || 'legacy';
+
+      if (!token) return false; // 토큰 없으면 인증 불가
+
+      // 런타임에 확실히 주입
+      SessionStore.setSession(useSlug, {
+        token,
+        session_id: saved.session_id,
+        table_id: saved.table_id,
+        channel: saved.channel,
+        slug: useSlug,
+        createdAt: saved.createdAt,
+        expiresAt: saved.expiresAt,
+      });
+      Tokens.setSession(token);
       Tokens.setSessionMeta({
         session_id: saved.session_id,
         table_id: saved.table_id,
@@ -72,13 +74,14 @@ async function ensureOrderSessionForOrder(orderId, slug) {
         opened_at: saved.createdAt || new Date().toISOString(),
       });
 
-      // 만료면 채널별 처리
+      // 현재 슬러그 갱신(legacy 분기 방지)
+      currentSlug = useSlug;
+
+      // 만료 처리(포장만 자동 재오픈)
       if (saved.expiresAt && new Date(saved.expiresAt) <= new Date()) {
         if ((saved.channel || '').toUpperCase() === 'TAKEOUT' && useSlug) {
-          // 포장은 자동 재오픈 가능
           await openTakeoutSession(useSlug);
         } else {
-          // 매장은 자동 재오픈 금지
           return false;
         }
       }
@@ -86,25 +89,26 @@ async function ensureOrderSessionForOrder(orderId, slug) {
     }
 
     // 2) 스냅샷이 없어도 현재 slug 세션이 살아있으면 사용
-    const cur = slug ? SessionStore.getSession(slug) : null;
-    if (cur?.token && new Date(cur.expiresAt) > new Date()) {
-      Tokens.setSession(cur.token);
-      Tokens.setSessionMeta({
-        session_id: cur.session_id,
-        table_id: cur.table_id,
-        channel: cur.channel,
-        slug: slug,
-        opened_at: cur.createdAt || new Date().toISOString(),
-      });
-      return true;
+    if (slug) {
+      const cur = SessionStore.getSession?.(slug);
+      if (cur?.token && new Date(cur.expiresAt) > new Date()) {
+        Tokens.setSession(cur.token);
+        Tokens.setSessionMeta({
+          session_id: cur.session_id, table_id: cur.table_id,
+          channel: cur.channel, slug, opened_at: cur.createdAt || new Date().toISOString(),
+        });
+        currentSlug = slug;
+        return true;
+      }
     }
 
-    // 3) 포장 + slug 있으면 새로 세션 오픈 시도
+    // 3) 포장 + slug 있으면 새 세션 오픈 시도
     if (slug) {
       try {
         await openTakeoutSession(slug);
+        currentSlug = slug;
         return true;
-      } catch (_) { /* ignore */ }
+      } catch {}
     }
 
     return false;
@@ -131,9 +135,9 @@ async function loadWaitingData() {
     $info.textContent = '주문 정보를 불러오는 중...';
     $sectionStatus?.classList.add('hidden');
 
-    // ✅ 주문 상세(본인 세션 인증) 조회
-    const res = await getUserOrderDetails(currentOrderId, currentSlug);
-    const order = res?.data || res; // 함수 구현체에 따라
+    // 주문 상세(본인 세션 인증) 조회
+    const res   = await getUserOrderDetails(currentOrderId, currentSlug); // 
+    const order = res?.data || res;
 
     // 간이 대기 수치(서버 대기열 API가 없어서 추정)
     const wait = estimateWaiting(order);

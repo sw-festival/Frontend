@@ -37,25 +37,100 @@ function apiUrl(path, params) {
   return url.href;
 }
 
-function sessionHeaders({ scheme='Session', idemKey, useOnlyX=false, slug } = {}) {
-  const store = JSON.parse(localStorage.getItem('session_store') || '{}');
-  const meta  = JSON.parse(localStorage.getItem('session_meta')  || '{}');
+export function sessionHeaders(arg = {}) {
+  const opt =
+    typeof arg === 'string' ? { slug: arg } : (arg || {});
+  const {
+    slug,
+    scheme = 'Session',
+    useOnlyX = false,
+    idemKey
+  } = opt;
 
-  const s = (slug && store[slug]) ? store[slug] : meta;      // slug 우선
-  const token = (s && s.token) || (window.Tokens?.getSession?.() || '');
+  // 1) localStorage에 저장된 세션 스토어/메타에서 우선 조회
+  let store = {};
+  let meta  = {};
+  try { store = JSON.parse(localStorage.getItem('session_store') || '{}'); } catch {}
+  try { meta  = JSON.parse(localStorage.getItem('session_meta')  || '{}'); } catch {}
 
-  const h = { 'Content-Type':'application/json', 'Accept':'application/json' };
+  const fromStore = (slug && store && store[slug]) ? store[slug] : null;
+  const fromMeta  = (meta && meta.token) ? meta : null;
+
+  // 2) 여러 경로에서 토큰 후보 수집 → 우선순위대로 선택
+  let token =
+    (fromStore && fromStore.token) ||
+    (fromMeta  && fromMeta.token)  ||
+    (window.SessionStore?.getSession?.(slug)?.token) ||
+    (window.Tokens?.getSession?.()) ||
+    sessionStorage.getItem('session_token') ||
+    localStorage.getItem('session_token') ||
+    '';
+
+  token = String(token || '').replace(/^"|"$/g, '');
+
+  const h = {
+    Accept: 'application/json',
+    'Content-Type': 'application/json',
+  };
+
   if (token) {
-    if (!useOnlyX) h.Authorization = `${scheme} ${token}`;   // 반드시 Session 스킴
-    h['X-Session-Token'] = token;
-    if (s?.session_id) h['X-Session-Id'] = String(s.session_id);
-    if (s?.table_id)   h['X-Table-Id']   = String(s.table_id);
-    if (s?.channel)    h['X-Channel']    = String(s.channel);
-    if (s?.slug)       h['X-Table-Slug'] = String(s.slug);
+    // 권장: Authorization: Session <token>
+    if (!useOnlyX) h.Authorization = `${scheme} ${token}`;
+    // 호환 헤더들
+    h['x-session-token'] = token;
+
+    const s = fromStore || fromMeta || window.SessionStore?.getSession?.(slug) || {};
+    if (s.session_id != null) h['x-session-id'] = String(s.session_id);
+    if (s.table_id   != null) h['x-table-id']   = String(s.table_id);
+    if (s.channel)           h['x-channel']    = String(s.channel);
+    if (slug)                h['x-table-slug'] = String(slug);
   }
-  if (idemKey) h['X-Idempotency-Key'] = idemKey;
+
+  if (idemKey) h['x-idempotency-key'] = idemKey;
+
   return h;
 }
+
+// (사용자) 내 주문 상세 조회
+// - 서버 요구사항: 세션 토큰 인증(Authorization: Session <token> 또는 x-session-token)
+// - 반환: 백엔드가 {success, data:{...}}를 주면 data, 아니면 그대로 객체 반환
+export async function getUserOrderDetails(orderId, slug) {
+  await waitForRuntime(); // 기존 유틸 그대로 사용
+  const url = apiUrl(`/orders/${orderId}`); // 기존 유틸 그대로 사용
+  const headers = sessionHeaders({ slug }); // ← 반드시 객체 형태로 slug 전달
+
+  const res  = await fetch(url, { method: 'GET', headers });
+  const text = await res.text();
+  let json = {};
+  try { json = JSON.parse(text); } catch {}
+
+  console.log(`[getUserOrderDetails] ${orderId} (slug: ${slug || 'n/a'})`, res.status, text);
+
+  if (!res.ok || json?.success === false) {
+    throw new Error(json?.message || `HTTP ${res.status}`);
+  }
+  return json?.data || json;
+}
+
+// function sessionHeaders({ scheme='Session', idemKey, useOnlyX=false, slug } = {}) {
+//   const store = JSON.parse(localStorage.getItem('session_store') || '{}');
+//   const meta  = JSON.parse(localStorage.getItem('session_meta')  || '{}');
+
+//   const s = (slug && store[slug]) ? store[slug] : meta;      // slug 우선
+//   const token = (s && s.token) || (window.Tokens?.getSession?.() || '');
+
+//   const h = { 'Content-Type':'application/json', 'Accept':'application/json' };
+//   if (token) {
+//     if (!useOnlyX) h.Authorization = `${scheme} ${token}`;   // 반드시 Session 스킴
+//     h['X-Session-Token'] = token;
+//     if (s?.session_id) h['X-Session-Id'] = String(s.session_id);
+//     if (s?.table_id)   h['X-Table-Id']   = String(s.table_id);
+//     if (s?.channel)    h['X-Channel']    = String(s.channel);
+//     if (s?.slug)       h['X-Table-Slug'] = String(s.slug);
+//   }
+//   if (idemKey) h['X-Idempotency-Key'] = idemKey;
+//   return h;
+// }
 
 // slug로 세션 열기
 // 사용자로부터 받은 code가 없으면 요청 자체를 막는다.
@@ -350,22 +425,22 @@ export async function createOrder(order, slug) {
   return data;
 }
 
-export async function getUserOrderDetails(orderId, slug) {
-  await waitForRuntime();
-  const url = apiUrl(`/orders/${orderId}`);
-  const headers = sessionHeaders(slug); // slug 필수로 사용
+// export async function getUserOrderDetails(orderId, slug) {
+//   await waitForRuntime();
+//   const url = apiUrl(`/orders/${orderId}`);
+//   const headers = sessionHeaders(slug); // slug 필수로 사용
   
-  const res = await fetch(url, { method: 'GET', headers });
-  const text = await res.text();
-  let data = {};
-  try { data = JSON.parse(text); } catch(e) {}
-  console.log(`[getUserOrderDetails] ${orderId} (slug: ${slug || 'legacy'})`, res.status, text);
+//   const res = await fetch(url, { method: 'GET', headers });
+//   const text = await res.text();
+//   let data = {};
+//   try { data = JSON.parse(text); } catch(e) {}
+//   console.log(`[getUserOrderDetails] ${orderId} (slug: ${slug || 'legacy'})`, res.status, text);
 
-  if (!res.ok || !data?.success) {
-    throw new Error(data?.message || '주문 조회 실패');
-  }
-  return data;
-}
+//   if (!res.ok || !data?.success) {
+//     throw new Error(data?.message || '주문 조회 실패');
+//   }
+//   return data;
+// }
 
 export async function getPublicMenu() {
   await waitForRuntime();
