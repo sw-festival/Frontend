@@ -221,11 +221,20 @@ document.addEventListener('DOMContentLoaded', () => {
       product_id: PRODUCT_ID_MAP[item.name],
       quantity: item.quantity,
     }));
-    return {
+    
+    const orderData = {
       order_type: orderType === 'dine-in' ? 'DINE_IN' : 'TAKEOUT',
       payer_name: customerNameInput.value.trim(),
       items,
     };
+    
+    console.log('[prepareOrderData] 주문 데이터:', orderData);
+    console.log('[prepareOrderData] 세션 토큰 상태:', {
+      hasToken: !!Tokens.getSession?.(),
+      tokenPreview: Tokens.getSession?.()?.substring(0, 20) + '...'
+    });
+    
+    return orderData;
   }
 
   async function placeOrderWithExistingSession() {
@@ -296,11 +305,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 주문하기 클릭
   placeOrderBtn?.addEventListener('click', async () => {
-    console.log('주문 시도');
+    console.log('주문 시도 - orderType:', orderType);
     if (Object.keys(cart).length === 0) { alert('메뉴를 선택해주세요.'); return; }
     if (!customerNameInput.value.trim()) { alert('입금자명을 입력해주세요.'); customerNameInput.focus(); return; }
     if (!slug) { alert('유효하지 않은 접근입니다. /t/{slug} 주소로 접속해주세요.'); return; }
-    if (!Tokens.getSession?.()) { showCodeModal(); return; }
+    
+    // 포장 주문의 경우 코드 없이 바로 세션 열기
+    if (orderType === 'takeout') {
+      if (!Tokens.getSession?.()) {
+        try {
+          console.log('포장 주문: 코드 없이 세션 열기');
+          await openTakeoutSession(slug);
+        } catch (error) {
+          console.error('포장 세션 열기 실패:', error);
+          alert('포장 주문 세션 열기에 실패했습니다: ' + error.message);
+          return;
+        }
+      }
+    } else {
+      // 매장 주문의 경우 코드 입력 필요
+      if (!Tokens.getSession?.()) { 
+        showCodeModal(); 
+        return; 
+      }
+    }
+    
     await placeOrderWithExistingSession();
   });
 
@@ -320,8 +349,8 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       // 포장 주문인지 확인하여 적절한 API 사용
       if (orderType === 'takeout') {
-        console.log('포장 주문으로 멀티세션 API 사용');
-        await openTakeoutSession(slug, code);
+        console.log('포장 주문으로 멀티세션 API 사용 (코드 무시)');
+        await openTakeoutSession(slug);
       } else {
         console.log('매장 주문으로 기존 세션 API 사용');
         await openSessionBySlug(slug, code);

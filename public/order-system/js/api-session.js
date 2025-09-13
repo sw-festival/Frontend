@@ -97,39 +97,58 @@ export async function openSessionBySlug(slug, codeFromUser) {
 
 /* -----------------------------
  *  포장 주문용 멀티세션 열기
+ *  - Authorization 불필요 (코드 검증 없이 바로 세션 열기)
+ *  - 멀티 세션 지원 (기존 세션 만료시키지 않음)
  * ----------------------------- */
-export async function openTakeoutSession(slug, codeFromUser) {
+export async function openTakeoutSession(slug) {
   await waitForRuntime();
 
   if (!slug) throw new Error('테이블 정보(slug)가 없습니다.');
-  if (!codeFromUser || String(codeFromUser).trim() === '') {
-    throw new Error('접속 코드를 입력해주세요.');
-  }
+
+  console.log('[openTakeoutSession] 포장 세션 열기 시도:', slug);
 
   const url = apiUrl('/sessions/takeout/open');
   const res = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type':'application/json', 'Accept':'application/json' },
+    headers: { 
+      'Content-Type': 'application/json', 
+      'Accept': 'application/json' 
+    },
     body: JSON.stringify({ slug: String(slug).trim() }),
   });
 
-  const text = await res.text(); // 서버가 HTML 에러를 줄 수도 있으니 우선 텍스트
+  const text = await res.text();
   let data = {};
-  try { data = JSON.parse(text); } catch(e) {}
+  try { 
+    data = JSON.parse(text); 
+  } catch(e) {
+    console.error('[openTakeoutSession] JSON 파싱 실패:', e, text);
+  }
 
-  console.log('[openTakeoutSession]', res.status, url, text);
+  console.log('[openTakeoutSession] 응답:', res.status, data);
   
   // 상태별 메시지 보정
   if (!res.ok || !data?.success) {
-    if (res.status === 400) throw new Error('slug가 누락되었거나 올바르지 않습니다.');
-    if (res.status === 404) throw new Error('포장 테이블을 찾을 수 없거나 비활성 상태입니다.');
-    if (res.status === 500) throw new Error('서버 내부 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+    if (res.status === 400) {
+      throw new Error(data?.message || 'slug가 누락되었거나 올바르지 않습니다.');
+    }
+    if (res.status === 404) {
+      throw new Error('포장 테이블을 찾을 수 없거나 비활성 상태입니다.');
+    }
+    if (res.status === 500) {
+      throw new Error('서버 내부 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+    }
     throw new Error(data?.message || `포장 세션 열기 실패 (${res.status})`);
   }
 
   // 세션 토큰 저장
   const token = data?.data?.session_token;
-  if (token) Tokens.setSession(token);
+  if (!token) {
+    throw new Error('서버에서 세션 토큰을 반환하지 않았습니다.');
+  }
+  
+  Tokens.setSession(token);
+  console.log('[openTakeoutSession] 세션 토큰 저장 완료:', token.substring(0, 20) + '...');
 
   return data; // { success: true, data: { session_token, session_id, table, ... } }
 }
