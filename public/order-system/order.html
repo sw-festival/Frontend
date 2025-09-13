@@ -6,24 +6,24 @@
     <title>MEMORY 주점 주문 시스템</title>
     <link rel="stylesheet" href="/css/baseball-theme.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="icon" type="image/png" href="/icons/icon.png">
+    <link rel="icon" type="image/png" href="/images/icon.png">
     <style>
         /* KBO Dia Gothic 폰트 추가 */
         @font-face {
             font-family: "KBO Dia Gothic";
-            src: url("../../../src/fonts/KBODiaGothicTTF/KBODiaGothic_light.ttf") format("truetype");
+            src: url("/fonts/KBODiaGothicTTF/KBODiaGothic_light.ttf") format("truetype");
             font-weight: 300;
             font-style: normal;
         }
         @font-face {
             font-family: "KBO Dia Gothic";
-            src: url("../../../src/fonts/KBODiaGothicTTF/KBODiaGothic_medium.ttf") format("truetype");
+            src: url("/fonts/KBODiaGothicTTF/KBODiaGothic_medium.ttf") format("truetype");
             font-weight: 500;
             font-style: normal;
         }
         @font-face {
             font-family: "KBO Dia Gothic";
-            src: url("../../../src/fonts/KBODiaGothicTTF/KBODiaGothic_bold.ttf") format("truetype");
+            src: url("/fonts/KBODiaGothicTTF/KBODiaGothic_bold.ttf") format("truetype");
             font-weight: 700;
             font-style: normal;
         }
@@ -255,6 +255,8 @@
             display: flex;
             gap: 1rem;
             justify-content: center;
+            max-width: 322px;
+            margin: 0 auto;
         }
 
         .menu-tabs::-webkit-scrollbar {
@@ -300,7 +302,6 @@
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
             gap: 1.5rem;
-            margin: 2rem 0;
             padding: 0 1rem;
         }
         
@@ -310,12 +311,10 @@
             overflow: hidden;
             cursor: pointer;
             transition: all 0.3s ease;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }
         
         .menu-item:hover {
             transform: translateY(-5px);
-            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
         }
 
         /* 메뉴 배경 이미지 (카드 크기 결정) */
@@ -329,7 +328,11 @@
         /* 오버레이 (텍스트와 버튼) */
         .menu-overlay {
             position: absolute;
-            inset: 0;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 326px;
+            height: 216px;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
@@ -1198,7 +1201,7 @@
             <div class="baseball-scoreboard">
                 <div class="score-info">
                     <div class="news-text">
-                        <p class="main-news">소프트웨어융합대학교 회장단 당XX 송XX '주사만루' 방문후 도합 200kg 달성해...</p>
+                        <p class="main-news">소프트웨어융합대학교 회장단 당XX 송XX<br> '주사만루' 방문후 도합 200kg 달성해...</p>
                         <p class="news-source">-한양대 ERICA MEMORY 디자인국 보도-</p>
                     </div>
                 </div>
