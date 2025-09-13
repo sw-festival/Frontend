@@ -217,7 +217,7 @@ export async function getOrderDetails(orderId) {
  *  1차: /admin/orders/:id/status
  *  2차: /orders/:id/status
  * ----------------------------- */
-// 주문 상태 변경
+// 주문 상태 변경 (PATCH + 쿼리스트링)
 export async function patchOrderStatus(orderId, action, reason) {
   await waitForRuntime();
   if (!isTokenValid()) {
@@ -225,73 +225,107 @@ export async function patchOrderStatus(orderId, action, reason) {
     throw new Error('로그인이 필요합니다. 다시 로그인해주세요.');
   }
 
-  // 액션별 대안 경로 (서버 구현 차이 흡수)
-  const altPaths = [];
-  // 1) 표준: /orders/:id/status (JSON body {action, reason})
-  altPaths.push({ method:'POST',  path:`/orders/${orderId}/status`,  body:{ action, reason } });
-  altPaths.push({ method:'PATCH', path:`/orders/${orderId}/status`,  body:{ action, reason } });
-  // 2) admin prefix 변형
-  altPaths.push({ method:'POST',  path:`/admin/orders/${orderId}/status`, body:{ action, reason } });
-  altPaths.push({ method:'PATCH', path:`/admin/orders/${orderId}/status`, body:{ action, reason } });
+  console.log(`[patchOrderStatus] 주문 #${orderId} 상태 변경 시도: ${action}`);
 
-  // 3) 액션별 엔드포인트(서버가 /:action 형태로 받는 경우)
-  //    예) /orders/3/confirm, /orders/3/start-preparing, /orders/3/complete
-  const actionPaths = [
-    { method:'POST', path:`/orders/${orderId}/${action}` },
-    { method:'POST', path:`/admin/orders/${orderId}/${action}` },
+  // 서버 요구사항에 따른 우선순위 시도
+  const attempts = [
+    // 1순위: PATCH + 쿼리스트링 (서버 요구사항)
+    {
+      method: 'PATCH',
+      path: `/orders/${orderId}/status`,
+      query: { action, ...(reason && { reason }) }
+    },
+    // 2순위: admin prefix
+    {
+      method: 'PATCH', 
+      path: `/admin/orders/${orderId}/status`,
+      query: { action, ...(reason && { reason }) }
+    },
+    // 3순위: JSON body (백업)
+    {
+      method: 'PATCH',
+      path: `/orders/${orderId}/status`,
+      body: { action, ...(reason && { reason }) }
+    }
   ];
-  altPaths.push(...actionPaths);
 
-  // 4) start_preparing의 케밥케이스도 시도
-  if (action === 'start_preparing') {
-    altPaths.push({ method:'POST', path:`/orders/${orderId}/start-preparing` });
-    altPaths.push({ method:'POST', path:`/admin/orders/${orderId}/start-preparing` });
-  }
-
-  // 5) 트레일링 슬래시 변형도 추가 (서버가 슬래시 구분하는 경우 대비)
-  const withTrailing = [];
-  for (const t of altPaths) {
-    if (!t.path.endsWith('/')) withTrailing.push({ ...t, path: t.path + '/' });
-  }
-  altPaths.push(...withTrailing);
-
-  // 시도
-  let lastText = '';
-  for (const t of altPaths) {
-    const url = apiUrl(t.path);
-    const res = await fetch(url, {
-      method: t.method,
-      headers: adminHeaders(),
-      ...(t.body ? { body: JSON.stringify(t.body) } : {}),
-    });
-
-    const txt = await res.text();
-    lastText = txt;
-    console.log('[patchOrderStatus try]', t.method, url, res.status, txt);
-
-    if (res.status === 401) {
-      clearAdminSession();
-      throw new Error('인증이 만료되었습니다. 다시 로그인해주세요.');
-    }
-    if (res.status === 404 || res.status === 405) {
-      // 다음 조합 계속
-      continue;
-    }
-    // 2xx면 성공 처리
-    if (res.ok) {
-      try {
-        const data = JSON.parse(txt);
-        if (data?.success === false) throw new Error(data?.message || '상태 변경 실패');
-        return data || { success: true };
-      } catch {
-        return { success: true };
+  for (const attempt of attempts) {
+    try {
+      const url = attempt.query 
+        ? apiUrl(attempt.path, attempt.query)
+        : apiUrl(attempt.path);
+        
+      const options = {
+        method: attempt.method,
+        headers: adminHeaders()
+      };
+      
+      if (attempt.body) {
+        options.body = JSON.stringify(attempt.body);
       }
+
+      console.log(`[patchOrderStatus] 시도: ${attempt.method} ${url}`);
+      
+      const res = await fetch(url, options);
+      const text = await res.text();
+      
+      console.log(`[patchOrderStatus] 응답: ${res.status} - ${text.substring(0, 200)}`);
+
+      if (res.status === 401) {
+        clearAdminSession();
+        throw new Error('인증이 만료되었습니다. 다시 로그인해주세요.');
+      }
+
+      if (res.status === 404 || res.status === 405) {
+        continue; // 다음 방법 시도
+      }
+
+      if (res.ok) {
+        try {
+          const data = JSON.parse(text);
+          if (data?.success === false) {
+            throw new Error(data?.message || '상태 변경 실패');
+          }
+          console.log(`✅ [patchOrderStatus] 성공`);
+          return data || { success: true };
+        } catch {
+          console.log(`✅ [patchOrderStatus] 성공 (JSON 파싱 불가하지만 HTTP 200)`);
+          return { success: true };
+        }
+      }
+
+      // 400 오류 - 메시지 확인 후 다음 방법 시도
+      if (res.status === 400) {
+        try {
+          const errorData = JSON.parse(text);
+          console.log(`[patchOrderStatus] 400 오류: ${errorData.message || text}`);
+          if (errorData.message?.includes('action required')) {
+            continue; // 다른 방법 시도
+          }
+        } catch {}
+      }
+
+      // 기타 오류는 즉시 throw
+      const errorMsg = `상태 변경 실패 (${res.status})`;
+      try {
+        const errorData = JSON.parse(text);
+        throw new Error(errorData.message || errorMsg);
+      } catch {
+        throw new Error(errorMsg);
+      }
+
+    } catch (error) {
+      console.error(`[patchOrderStatus] 시도 실패:`, error);
+      
+      // 마지막 시도였다면 throw
+      if (attempt === attempts[attempts.length - 1]) {
+        throw error;
+      }
+      // 아니면 다음 방법 시도
     }
-    // 다른 에러면 즉시 종료
-    throw new Error(`상태 변경 실패 (${res.status})`);
   }
 
-  throw new Error(`상태 변경 엔드포인트를 찾을 수 없습니다 (모든 조합 실패). 마지막 응답: ${lastText || 'N/A'}`);
+  throw new Error('모든 상태 변경 방법이 실패했습니다.');
 }
 
 /* -----------------------------
