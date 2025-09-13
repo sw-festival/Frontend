@@ -191,20 +191,20 @@ header::before {
 .menu-item {
     /* background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
     border: 2px solid #e9ecef; */
-    border-radius: 16px;
+    /* border-radius: 16px; */
     /* margin: 12px;
     padding: 20px; */
-    display: flex;
-    align-items: center;
+    /* display: flex;
+    align-items: center; */
     /* gap: 16px; */
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    /* transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); */
     /* position: relative; */
-    overflow: hidden;
+    /* overflow: hidden; */
     /* box-shadow: 
         0 4px 12px rgba(0, 0, 0, 0.08),
         0 2px 4px rgba(0, 0, 0, 0.04); */
 }
-
+/* 
 .menu-item::before {
     content: '';
     position: absolute;
@@ -227,7 +227,7 @@ header::before {
 
 .menu-item:hover::before {
     transform: scaleX(1);
-}
+} */
 
 .menu-img-placeholder {
     width: 60px;

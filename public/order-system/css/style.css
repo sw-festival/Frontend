@@ -436,7 +436,7 @@ button:hover {
     gap: 15px;
 }
 
-.menu-item {
+/* .menu-item {
     display: flex;
     align-items: center;
     padding: 15px;
@@ -468,7 +468,7 @@ button:hover {
     border-color: #ffa502;
     box-shadow: 0 5px 20px rgba(255, 165, 2, 0.2);
     transform: translateY(-2px);
-}
+} */
 
 .menu-img {
     width: 80px;
