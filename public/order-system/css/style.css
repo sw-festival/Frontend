@@ -1,3 +1,23 @@
+/* KBO Dia Gothic 폰트 추가 */
+@font-face {
+    font-family: "KBO Dia Gothic";
+    src: url("../src/fonts/KBODiaGothicTTF/KBO Dia Gothic_light.ttf") format("truetype");
+    font-weight: 300;
+    font-style: normal;
+}
+@font-face {
+    font-family: "KBO Dia Gothic";
+    src: url("../src/fonts/KBODiaGothicTTF/KBO Dia Gothic_medium.ttf") format("truetype");
+    font-weight: 500;
+    font-style: normal;
+}
+@font-face {
+    font-family: "KBO Dia Gothic";
+    src: url("../src/fonts/KBODiaGothicTTF/KBO Dia Gothic_bold.ttf") format("truetype");
+    font-weight: 700;
+    font-style: normal;
+}
+
 /* 한화이글스 스타일 */
 body {
     font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -96,6 +116,32 @@ header {
     border-radius: 12px;
     border: 2px solid rgba(255, 255, 255, 0.3);
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.news-text {
+    text-align: right;
+}
+
+.news-text .main-news {
+    color: #EDECED;
+    font-family: "KBO Dia Gothic";
+    font-size: 12px;
+    font-style: normal;
+    font-weight: 500;
+    line-height: 130%;
+    letter-spacing: -0.24px;
+    margin: 0 0 5px 0;
+}
+
+.news-text .news-source {
+    color: #EDECED;
+    font-family: "KBO Dia Gothic";
+    font-size: 10px;
+    font-style: normal;
+    font-weight: 300;
+    line-height: 130%;
+    letter-spacing: -0.2px;
+    margin: 0;
 }
 
 .score-info {

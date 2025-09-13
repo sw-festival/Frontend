@@ -8,6 +8,25 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="icon" type="image/png" href="icons/icon.png">
     <style>
+        /* KBO Dia Gothic 폰트 추가 */
+        @font-face {
+            font-family: "KBO Dia Gothic";
+            src: url("../src/fonts/KBODiaGothicTTF/KBO Dia Gothic_light.ttf") format("truetype");
+            font-weight: 300;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: "KBO Dia Gothic";
+            src: url("../src/fonts/KBODiaGothicTTF/KBO Dia Gothic_medium.ttf") format("truetype");
+            font-weight: 500;
+            font-style: normal;
+        }
+        @font-face {
+            font-family: "KBO Dia Gothic";
+            src: url("../src/fonts/KBODiaGothicTTF/KBO Dia Gothic_bold.ttf") format("truetype");
+            font-weight: 700;
+            font-style: normal;
+        }
         /* 추가 스타일 */
         .hidden { display: none !important; }
         
@@ -93,7 +112,8 @@
 
         /* 인기 메뉴 컴포넌트 스타일 */
         .popular-menu-component {
-            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+            background: url('images/top3-menu-bg.png') no-repeat center center;
+            background-size: cover;
             border-radius: 20px;
             padding: 2rem;
             margin: 2rem 0;
@@ -320,7 +340,8 @@
         }
         
         .menu-item {
-            background: white;
+            background: url('images/menu-bg.png') no-repeat center center;
+            background-size: cover;
             border-radius: 15px;
             padding: 1.5rem;
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
@@ -328,12 +349,46 @@
             gap: 1.5rem;
             transition: all 0.3s;
             border: 2px solid transparent;
+            position: relative;
         }
         
         .menu-item:hover {
             transform: translateY(-2px);
             box-shadow: 0 8px 25px rgba(0,0,0,0.15);
             border-color: #1a5490;
+        }
+
+        .menu-name {
+            font-family: "KBO Dia Gothic";
+            font-size: 20px;
+            font-style: normal;
+            font-weight: 700;
+            line-height: 22px;
+            letter-spacing: 0.4px;
+            background: linear-gradient(103deg, #EDECED 46.48%, #616161 98.27%);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-top: 29px;
+        }
+
+        .menu-description {
+            background: linear-gradient(91deg, #EDECED 5.62%, #858585 108.16%);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-family: "KBO Dia Gothic";
+            font-size: 14px;
+            font-weight: 300;
+            margin: 10px 0;
+        }
+
+        .menu-image {
+            margin-left: 35px;
+        }
+
+        .menu-quantity-controls {
+            margin-top: 15px;
         }
         
         .menu-image {
@@ -521,12 +576,20 @@
 
         /* 총 금액 컴포넌트 */
         .total-amount-component {
-            background: linear-gradient(135deg, #1a5490, #2c3e50);
-            color: white;
+            background: url('images/basic-bg.png') no-repeat center center;
+            background-size: cover;
+            color: #EDECED;
             border-radius: 15px;
             padding: 2rem;
             margin: 2rem 0;
             box-shadow: 0 6px 20px rgba(26, 84, 144, 0.3);
+        }
+
+        .total-amount-component * {
+            color: #EDECED;
+            font-family: "KBO Dia Gothic";
+            line-height: 130%;
+            letter-spacing: -0.2px;
         }
 
         .total-header {
@@ -1048,7 +1111,8 @@
         
         .loading-message {
             color: #1a5490;
-            font-size: 1.1rem;
+            font-size: 10px;
+            font-weight: 300;
             margin: 1rem 0;
         }
         
@@ -1078,16 +1142,14 @@
     <div class="container">
         <header>
             <div class="header-logo">
-                <h1><i class="fas fa-baseball-ball"></i> MEMORY 주점</h1>
-                <div class="subtitle">
-                    <span class="kbo-style">여기 회장들 안주만들어 먹다가 둘다 100kg가 넘었대</span>
-                    <p>소프트웨어융합대학 학생회</p>
-                </div>
+                <img src="images/main-logo.png" alt="MEMORY 주점 로고" style="width: 152px; height: 124px; display: block; margin: 0 auto;">
             </div>
             <div class="baseball-scoreboard">
                 <div class="score-info">
-                    <span class="inning"><i class="fas fa-stadium"></i> 7회말 진행중</span>
-                    <span class="score">홈 5 : 4 원정</span>
+                    <div class="news-text">
+                        <p class="main-news">소프트웨어융합대학교 회장단 당XX 송XX '주사만루' 방문후 도합 200kg 달성해...</p>
+                        <p class="news-source">-한양대 ERICA MEMORY 디자인국 보도-</p>
+                    </div>
                 </div>
             </div>
         </header>
@@ -1103,13 +1165,13 @@
                     <div class="order-type-buttons">
                     <button type="button" id="dine-in-btn" class="order-type-btn selected">
                         <i class="fas fa-utensils"></i> 
-                        <span>매장 이용</span>
-                        <small>테이블에서 식사</small>
+                        <!-- <span>매장 이용</span> -->
+                        <!-- <small>테이블에서 식사</small> -->
                     </button>
                     <button type="button" id="takeout-btn" class="order-type-btn">
                         <i class="fas fa-shopping-bag"></i> 
-                        <span>포장 주문</span>
-                        <small>10% 할인 적용</small>
+                        <!-- <span>포장 주문</span> -->
+                        <!-- <small>10% 할인 적용</small> -->
                     </button>
                 </div>
                 
@@ -1133,34 +1195,34 @@
                     <div class="popular-header">
                         <div class="popular-title">
                             <i class="fas fa-fire"></i>
-                            <span>실시간 인기 메뉴</span>
+                            <!-- <span>실시간 인기 메뉴</span> -->
                         </div>
-                        <div class="popular-subtitle">TOP 3</div>
+                        <!-- <div class="popular-subtitle">TOP 3</div> -->
                     </div>
                     <div class="popular-list">
                         <div class="popular-item first-rank">
-                            <div class="rank-badge">1</div>
+                            <!-- <div class="rank-badge">1</div>
                             <div class="popular-info">
                                 <div class="popular-name">-</div>
                                 <div class="popular-count">-건</div>
-                            </div>
-                            <div class="rank-icon">🥇</div>
+                            </div> -->
+                            <!-- <div class="rank-icon">🥇</div> -->
                         </div>
                         <div class="popular-item second-rank">
-                            <div class="rank-badge">2</div>
+                            <!-- <div class="rank-badge">2</div>
                             <div class="popular-info">
                                 <div class="popular-name">-</div>
                                 <div class="popular-count">-건</div>
                             </div>
-                            <div class="rank-icon">🥈</div>
+                            <div class="rank-icon">🥈</div> -->
                         </div>
                         <div class="popular-item third-rank">
-                            <div class="rank-badge">3</div>
+                            <!-- <div class="rank-badge">3</div>
                             <div class="popular-info">
                                 <div class="popular-name">-</div>
                                 <div class="popular-count">-건</div>
                             </div>
-                            <div class="rank-icon">🥉</div>
+                            <div class="rank-icon">🥉</div> -->
                         </div>
                     </div>
                 </div>

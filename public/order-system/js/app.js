@@ -307,33 +307,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // 레거시 호환성 유지
-//   async function placeOrderWithExistingSession() {
-//     const expectedChannel = orderType === 'takeout' ? 'TAKEOUT' : 'DINEIN';
-//     await placeOrderWithNewSession(slug, expectedChannel);
-//   }
-
-//   function handleOrderSuccess(orderId) {
-//     console.log('주문 성공 처리:', orderId, 'orderType:', orderType);
-//     hideCodeModal();
-    
-//     // 매장/포장 주문에 따른 다른 메시지
-//     let successMessage = '주문이 성공적으로 완료되었습니다!';
-    
-//     if (orderType === 'dine-in') {
-//       // 매장 주문: 이용시간 안내 추가
-//       successMessage += '\n\n매장 이용시간은 2시간입니다.';
-//     } else {
-//       // 포장 주문: 이용시간 안내 없음
-//       successMessage += '\n\n포장 주문이 완료되었습니다.';
-//     }
-    
-//     alert(successMessage);
-    
-//     const waitingUrl = `/waiting.html?orderId=${orderId}`;
-//     console.log('대기 페이지로 이동:', waitingUrl);
-//     window.location.href = waitingUrl;
-//   }
   function handleOrderSuccess(orderId) {
     console.log('주문 성공 처리:', orderId, 'orderType:', orderType);
     hideCodeModal();
@@ -375,37 +348,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const waitingUrl = `/waiting.html?orderId=${orderId}&slug=${encodeURIComponent(slug)}`;
     window.location.href = waitingUrl;
 }
-
-  // -----------------------------
-  // 이벤트 바인딩
-  // -----------------------------
-  // 메뉴 수량 조절
-//   if (menuList) {
-//     menuList.addEventListener('click', (e) => {
-//       const menuItem = e.target.closest('.menu-item');
-//       if (!menuItem) return;
-
-//       const name = menuItem.querySelector('.menu-name')?.textContent;
-//       const price = parseInt(menuItem.dataset.price);
-//       const quantityEl = menuItem.querySelector('.quantity');
-//       let qty = parseInt(quantityEl.textContent);
-
-//       if (e.target.classList.contains('plus-btn')) {
-//         qty++;
-//         quantityEl.textContent = qty;
-//         if (cart[name]) cart[name].quantity = qty;
-//         else cart[name] = { name, price, quantity: qty };
-//         console.log(`${name} 수량 증가: ${qty}`);
-//       } else if (e.target.classList.contains('minus-btn') && qty > 0) {
-//         qty--;
-//         quantityEl.textContent = qty;
-//         if (qty === 0) delete cart[name];
-//         else cart[name].quantity = qty;
-//         console.log(`${name} 수량 감소: ${qty}`);
-//       }
-//       updateCartDisplay();
-//     });
-//   }
 
   // 주문하기 클릭
   placeOrderBtn?.addEventListener('click', async () => {
@@ -600,6 +542,17 @@ document.addEventListener('DOMContentLoaded', () => {
       drink: []
     };
 
+    // 한화e글스-ㅔ트 세트메뉴 추가 (회장이 한화 팬이라.. 절대적 권력에 의하여 세트 이름이 선정되었습니다...)
+    const hanwhaSet = {
+      id: 'hanwha-set-001',
+      name: '한화e글스-ㅔ트',
+      description: '(회장이 한화 팬이라.. 절대적 권력에 의하여 세트 이름이 선정되었습니다...)',
+      price: 149000,
+      image_url: 'images/grape-flavor-logos.png',
+      category: 'set'
+    };
+    categories.set.push(hanwhaSet);
+
     menuData.forEach(menu => {
       // 메뉴 이름이나 태그를 기반으로 카테고리 분류
       const name = menu.name.toLowerCase();
@@ -670,12 +623,15 @@ document.addEventListener('DOMContentLoaded', () => {
     // 메뉴 설명 생성 (기본값 설정)
     const description = menu.description || `맛있는 ${menu.name}입니다. 신선한 재료로 만든 인기 메뉴입니다.`;
     
+    // 메뉴 이미지 처리
+    const imageHtml = menu.image_url 
+      ? `<img src="${menu.image_url}" alt="${menu.name}" class="menu-image" style="width: 100px; height: 100px; object-fit: cover; border-radius: 12px;">`
+      : `<div class="menu-img-placeholder"><i class="${icon}"></i></div>`;
+    
     return `
       <div class="menu-item" data-menu-id="${menu.id}" data-price="${menu.price}">
         <div class="menu-image">
-          <div class="menu-img-placeholder">
-            <i class="${icon}"></i>
-          </div>
+          ${imageHtml}
         </div>
         <div class="menu-content">
           <div class="menu-info">
