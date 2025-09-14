@@ -856,7 +856,7 @@ input[type="password"]:focus {
     padding: 30px;
     border-radius: 20px;
     text-align: center;
-    margin-bottom: 30px;
+    margin: 30px 2rem 30px 2rem;
     box-shadow: 0 10px 30px rgba(0, 0, 0, .2);
 }
 .waiting-number-container::before {
@@ -886,10 +886,10 @@ input[type="password"]:focus {
 }
 
 .status-progress .progress-header h3 {
-    margin: 0;
+    margin-left: 20%;
     font-size: 20px;
     font-weight: 700;
-    color: #EDECED;
+    color: #182F5B;
 }
 
 .status-progress .auto-refresh-indicator {

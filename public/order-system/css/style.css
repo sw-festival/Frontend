@@ -1849,9 +1849,11 @@ input[type="number"] {
 .estimated-time {
     background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
     border-radius: 12px;
+    color: #182F5B;
     padding: 20px;
     text-align: center;
     margin-top: 20px;
+    margin-bottom: 30px;
 }
 
 .time-info {
