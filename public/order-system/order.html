@@ -1172,10 +1172,35 @@
                 height: 22px;
                 font-size: 10px;
             }
+
+            :root {
+            --footer-h: 96px; /* 푸터 높이, 필요시 숫자만 바꿔 조절 */
+            }
+
+            /* 본문이 푸터에 가리지 않도록 하단 여백 확보 */
+            body {
+            padding-bottom: var(--footer-h);
+            }
+
+            /* 하단 고정 푸터 */
+            .fixed-footer {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            height: var(--footer-h);
+            z-index: 999;
+            pointer-events: none; /* 클릭 막지 않도록(장바구니 버튼 등 사용 가능) */
+            background: url('/images/fix-footer.png') no-repeat center bottom;
+            background-size: contain; /* 이미지 전체가 보이도록. 꽉 채우려면 cover로 바꾸세요 */
+            }
+
         }
     </style>
 </head>
 <body>
+    <footer class="fixed-footer" aria-hidden="true"></footer>
+
     <div class="container">
         <header>
             <div class="header-logo">
