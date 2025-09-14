@@ -168,7 +168,6 @@ header::before {
 }
 
 .score-info {
-    display: flex;
     justify-content: space-between;
     align-items: center;
     font-family: 'KBO Dia Gothic';

@@ -118,33 +118,7 @@ header {
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
 }
 
-
-.news-text .main-news {
-    color: #EDECED;
-    font-family: "KBO Dia Gothic";
-    font-size: 12px;
-    font-style: normal;
-    text-align: center;
-    font-weight: 500;
-    line-height: 130%;
-    letter-spacing: -0.24px;
-    margin: 0 0 5px 0;
-}
-
-.news-text .news-source {
-    color: #EDECED;
-    text-align: right;
-    font-family: "KBO Dia Gothic";
-    font-size: 10px;
-    font-style: normal;
-    font-weight: 300;
-    line-height: 130%;
-    letter-spacing: -0.2px;
-    margin: 0;
-}
-
 .score-info {
-    display: flex;
     justify-content: space-between;
     align-items: center;
 }
