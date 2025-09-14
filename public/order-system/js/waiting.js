@@ -244,47 +244,113 @@ function renderStatusBoard($sectionStatus, status, waitingPosition, totalWaiting
   if (!$sectionStatus) return;
 
   const statusUpper = String(status || '').toUpperCase();
+  console.log('[야구 베이스] 상태 업데이트:', statusUpper);
 
-  // 새로운 상태 시스템에 맞춘 단계 활성화
-  const receivedOn = !!status; // 상태가 있으면 접수됨
-  const paymentOn = ['CONFIRMED', 'IN_PROGRESS', 'SERVED'].includes(statusUpper);
-  const preparingOn = ['IN_PROGRESS', 'SERVED'].includes(statusUpper);
-  const completeOn = ['SERVED'].includes(statusUpper);
+  // 야구 베이스 시스템에 맞춘 단계 활성화
+  const firstBaseOn = !!status; // PENDING - 1루 (주문 접수)
+  const secondBaseOn = ['CONFIRMED', 'IN_PROGRESS', 'SERVED'].includes(statusUpper); // 2루 (입금 확인)
+  const thirdBaseOn = ['IN_PROGRESS', 'SERVED'].includes(statusUpper); // 3루 (조리중)
+  const homeBaseOn = ['SERVED'].includes(statusUpper); // 홈 (완료)
 
-  // 상태 단계 업데이트
-  const steps = [
-    ['status-received', receivedOn],
-    ['status-payment', paymentOn],
-    ['status-preparing', preparingOn],
-    ['status-complete', completeOn],
+  // 야구 베이스 단계 업데이트
+  const bases = [
+    ['base-first', firstBaseOn],
+    ['base-second', secondBaseOn], 
+    ['base-third', thirdBaseOn],
+    ['base-home', homeBaseOn],
   ];
 
-  steps.forEach(([id, isActive]) => {
+  bases.forEach(([id, isActive]) => {
     const el = document.getElementById(id);
     if (!el) return;
     el.classList.toggle('active', !!isActive);
     el.classList.toggle('current', false); // 일단 current 제거
   });
 
-  // 현재 단계 표시
-  let currentStepId = '';
-  if (completeOn) {
-    currentStepId = 'status-complete';
-  } else if (preparingOn) {
-    currentStepId = 'status-preparing';
-  } else if (paymentOn) {
-    currentStepId = 'status-payment';
-  } else if (receivedOn) {
-    currentStepId = 'status-received';
+  // 베이스 설명 텍스트도 함께 업데이트
+  const descriptions = [
+    ['first-desc', firstBaseOn],
+    ['second-desc', secondBaseOn],
+    ['third-desc', thirdBaseOn], 
+    ['home-desc', homeBaseOn],
+  ];
+
+  descriptions.forEach(([className, isActive]) => {
+    const el = document.querySelector(`.${className}`);
+    if (!el) return;
+    el.classList.toggle('active', !!isActive);
+  });
+
+  // 현재 베이스 표시 (야구선수가 서있는 위치)
+  let currentBaseId = '';
+  if (homeBaseOn) {
+    currentBaseId = 'base-home'; // 홈베이스 - 완료
+  } else if (thirdBaseOn) {
+    currentBaseId = 'base-third'; // 3루 - 조리중
+  } else if (secondBaseOn) {
+    currentBaseId = 'base-second'; // 2루 - 입금 확인
+  } else if (firstBaseOn) {
+    currentBaseId = 'base-first'; // 1루 - 주문 접수
   }
 
-  if (currentStepId) {
-    const currentEl = document.getElementById(currentStepId);
-    if (currentEl) currentEl.classList.add('current');
+  if (currentBaseId) {
+    const currentEl = document.getElementById(currentBaseId);
+    if (currentEl) {
+      currentEl.classList.add('current');
+      console.log('[야구 베이스] 현재 위치:', currentBaseId);
+    }
   }
+
+  // 베이스 연결선 활성화
+  updateBaseLines(statusUpper);
 
   // 대기 번호 및 정보 업데이트
   updateWaitingNumbers(waitingPosition, totalWaiting, estimatedWaitTime, statusUpper);
+}
+
+// 야구 베이스 연결선 업데이트 함수
+function updateBaseLines(status) {
+  const statusUpper = String(status || '').toUpperCase();
+  
+  // 연결선 요소들
+  const lines = {
+    'line-home-1': document.querySelector('.line-home-1'),
+    'line-1-2': document.querySelector('.line-1-2'),
+    'line-2-3': document.querySelector('.line-2-3'),
+    'line-3-home': document.querySelector('.line-3-home'),
+  };
+
+  // 모든 연결선 비활성화
+  Object.values(lines).forEach(line => {
+    if (line) line.classList.remove('active');
+  });
+
+  // 상태에 따른 연결선 활성화
+  switch (statusUpper) {
+    case 'PENDING':
+      // 1루까지 - 홈에서 1루로 가는 선
+      if (lines['line-home-1']) lines['line-home-1'].classList.add('active');
+      break;
+    case 'CONFIRMED':
+      // 2루까지 - 홈→1루→2루
+      if (lines['line-home-1']) lines['line-home-1'].classList.add('active');
+      if (lines['line-1-2']) lines['line-1-2'].classList.add('active');
+      break;
+    case 'IN_PROGRESS':
+      // 3루까지 - 홈→1루→2루→3루
+      if (lines['line-home-1']) lines['line-home-1'].classList.add('active');
+      if (lines['line-1-2']) lines['line-1-2'].classList.add('active');
+      if (lines['line-2-3']) lines['line-2-3'].classList.add('active');
+      break;
+    case 'SERVED':
+      // 홈런! 모든 연결선 활성화
+      Object.values(lines).forEach(line => {
+        if (line) line.classList.add('active');
+      });
+      break;
+  }
+
+  console.log('[야구 베이스] 연결선 업데이트:', statusUpper);
 }
 
 function updateWaitingNumbers(waitingPosition, totalWaiting, estimatedWaitTime, status) {
@@ -342,20 +408,20 @@ function updateScoreboard(status, waitingPosition, estimatedWaitTime) {
 
   switch (statusUpper) {
     case 'PENDING':
-      message = `💰 입금 확인 대기중 (${waitingPosition}번째)`;
+      message = `⚾ 1루 진출! 입금 확인 대기중 (${waitingPosition}번째)`;
       break;
     case 'CONFIRMED':
-      message = `✅ 입금 확인 완료! 조리 대기 (${waitingPosition}번째)`;
+      message = `⚾ 2루 진출! 입금 확인 완료, 조리 대기 (${waitingPosition}번째)`;
       break;
     case 'IN_PROGRESS':
-      message = `👨‍🍳 현재 조리중! ${estimatedWaitTime}분 후 완료 예정`;
+      message = `⚾ 3루 진출! 현재 조리중, ${estimatedWaitTime}분 후 홈런 예정`;
       break;
     case 'SERVED':
-      message = '🎉 조리 완료! 픽업 가능합니다';
+      message = '🏆 홈런! 조리 완료, 픽업 가능합니다';
       stopAutoRefresh();
       break;
     default:
-      message = '주문 처리중입니다';
+      message = '⚾ 타석 준비중입니다';
   }
 
   scoreboardEl.textContent = message;
@@ -404,12 +470,12 @@ document.addEventListener('visibilitychange', () => {
 function mapStatusToKorean(status) {
   const statusUpper = String(status || '').toUpperCase();
   switch (statusUpper) {
-    case 'PENDING': return '💰 입금 대기중';
-    case 'CONFIRMED': return '✅ 입금 확인됨';
-    case 'IN_PROGRESS': return '👨‍🍳 조리중';
-    case 'SERVED': return '🎉 완료';
-    case 'CANCELED': return '❌ 취소됨';
-    default: return status || '처리중';
+    case 'PENDING': return '⚾ 1루 - 입금 대기중';
+    case 'CONFIRMED': return '⚾ 2루 - 입금 확인됨';
+    case 'IN_PROGRESS': return '⚾ 3루 - 조리중';
+    case 'SERVED': return '🏆 홈런 - 완료';
+    case 'CANCELED': return '❌ 아웃 - 취소됨';
+    default: return status || '⚾ 타석 준비중';
   }
 }
 
