@@ -753,17 +753,6 @@ button:hover {
     text-align: center;
 }
 
-.waiting-number-container {
-    background: linear-gradient(135deg, #ffa502 0%, #ff6348 100%);
-    color: white;
-    padding: 30px;
-    border-radius: 20px;
-    margin: 20px 0;
-    box-shadow: 0 8px 25px rgba(255, 165, 2, 0.3);
-    position: relative;
-    overflow: hidden;
-}
-
 .waiting-number-container::before {
     content: '⚾';
     position: absolute;
@@ -1752,7 +1741,7 @@ input[type="number"] {
 
 /* 상태 진행 섹션 */
 .status-progress {
-    background: white;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     border-radius: 15px;
     padding: 25px;
     margin-bottom: 25px;
