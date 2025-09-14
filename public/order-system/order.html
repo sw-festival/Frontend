@@ -151,39 +151,44 @@
             background-position: center;
         }
 
+        /* 인기메뉴 헤더 */
         .popular-header {
             position: absolute;
             top: 20px;
             left: 50%;
             transform: translateX(-50%);
             text-align: center;
-            z-index: 10;
+            z-index: 20;
         }
 
-        .popular-title {
-            color: white;
-            font-size: 14px;
+        /* "메모리베이스볼파크 대표 맛집 '주사만루'" */
+        .popular-header .popular-title {
+            color: #EDECED;
+            text-align: center;
+            font-family: "KBO Dia Gothic";
+            font-size: 10px;
+            font-style: normal;
             font-weight: 500;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
-            margin-bottom: 5px;
+            line-height: 130%; /* 13px */
+            letter-spacing: -0.2px;
+            margin: 0 0 4px 0;
         }
 
-        .popular-title i {
-            font-size: 1.8rem;
-            color: #ffd700;
-            animation: fireGlow 2s ease-in-out infinite alternate;
+        /* "현재 인기 메뉴 TOP 3" */
+        .popular-header .popular-subtitle {
+            color: #EDECED;
+            font-family: "KBO Dia Gothic";
+            font-size: 20px;
+            font-style: normal;
+            font-weight: 700;
+            line-height: 130%;
+            letter-spacing: -0.4px;
+            margin: 0;
         }
 
         @keyframes fireGlow {
             from { text-shadow: 0 0 5px #ffd700, 0 0 10px #ffd700; }
             to { text-shadow: 0 0 10px #ffd700, 0 0 20px #ffd700, 0 0 30px #ff6b6b; }
-        }
-
-        .popular-subtitle {
-            color: #1C355D;
-            font-size: 24px;
-            font-weight: 700;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
         }
 
         /* 인기 메뉴 개별 위치 지정 */
@@ -1206,9 +1211,9 @@
         font-weight: 800;
         font-size: 24px;
         letter-spacing: .5px;
-        background: linear-gradient(145deg, #1a5490, #2c3e50);
+        background: linear-gradient(145deg, #F3F3F3, #B1B1B1);
         border: 3px solid #FFD54F;
-        color: #fff;
+        color: #2c3e50;
         /* 홈베이스 모양 */
         clip-path: polygon(12% 0, 88% 0, 100% 44%, 50% 100%, 0 44%);
         }
