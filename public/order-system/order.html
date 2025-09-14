@@ -1174,7 +1174,7 @@
                 left: 0;
                 right: 0;
                 bottom: 9%;
-                height: 130px;
+                height: 15%;
                 z-index: 999;
                 pointer-events: none; /* 클릭 막지 않도록(장바구니 버튼 등 사용 가능) */
                 background: url('/images/fix-footer.png') no-repeat center bottom;
@@ -1220,18 +1220,16 @@
 
         /* 메뉴명 칩 */
         .popular-item .popular-name {
-        max-width: 180px;
-        padding: .4rem .65rem;
-        border-radius: 999px;
-        background: rgba(0,0,0,.45);
-        backdrop-filter: blur(2px);
-        font-size: 14px;
-        font-weight: 700;
-        line-height: 1.25;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        border: 1px solid rgba(255,255,255,.25);
+            padding: .4rem .65rem;
+            border-radius: 999px;
+            background: rgba(0,0,0,.45);
+            backdrop-filter: blur(2px);
+            font-weight: 300;
+            line-height: 1.25;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            border: 1px solid rgba(255,255,255,.25);
         }
 
         /* 포디움 위치: 1위 중앙, 2위 좌하, 3위 우하 (배경 일러스트 기준) */
@@ -1277,13 +1275,18 @@
             <section id="menu-section" class="hidden">
                 <!-- 인기 메뉴 TOP 3 컴포넌트 -->
                 <div class="popular-menu-component">
-                    <div class="popular-item first-rank"  data-rank="1">
+                    <div class="popular-header">
+                        <div class="popular-title">메모리베이스볼파크 대표 맛집 ‘주사만루'</div>
+                        <div class="popular-subtitle">현재 인기 메뉴 TOP 3</div>
+                    </div>
+
+                    <div class="popular-item first-rank" data-rank="1">
                         <div class="popular-name">-</div>
                     </div>
                     <div class="popular-item second-rank" data-rank="2">
                         <div class="popular-name">-</div>
                     </div>
-                    <div class="popular-item third-rank"  data-rank="3">
+                    <div class="popular-item third-rank" data-rank="3">
                         <div class="popular-name">-</div>
                     </div>
                 </div>
@@ -1336,22 +1339,22 @@
                     <div class="account-details">
                         <div class="account-item">
                             <span class="account-label">은행명:</span>
-                            <span class="account-value">국민은행</span>
+                            <span class="account-value">카카오뱅크</span>
                         </div>
                         <div class="account-item">
                             <span class="account-label">계좌번호:</span>
-                            <span class="account-value">123-456-789012</span>
+                            <span class="account-value">79420924432</span>
                         </div>
                         <div class="account-item">
                             <span class="account-label">예금주:</span>
-                            <span class="account-value">소프트웨어융합대학 학생회</span>
+                            <span class="account-value">정유민</span>
                     </div>
                         </div>
                     <div class="payment-notice">
                         <i class="fas fa-info-circle"></i>
                         <span>
-                            입금자명을 정확히 입력해주세요.<br>
-                            입금 확인 후 주문이 접수됩니다.
+                            주문시 입금자명을 정확히 입력해주세요.<br>
+                            입금 확인 후 주문이 접수됩니다. (매장이용 2시간 제한)
                         </span>
                         </div>
                     </div>
