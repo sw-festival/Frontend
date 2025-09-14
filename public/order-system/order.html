@@ -328,7 +328,7 @@
         /* 오버레이 (텍스트와 버튼) */
         .menu-overlay {
             position: absolute;
-            top: 50%;
+            top: 53%;
             left: 50%;
             transform: translate(-50%, -50%);
             width: 326px;
@@ -383,7 +383,7 @@
         /* 메뉴 설명 */
         .menu-description {
             font-family: "KBO Dia Gothic";
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 300;
             color: #F3F3F3;
             text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
@@ -440,8 +440,6 @@
         }
         
         .menu-description {
-            font-size: 0.95rem;
-            color: #666;
             line-height: 1.5;
             margin: 0;
         }
@@ -793,21 +791,8 @@
                 padding: 0;
             }
             
-            .menu-overlay {
-                padding: 12px;
-            }
-            
             .menu-title {
                 font-size: 16px;
-            }
-            
-            .menu-image img, .menu-img-placeholder {
-                width: 60px;
-                height: 60px;
-            }
-            
-            .menu-description {
-                font-size: 12px;
             }
             
             .quantity-btn {
@@ -1163,10 +1148,6 @@
                 height: 132px;
             }
             
-            .menu-description {
-                font-size: 18px;
-            }
-            
             .quantity-btn {
                 width: 22px;
                 height: 22px;
@@ -1184,18 +1165,89 @@
 
             /* 하단 고정 푸터 */
             .fixed-footer {
-            position: fixed;
-            left: 0;
-            right: 0;
-            bottom: 9%;
-            height: var(--footer-h);
-            z-index: 999;
-            pointer-events: none; /* 클릭 막지 않도록(장바구니 버튼 등 사용 가능) */
-            background: url('/images/fix-footer.png') no-repeat center bottom;
-            background-size: contain; /* 이미지 전체가 보이도록. 꽉 채우려면 cover로 바꾸세요 */
+                position: fixed;
+                left: 0;
+                right: 0;
+                bottom: 9%;
+                height: 130px;
+                z-index: 999;
+                pointer-events: none; /* 클릭 막지 않도록(장바구니 버튼 등 사용 가능) */
+                background: url('/images/fix-footer.png') no-repeat center bottom;
+                background-size: cover; /* 이미지 전체가 보이도록. 꽉 채우려면 cover로 바꾸세요 */
             }
 
         }
+        /* ====== 인기메뉴 TOP3 포디움 (야구 홈베이스 배지) ====== */
+        .popular-menu-component {
+        position: relative; /* 배치 기준 */
+        }
+
+        /* 공통 라벨 스타일 */
+        .popular-item {
+        position: absolute;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: .35rem;
+        color: #fff;
+        text-align: center;
+        z-index: 10;
+        filter: drop-shadow(0 4px 12px rgba(0,0,0,.45));
+        }
+
+        /* 홈 베이스 배지 (숫자) */
+        .popular-item::before {
+        content: attr(data-rank);
+        display: grid;
+        place-items: center;
+        width: 78px;
+        height: 72px;
+        font-family: "KBO Dia Gothic";
+        font-weight: 800;
+        font-size: 24px;
+        letter-spacing: .5px;
+        background: linear-gradient(145deg, #1a5490, #2c3e50);
+        border: 3px solid #FFD54F;
+        color: #fff;
+        /* 홈베이스 모양 */
+        clip-path: polygon(12% 0, 88% 0, 100% 44%, 50% 100%, 0 44%);
+        }
+
+        /* 메뉴명 칩 */
+        .popular-item .popular-name {
+        max-width: 180px;
+        padding: .4rem .65rem;
+        border-radius: 999px;
+        background: rgba(0,0,0,.45);
+        backdrop-filter: blur(2px);
+        font-size: 14px;
+        font-weight: 700;
+        line-height: 1.25;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        border: 1px solid rgba(255,255,255,.25);
+        }
+
+        /* 포디움 위치: 1위 중앙, 2위 좌하, 3위 우하 (배경 일러스트 기준) */
+        .popular-item.first-rank   { top: 28%; left: 50%; transform: translate(-50%, -50%); }
+        .popular-item.second-rank  { top: 55%; left: 24%; transform: translate(-50%, -50%); }
+        .popular-item.third-rank   { top: 55%; left: 76%; transform: translate(-50%, -50%); }
+
+        /* 순위별 강조 */
+        .first-rank::before  { border-color: #FFD54F; box-shadow: 0 0 24px rgba(255,213,79,.35);}
+        .second-rank::before { border-color: #C0C0C0; }
+        .third-rank::before  { border-color: #CD7F32; }
+
+        /* 작은 화면 최적화 */
+        @media (max-width: 768px) {
+        .popular-item::before { width: 64px; height: 59px; font-size: 20px; }
+        .popular-item .popular-name { max-width: 140px; font-size: 12px; }
+        .popular-item.first-rank  { top: 30%; }
+        .popular-item.second-rank { top: 58%; left: 28%; }
+        .popular-item.third-rank  { top: 58%; left: 72%; }
+        }
+
     </style>
 </head>
 <body>
@@ -1217,56 +1269,19 @@
         </header>
 
         <main>
-            <!-- 1단계: 주문 방식 선택 -->
-            <!-- <section id="order-type-section">
-                <div class="welcome-message">
-                    <h2><i class="fas fa-baseball-ball"></i> 주문 방식을 선택해주세요</h2>
-                    <p>매장 이용 또는 포장 주문을 선택하신 후 주문을 시작하세요.</p>
-                </div>
-                
-                    <div class="order-type-buttons">
-                    <button type="button" id="dine-in-btn" class="order-type-btn selected"> -->
-                        <!-- <i class="fas fa-utensils"></i>  -->
-                        <!-- <span>매장 이용</span> -->
-                        <!-- <small>테이블에서 식사</small> -->
-                    <!-- </button>
-                    <button type="button" id="takeout-btn" class="order-type-btn"> -->
-                        <!-- <i class="fas fa-shopping-bag"></i>  -->
-                        <!-- <span>포장 주문</span> -->
-                        <!-- <small>10% 할인 적용</small> -->
-                    <!-- </button>
-                </div>
-                
-                <button id="start-order-btn" class="start-order-btn">
-                    <i class="fas fa-arrow-right"></i> 주문하기
-                </button>
-                 -->
-                <!-- 인기 메뉴 순위 -->
-                <!-- <div id="popular-menu-section">
-                    <h3><i class="fas fa-fire"></i> 실시간 인기 메뉴 TOP 3</h3>
-                    <div id="popular-menu-list">
-                        <div class="loading">인기 메뉴를 불러오는 중...</div>
-                    </div>
-                </div> -->
-            <!-- </section> -->
-
             <section id="menu-section" class="hidden">
                 <!-- 인기 메뉴 TOP 3 컴포넌트 -->
                 <div class="popular-menu-component">
-                    <!-- <div class="popular-header">
-                        <div class="popular-title">메모리베이스볼파크 대표 맛집 '주사만루'</div>
-                        <div class="popular-subtitle">현재 인기 메뉴 TOP 3</div>
-                    </div> -->
-                    <div class="popular-item first-rank">
+                    <div class="popular-item first-rank"  data-rank="1">
                         <div class="popular-name">-</div>
-                        </div>
-                    <div class="popular-item second-rank">
-                        <div class="popular-name">-</div>
-                        </div>
-                    <div class="popular-item third-rank">
-                        <div class="popular-name">-</div>
-                        </div>
                     </div>
+                    <div class="popular-item second-rank" data-rank="2">
+                        <div class="popular-name">-</div>
+                    </div>
+                    <div class="popular-item third-rank"  data-rank="3">
+                        <div class="popular-name">-</div>
+                    </div>
+                </div>
 
                 <!-- 메뉴 컴포넌트 -->
                 <div class="menu-component">
