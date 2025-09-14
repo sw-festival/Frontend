@@ -142,6 +142,7 @@
 
         /* 인기 메뉴 컴포넌트 스타일 */
         .popular-menu-component {
+            position: relative;
             width: 100%;
             height: 400px;
             border-radius: 20px;
@@ -159,6 +160,13 @@
             transform: translateX(-50%);
             text-align: center;
             z-index: 20;
+        }
+
+         /* 포디움 전체를 텍스트 밑으로 내림 */
+        .popular-podium {
+            position: relative;
+            text-align: center;
+            top: 20%;  /* 텍스트 높이만큼 아래로 */
         }
 
         /* "메모리베이스볼파크 대표 맛집 '주사만루'" */
@@ -1174,7 +1182,7 @@
                 left: 0;
                 right: 0;
                 bottom: 9%;
-                height: var(--footer-h);
+                height: 16%;
                 z-index: 999;
                 pointer-events: none; /* 클릭 막지 않도록(장바구니 버튼 등 사용 가능) */
                 background: url('/images/fix-footer.png') no-repeat center bottom;
@@ -1279,6 +1287,25 @@
                         <div class="popular-title">메모리베이스볼파크 대표 맛집 ‘주사만루'</div>
                         <div class="popular-subtitle">현재 인기 메뉴 TOP 3</div>
                     </div>
+
+                    <!-- 포디움 영역 -->
+                    <div class="popular-podium">
+                        <div class="popular-item first-rank" data-rank="1">
+                        <div class="popular-name">-</div>
+                        </div>
+                        <div class="popular-item second-rank" data-rank="2">
+                        <div class="popular-name">-</div>
+                        </div>
+                        <div class="popular-item third-rank" data-rank="3">
+                        <div class="popular-name">-</div>
+                        </div>
+                    </div>
+                </div>
+                <!-- <div class="popular-menu-component">
+                    <div class="popular-header">
+                        <div class="popular-title">메모리베이스볼파크 대표 맛집 ‘주사만루'</div>
+                        <div class="popular-subtitle">현재 인기 메뉴 TOP 3</div>
+                    </div>
                     <div style="top:20%">
                         <div class="popular-item first-rank" data-rank="1">
                             <div class="popular-name">-</div>
@@ -1290,7 +1317,7 @@
                             <div class="popular-name">-</div>
                         </div>
                     </div>
-                </div>
+                </div> -->
 
                 <!-- 메뉴 컴포넌트 -->
                 <div class="menu-component">
