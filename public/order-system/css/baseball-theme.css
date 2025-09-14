@@ -186,48 +186,6 @@ header::before {
     text-shadow: 0 0 8px rgba(0, 255, 65, 0.5);
 }
 
-/* 메뉴 아이템 카드 (야구 카드 스타일) */
-.menu-item {
-    /* background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
-    border: 2px solid #e9ecef; */
-    /* border-radius: 16px; */
-    /* margin: 12px;
-    padding: 20px; */
-    /* display: flex;
-    align-items: center; */
-    /* gap: 16px; */
-    /* transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); */
-    /* position: relative; */
-    /* overflow: hidden; */
-    /* box-shadow: 
-        0 4px 12px rgba(0, 0, 0, 0.08),
-        0 2px 4px rgba(0, 0, 0, 0.04); */
-}
-/* 
-.menu-item::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 3px;
-    background: linear-gradient(90deg, #1e3c72, #2a5298, #1e3c72);
-    transform: scaleX(0);
-    transition: transform 0.3s ease;
-}
-
-.menu-item:hover {
-    transform: translateY(-2px);
-    border-color: #1e3c72;
-    box-shadow: 
-        0 8px 25px rgba(30, 60, 114, 0.15),
-        0 4px 12px rgba(0, 0, 0, 0.08);
-}
-
-.menu-item:hover::before {
-    transform: scaleX(1);
-} */
-
 .menu-img-placeholder {
     width: 60px;
     height: 60px;
@@ -861,4 +819,84 @@ input[type="password"]:focus {
         border-color: #444444;
         color: #ffffff;
     }
+}
+
+.action-buttons {
+    position: fixed;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
+    z-index: 1000;
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+}
+.action-buttons button {
+    background: linear-gradient(135deg, #1a5490, #2c3e50);
+    color: #EDECED;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 12px;
+    padding: 12px 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all .2s ease;
+}
+.action-buttons button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(26, 84, 144, .35);
+}
+
+/* 3) 대기 번호 컨테이너 스타일 (요청하신 디자인 + ::before 아이콘 정상 작동) / */
+.waiting-number-container {
+    position: relative;
+    isolation: isolate; 
+    overflow: hidden;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #fff;
+    padding: 30px;
+    border-radius: 20px;
+    text-align: center;
+    margin-bottom: 30px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, .2);
+}
+.waiting-number-container::before {
+    content: '⚾';
+    position: absolute;
+    top: -20px;
+    right: -20px;
+    font-size: 8em;
+    opacity: .1;
+    z-index: 0;
+    pointer-events: none;
+}
+/* 컨텐츠가 ::before 위로 오도록  */
+.waiting-number-container .waiting-title,
+.waiting-number-container .waiting-number,
+.waiting-number-container .waiting-subtitle {
+    position: relative;
+    z-index: 1;
+}
+
+/* 1) status-progress 안의 progress-header를 왼쪽 정렬 */
+.status-progress .progress-header {
+    text-align: left;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.status-progress .progress-header h3 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 700;
+    color: #EDECED;
+}
+
+.status-progress .auto-refresh-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #EDECED;
+    opacity: 0.9;
 }

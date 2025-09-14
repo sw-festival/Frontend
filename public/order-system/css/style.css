@@ -871,23 +871,6 @@ button:hover {
     text-align: center;
 }
 
-.action-buttons {
-    display: flex;
-    gap: 15px;
-    margin-top: 30px;
-}
-
-.action-buttons button {
-    flex: 1;
-    padding: 12px;
-    font-size: 1em;
-    font-weight: bold;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.3s;
-}
-
 .error-message {
     background: #f8d7da;
     color: #721c24;
@@ -1449,9 +1432,6 @@ input[type="number"] {
 .status-indicator::before { display: none; } /* 가운데 라인 제거 */
 .status-item { min-width: 92px; }
 
-/* 액션 버튼 2개 좌우 배치 시 모바일 간격 */
-.action-buttons { gap: 10px; }
-
 /* 관리자 통계/매출 카드 그리드 (2열 -> 넓어지면 3~4열) */
 .admin-stats .stat-card { flex: 1 1 calc(50% - 12px); }
 .sales-dashboard { gap: 12px; }
@@ -1726,27 +1706,6 @@ input[type="number"] {
     padding: 25px;
     margin-bottom: 25px;
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-}
-
-.progress-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 25px;
-}
-
-.progress-header h3 {
-    margin: 0;
-    color: #2c3e50;
-    font-size: 1.3em;
-}
-
-.auto-refresh-indicator {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    font-size: 0.8em;
-    color: #7f8c8d;
 }
 
 .refresh-dot {
@@ -2027,18 +1986,6 @@ input[type="number"] {
     line-height: 1.4;
 }
 
-/* 액션 버튼 개선 */
-.action-buttons {
-    display: flex;
-    gap: 15px;
-    justify-content: center;
-    margin-top: 30px;
-}
-
-.action-buttons button:active {
-    transform: translateY(0);
-}
-
 /* 반응형 디자인 */
 @media (max-width: 768px) {
     .waiting-number {
@@ -2064,20 +2011,6 @@ input[type="number"] {
         0% { top: -100%; }
         100% { top: 100%; }
     }
-    
-    .progress-header {
-        flex-direction: column;
-        gap: 10px;
-        text-align: center;
-    }
-    
-    .action-buttons {
-        flex-direction: column;
-    }
-    
-    .action-buttons button {
-        width: 100%;
-    }
 }
 
 /* ——— 브레이크포인트: 768+ (태블릿 이상일 때만 살짝 확대) ——— */
@@ -2092,14 +2025,16 @@ input[type="number"] {
     text-align: left;
     display: flex;
     align-items: center;
-    ap: 8px;
+    gap: 8px;
 }
+
 .status-progress .progress-header h3 {
     margin: 0;
     font-size: 20px;
     font-weight: 700;
     color: #EDECED;
 }
+
 .status-progress .auto-refresh-indicator {
     display: inline-flex;
     align-items: center;
