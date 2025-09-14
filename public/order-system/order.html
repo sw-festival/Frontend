@@ -572,7 +572,6 @@
             background: #dc3545;
             color: white;
             border: none;
-            border-radius: 50%;
             width: 30px;
             height: 30px;
             cursor: pointer;
@@ -1180,9 +1179,7 @@
         @supports (background-image: image-set(url('/images/fix-footer.png') 1x)) {
         .fixed-footer {
             background-image: image-set(
-            url('/images/fix-footer.png') 1x,
-            url('/images/fix-footer@2x.png') 2x,
-            url('/images/fix-footer@3x.png') 3x
+                url('/images/fix-footer.png') 1x,
             );
         }
         }
@@ -1254,19 +1251,18 @@
         .third-rank::before  { border-color: #CD7F32; }
 
         /* 작은 화면 최적화 */
-        @media (max-width: 768px) {
+        /* @media (max-width: 768px) {
         .popular-item::before { width: 64px; height: 59px; font-size: 20px; }
         .popular-item .popular-name { max-width: 140px; font-size: 12px; }
         .popular-item.first-rank  { top: 30%; }
         .popular-item.second-rank { top: 58%; left: 28%; }
         .popular-item.third-rank  { top: 58%; left: 72%; }
-        }
+        } */
 
     </style>
 </head>
+<footer class="fixed-footer" aria-hidden="true"></footer>
 <body>
-    <footer class="fixed-footer" aria-hidden="true"></footer>
-
     <div class="container">
         <header>
             <div class="header-logo">

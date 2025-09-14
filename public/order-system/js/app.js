@@ -17,33 +17,15 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentCategory = 'set';
   let isProcessing = false;
 
-  const CATEGORY_BY_ID = {
-  1: 'main', 2: 'main', 3: 'main', // 메인메뉴
-  4: 'side', 5: 'side', 6: 'side',
-  7: 'side', 8: 'side', 9: 'side',
-  10: 'side', // 사이드메뉴
-  11: 'drink', 12: 'drink', 13: 'drink',
-  14: 'drink', 15: 'drink', 16: 'drink' // 음료
+  // 서버 ENUM 타입에 맞는 카테고리 매핑 (더 이상 ID 기반 매핑 불필요)
+  const SERVER_CATEGORY_TO_CLIENT = {
+    'SET': 'set',
+    'MAIN': 'main', 
+    'SIDE': 'side',
+    'DRINK': 'drink'
   };
 
-  const CATEGORY_BY_NAME_CONTAINS = [
-    { key: '문학철판구이', cat: 'main' },
-    { key: '빙하기공룡고기', cat: 'main' },
-    { key: '호랑이 생고기', cat: 'main' },
-
-    { key: 'LG라면', cat: 'side' },
-    { key: '김치말이국수', cat: 'side' },
-    { key: '볶음', cat: 'side' },
-    { key: '쫄', cat: 'side' },
-    { key: '화채', cat: 'side' }, // 기존 규칙에선 drink였지만, 요청에 따라 side로 고정
-    { key: '랍찜', cat: 'side' },
-    { key: '크봉밥', cat: 'side' },
-
-    { key: '칵테일', cat: 'drink' },
-    { key: '콜라', cat: 'drink' },
-    { key: '사이다', cat: 'drink' },
-    { key: '물', cat: 'drink' }
-  ];
+  // 더 이상 이름 기반 분류 불필요 - 서버에서 type 필드로 관리
 
   // -----------------------------
   // slug 추출
@@ -561,55 +543,35 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // 메뉴를 카테고리별로 분류
-// 카테고리 분류 함수
-function categorizeMenus(menuData) {
-  const categories = { set: [], main: [], side: [], drink: [] };
+  // 서버 데이터 기반 카테고리 분류 함수
+  function categorizeMenus(menuData) {
+    console.log('서버에서 받은 메뉴 데이터:', menuData);
+    const categories = { set: [], main: [], side: [], drink: [] };
 
-  // 한화 세트 고정 추가
-  const hanwhaSet = {
-    id: 'hanwha-set-001',
-    name: '한화e글스-ㅔ트',
-    description: '(회장이 한화 팬이라.. 절대적 권력에 의하여 세트 이름이 선정되었습니다...)',
-    price: 149000,
-    image_url: '/images/eagles.png',
-    category: 'set'
-  };
-  categories.set.push(hanwhaSet);
+    menuData.forEach((menu) => {
+      // 서버에서 type 필드로 카테고리 정보 제공
+      const serverCategory = menu.type || menu.category; // type 또는 category 필드 확인
+      const clientCategory = SERVER_CATEGORY_TO_CLIENT[serverCategory];
+      
+      if (clientCategory && categories[clientCategory]) {
+        categories[clientCategory].push(menu);
+        console.log(`메뉴 분류: ${menu.name} -> ${serverCategory} -> ${clientCategory}`);
+      } else {
+        // 폴백: 알 수 없는 카테고리는 main으로 분류
+        console.warn(`알 수 없는 카테고리: ${menu.name} (${serverCategory}), main으로 분류`);
+        categories.main.push(menu);
+      }
+    });
 
-  menuData.forEach((menu) => {
-    const rawName = (menu.name || '').toString();
-    const name = rawName.toLowerCase();
-    const id = typeof menu.id === 'number' ? menu.id : (menu.id ? Number(menu.id) : null);
-    const priceNum = typeof menu.price === 'number' ? menu.price : Number(menu.price);
+    console.log('카테고리별 메뉴 분류 결과:', {
+      set: categories.set.length,
+      main: categories.main.length, 
+      side: categories.side.length,
+      drink: categories.drink.length
+    });
 
-    // 1) ID 기반 매핑
-    if (id && CATEGORY_BY_ID[id]) {
-      categories[CATEGORY_BY_ID[id]].push(menu);
-      return;
-    }
-
-    // 2) 이름 포함 규칙
-    const hit = CATEGORY_BY_NAME_CONTAINS.find(rule => rawName.includes(rule.key));
-    if (hit) {
-      categories[hit.cat].push(menu);
-      return;
-    }
-
-    // 3) 폴백: 기존 휴리스틱
-    if (name.includes('세트') || name.includes('set') || (Number.isFinite(priceNum) && priceNum >= 15000)) {
-      categories.set.push(menu);
-    } else if (name.includes('콜라') || name.includes('사이다') || name.includes('물') || name.includes('칵테일')) {
-      categories.drink.push(menu);
-    } else if (name.includes('밥') || name.includes('면') || (Number.isFinite(priceNum) && priceNum <= 8000)) {
-      categories.side.push(menu);
-    } else {
-      categories.main.push(menu);
-    }
-  });
-
-  return categories;
-}
+    return categories;
+  }
 
   // 카테고리별 메뉴 로드 (수량 유지)
   function loadMenusByCategory(category) {
