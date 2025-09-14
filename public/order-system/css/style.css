@@ -753,15 +753,6 @@ button:hover {
     text-align: center;
 }
 
-.waiting-number-container::before {
-    content: '⚾';
-    position: absolute;
-    top: -20px;
-    right: -20px;
-    font-size: 8em;
-    opacity: 0.1;
-}
-
 .waiting-title {
     font-size: 1.2em;
     font-weight: bold;
@@ -1650,17 +1641,6 @@ input[type="number"] {
     50% { opacity: 0.5; transform: scale(1.2); }
 }
 
-/* 대기 번호 컨테이너 개선 */
-.waiting-number-container {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    padding: 30px;
-    border-radius: 20px;
-    text-align: center;
-    margin-bottom: 30px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-}
-
 .waiting-title {
     font-size: 1.2em;
     margin-bottom: 15px;
@@ -2105,4 +2085,83 @@ input[type="number"] {
   .container { max-width: 720px; }
   .admin-stats .stat-card { flex: 1 1 calc(25% - 12px); }
   .sales-card { min-width: 220px; }
+}
+
+/* 1) status-progress 안의 progress-header를 왼쪽 정렬 */
+.status-progress .progress-header {
+    text-align: left;
+    display: flex;
+    align-items: center;
+    ap: 8px;
+}
+.status-progress .progress-header h3 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 700;
+    color: #EDECED;
+}
+.status-progress .auto-refresh-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #EDECED;
+    opacity: 0.9;
+}
+
+/* 2) 화면 맨 아래 중앙에 action-buttons 고정 */
+.action-buttons {
+    position: fixed;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
+    z-index: 1000;
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+}
+.action-buttons button {
+    background: linear-gradient(135deg, #1a5490, #2c3e50);
+    color: #EDECED;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 12px;
+    padding: 12px 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all .2s ease;
+}
+.action-buttons button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(26, 84, 144, .35);
+}
+
+/* 3) 대기 번호 컨테이너 스타일 (요청하신 디자인 + ::before 아이콘 정상 작동) / */
+.waiting-number-container {
+    position: relative;
+    isolation: isolate; 
+    overflow: hidden;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #fff;
+    padding: 30px;
+    border-radius: 20px;
+    text-align: center;
+    margin-bottom: 30px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, .2);
+}
+.waiting-number-container::before {
+    content: '⚾';
+    position: absolute;
+    top: -20px;
+    right: -20px;
+    font-size: 8em;
+    opacity: .1;
+    z-index: 0;
+    pointer-events: none;
+}
+/* 컨텐츠가 ::before 위로 오도록  */
+.waiting-number-container .waiting-title,
+.waiting-number-container .waiting-number,
+.waiting-number-container .waiting-subtitle {
+    position: relative;
+    z-index: 1;
 }
