@@ -534,7 +534,7 @@ input[type="password"]:focus {
     }
     
     .menu-item {
-        margin: 8px;
+        margin: -8px;
         padding: 16px;
     }
     
