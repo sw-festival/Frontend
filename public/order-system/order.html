@@ -1159,27 +1159,38 @@
                 font-size: 10px;
             }
 
-            :root {
-            --footer-h: 96px; /* 푸터 높이, 필요시 숫자만 바꿔 조절 */
-            }
+        :root {
+            --footer-ratio: 2.89933;               /* 432 / 149 */
+            --footer-h: clamp(56px, calc(100vw / var(--footer-ratio)), 180px);
+            --safe-bottom: env(safe-area-inset-bottom, 0px);
+        }
 
-            /* 본문이 푸터에 가리지 않도록 하단 여백 확보 */
-            body {
-            padding-bottom: var(--footer-h);
-            }
+        /* 본문이 푸터에 가리지 않도록 */
+        body { padding-bottom: calc(var(--footer-h) + var(--safe-bottom)); }
 
-            /* 하단 고정 푸터 */
-            .fixed-footer {
-                position: fixed;
-                left: 0;
-                right: 0;
-                bottom: 9%;
-                height: 16%;
-                z-index: 999;
-                pointer-events: none; /* 클릭 막지 않도록(장바구니 버튼 등 사용 가능) */
-                background: url('/images/fix-footer.png') no-repeat center bottom;
-                background-size: cover; /* 이미지 전체가 보이도록. 꽉 채우려면 cover로 바꾸세요 */
-            }
+        /* 하단 고정 푸터 (배경이미지 방식) */
+        .fixed-footer {
+            position: fixed;
+            left: 0; right: 0; bottom: 0;
+            width: 100%;
+            height: var(--footer-h);
+            z-index: 999;
+            pointer-events: none;
+            background: url('/images/fix-footer.png') no-repeat center bottom;
+            background-size: contain; /* 항상 전체 표시, 크롭 없음 */
+            padding-bottom: var(--safe-bottom);
+        }
+
+        /* 레티나 대응(자산 있으면) */
+        @supports (background-image: image-set(url('/images/fix-footer.png') 1x)) {
+        .fixed-footer {
+            background-image: image-set(
+            url('/images/fix-footer.png') 1x,
+            url('/images/fix-footer@2x.png') 2x,
+            url('/images/fix-footer@3x.png') 3x
+            );
+        }
+        }
 
         }
         /* ====== 인기메뉴 TOP3 포디움 (야구 홈베이스 배지) ====== */
@@ -1238,9 +1249,9 @@
         }
 
         /* 포디움 위치: 1위 중앙, 2위 좌하, 3위 우하 (배경 일러스트 기준) */
-        .popular-item.first-rank   { top: 28%; left: 50%; transform: translate(-50%, -50%); }
-        .popular-item.second-rank  { top: 55%; left: 24%; transform: translate(-50%, -50%); }
-        .popular-item.third-rank   { top: 55%; left: 76%; transform: translate(-50%, -50%); }
+        .popular-item.first-rank   { top: 48%; left: 50%; transform: translate(-50%, -50%); }
+        .popular-item.second-rank  { top: 75%; left: 24%; transform: translate(-50%, -50%); }
+        .popular-item.third-rank   { top: 75%; left: 76%; transform: translate(-50%, -50%); }
 
         /* 순위별 강조 */
         .first-rank::before  { border-color: #FFD54F; box-shadow: 0 0 24px rgba(255,213,79,.35);}
