@@ -371,6 +371,27 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log(`[주문하기] 세션 보장 시작: ${slug}, 채널: ${expectedChannel}`);
     
     try {
+      // 1. 기존 세션 확인
+      const existingSession = SessionStore.getSession(slug);
+      
+      if (existingSession && existingSession.token && existingSession.channel === expectedChannel) {
+        console.log(`[주문하기] 기존 세션 재사용: ${slug}`, {
+          channel: existingSession.channel,
+          sessionId: existingSession.session_id,
+          remainingTime: Math.floor((new Date(existingSession.expiresAt) - new Date()) / 60000) + '분'
+        });
+        
+        // 기존 세션으로 바로 주문 진행
+        await placeOrderWithNewSession(slug, expectedChannel);
+        return;
+      }
+      
+      // 2. 세션이 없거나 만료된 경우 새로 생성
+      console.log(`[주문하기] 새 세션 필요: ${slug}`, { 
+        hasSession: !!existingSession, 
+        channelMatch: existingSession?.channel === expectedChannel 
+      });
+      
       // TAKEOUT 안전모드: 항상 새 세션 열기 (서버 측 세션 상태 불일치 방지)
       const options = expectedChannel === 'TAKEOUT' ? { alwaysRefresh: true } : {};
       
@@ -436,6 +457,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
       codeLoading?.classList.add('hidden');
 
+      // 세션 상태 표시기 업데이트
+      const newSession = SessionStore.getSession(slug);
+      if (newSession) {
+        updateSessionStatusDisplay(newSession);
+      }
+
       // 모달 가이드 메시지 표시
       const modalGuideMessage = document.querySelector('.modal-guide-message');
       if (modalGuideMessage) {
@@ -472,10 +499,14 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // -----------------------------
-  // 초기 주문유형 결정 → 화면 진입 → API 로드
+  // 초기화: 기존 세션 확인 → 주문유형 결정 → 화면 진입 → API 로드
   // -----------------------------
   (async () => {
     try {
+      // 1. 기존 세션 확인 및 복원
+      await checkAndRestoreExistingSession();
+
+      // 2. 주문 유형 결정
       const cfgSet = new Set(window.RUNTIME?.TAKEOUT_SLUGS || []);
       if (cfgSet.size > 0) {
         orderType = (slug && cfgSet.has(slug)) ? 'takeout' : 'dine-in';
@@ -484,9 +515,10 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       discountRate = (orderType === 'takeout') ? 0.1 : 0;
 
+      // 3. 화면 진입
       goToMenuStep(orderType);
 
-      // 인기/메뉴 병렬 로드 (한쪽 실패해도 나머지 진행)
+      // 4. 인기/메뉴 병렬 로드 (한쪽 실패해도 나머지 진행)
       const [topRes, menuRes] = await Promise.allSettled([ getTopMenu(3), getPublicMenu() ]);
 
       // 인기 메뉴 TOP3 포디움
@@ -509,6 +541,130 @@ document.addEventListener('DOMContentLoaded', () => {
       console.error('초기화 중 오류:', e);
     }
   })();
+
+  // -----------------------------
+  // 기존 세션 확인 및 복원 함수
+  // -----------------------------
+  async function checkAndRestoreExistingSession() {
+    if (!slug) {
+      console.log('[세션 복원] slug가 없어 세션 복원 생략');
+      return;
+    }
+
+    try {
+      // SessionStore에서 기존 세션 확인
+      const existingSession = SessionStore.getSession(slug);
+      
+      if (existingSession && existingSession.token) {
+        console.log(`[세션 복원] 기존 세션 발견: ${slug}`, {
+          channel: existingSession.channel,
+          sessionId: existingSession.session_id,
+          expiresAt: existingSession.expiresAt,
+          remainingTime: Math.floor((new Date(existingSession.expiresAt) - new Date()) / 60000) + '분'
+        });
+
+        // 레거시 호환성을 위해 토큰 설정
+        Tokens.setSession(existingSession.token);
+        
+        // 세션 메타데이터도 설정
+        const legacyMeta = {
+          session_id: existingSession.session_id,
+          table_id: existingSession.table_id,
+          channel: existingSession.channel,
+          slug: slug,
+          token: existingSession.token
+        };
+        Tokens.setSessionMeta(legacyMeta);
+
+        // 세션 상태 표시기 업데이트
+        updateSessionStatusDisplay(existingSession);
+
+        console.log(`[세션 복원] 기존 ${existingSession.channel} 세션 복원 완료: ${slug}`);
+        return existingSession;
+      } else {
+        console.log(`[세션 복원] 유효한 기존 세션이 없음: ${slug}`);
+        
+        // 레거시 토큰 정리
+        Tokens.clearSession();
+        hideSessionStatusDisplay();
+        return null;
+      }
+    } catch (error) {
+      console.error(`[세션 복원] 오류 발생: ${slug}`, error);
+      
+      // 오류 발생 시 세션 정리
+      SessionStore.removeSession(slug);
+      Tokens.clearSession();
+      hideSessionStatusDisplay();
+      return null;
+    }
+  }
+
+  // -----------------------------
+  // 세션 상태 표시기 관리 함수들
+  // -----------------------------
+  function updateSessionStatusDisplay(session) {
+    const statusEl = document.getElementById('session-status');
+    const messageEl = document.getElementById('session-message');
+    const detailsEl = document.getElementById('session-details');
+    
+    if (!statusEl || !messageEl || !detailsEl) return;
+
+    const now = new Date();
+    const expiresAt = new Date(session.expiresAt);
+    const remainingMinutes = Math.floor((expiresAt - now) / 60000);
+    
+    // 상태에 따른 클래스 및 메시지 설정
+    statusEl.className = 'session-status';
+    
+    if (remainingMinutes <= 0) {
+      statusEl.classList.add('expired');
+      messageEl.innerHTML = '<i class="fas fa-exclamation-triangle"></i> 세션이 만료되었습니다';
+      detailsEl.textContent = '다시 인증해주세요';
+    } else if (remainingMinutes <= 10) {
+      statusEl.classList.add('warning');
+      messageEl.innerHTML = '<i class="fas fa-clock"></i> 세션이 곧 만료됩니다';
+      detailsEl.textContent = `남은 시간: ${remainingMinutes}분`;
+    } else {
+      messageEl.innerHTML = `<i class="fas fa-check-circle"></i> ${session.channel === 'DINEIN' ? '매장' : '포장'} 주문 인증 완료`;
+      detailsEl.textContent = `남은 시간: ${remainingMinutes}분`;
+    }
+    
+    statusEl.classList.remove('hidden');
+    
+    // 주기적 업데이트 시작
+    startSessionStatusTimer(session);
+  }
+
+  function hideSessionStatusDisplay() {
+    const statusEl = document.getElementById('session-status');
+    if (statusEl) {
+      statusEl.classList.add('hidden');
+    }
+    
+    // 타이머 정리
+    if (window.sessionStatusTimer) {
+      clearInterval(window.sessionStatusTimer);
+      window.sessionStatusTimer = null;
+    }
+  }
+
+  function startSessionStatusTimer(session) {
+    // 기존 타이머 정리
+    if (window.sessionStatusTimer) {
+      clearInterval(window.sessionStatusTimer);
+    }
+    
+    // 1분마다 세션 상태 업데이트
+    window.sessionStatusTimer = setInterval(() => {
+      const currentSession = SessionStore.getSession(slug);
+      if (currentSession && currentSession.token) {
+        updateSessionStatusDisplay(currentSession);
+      } else {
+        hideSessionStatusDisplay();
+      }
+    }, 60000); // 60초마다 업데이트
+  }
 
   // -----------------------------
   // 새로운 탭 기반 메뉴 시스템 함수들

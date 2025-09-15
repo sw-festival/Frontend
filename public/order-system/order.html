@@ -59,6 +59,58 @@
         }
         /* 추가 스타일 */
         .hidden { display: none !important; }
+
+        /* 세션 상태 표시기 */
+        .session-status {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+            padding: 1rem;
+            margin: 1rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.2);
+            animation: slideInDown 0.5s ease-out;
+        }
+
+        .session-status.expired {
+            background: linear-gradient(135deg, #dc3545, #c82333);
+        }
+
+        .session-status.warning {
+            background: linear-gradient(135deg, #ffc107, #e0a800);
+            color: #212529;
+        }
+
+        .session-info {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .session-info i {
+            font-size: 1.2rem;
+        }
+
+        #session-message {
+            font-weight: bold;
+            font-size: 1rem;
+        }
+
+        #session-details {
+            margin-left: auto;
+            font-size: 0.85rem;
+            opacity: 0.9;
+        }
+
+        @keyframes slideInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
         
         /* 1단계: 주문 방식 선택 */
         #order-type-section {
@@ -1279,6 +1331,15 @@
         </header>
 
         <main>
+            <!-- 세션 상태 표시기 -->
+            <div id="session-status" class="session-status hidden">
+                <div class="session-info">
+                    <i class="fas fa-check-circle"></i>
+                    <span id="session-message">인증 완료</span>
+                    <small id="session-details">남은 시간: 120분</small>
+                </div>
+            </div>
+
             <section id="menu-section" class="hidden">
                 <!-- 인기 메뉴 TOP 3 컴포넌트 -->
                 <div class="popular-menu-component">

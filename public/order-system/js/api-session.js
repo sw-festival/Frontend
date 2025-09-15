@@ -112,26 +112,6 @@ export async function getUserOrderDetails(orderId, slug) {
   return json?.data || json;
 }
 
-// function sessionHeaders({ scheme='Session', idemKey, useOnlyX=false, slug } = {}) {
-//   const store = JSON.parse(localStorage.getItem('session_store') || '{}');
-//   const meta  = JSON.parse(localStorage.getItem('session_meta')  || '{}');
-
-//   const s = (slug && store[slug]) ? store[slug] : meta;      // slug 우선
-//   const token = (s && s.token) || (window.Tokens?.getSession?.() || '');
-
-//   const h = { 'Content-Type':'application/json', 'Accept':'application/json' };
-//   if (token) {
-//     if (!useOnlyX) h.Authorization = `${scheme} ${token}`;   // 반드시 Session 스킴
-//     h['X-Session-Token'] = token;
-//     if (s?.session_id) h['X-Session-Id'] = String(s.session_id);
-//     if (s?.table_id)   h['X-Table-Id']   = String(s.table_id);
-//     if (s?.channel)    h['X-Channel']    = String(s.channel);
-//     if (s?.slug)       h['X-Table-Slug'] = String(s.slug);
-//   }
-//   if (idemKey) h['X-Idempotency-Key'] = idemKey;
-//   return h;
-// }
-
 // slug로 세션 열기
 // 사용자로부터 받은 code가 없으면 요청 자체를 막는다.
 export async function openSessionBySlug(slug, codeFromUser) {
@@ -379,7 +359,7 @@ export async function createOrder(order, slug) {
 
   // --- 초시도 ---
   const key1 = makeIdemKey(slug);
-  const h1   = sessionHeaders(slug, { scheme: 'Session', idemKey: key1 });
+  const h1 = sessionHeaders({ slug, scheme: 'Session', idemKey: key1 });
   let res = await fetch(url, { method:'POST', headers: h1, body, credentials: 'include' });
   let txt = await res.text(); let data = {}; try { data = JSON.parse(txt); } catch {}
   console.log('[createOrder] try1', res.status, txt);
@@ -408,7 +388,7 @@ export async function createOrder(order, slug) {
   const key2 = makeIdemKey(slug);
 
   // (A) 스킴 폴백: Bearer로 시도
-  const h2 = sessionHeaders(slug, { scheme: 'Bearer', idemKey: key2 });
+  const h2 = sessionHeaders({ slug, scheme: 'Bearer', idemKey: key2 });
   res = await fetch(url, { method:'POST', headers: h2, body, credentials: 'include' });
   txt = await res.text(); data = {}; try { data = JSON.parse(txt); } catch {}
   console.log('[createOrder] try2(Bearer)', res.status, txt);
@@ -416,7 +396,7 @@ export async function createOrder(order, slug) {
 
   // (B) 그래도 안되면 Authorization 제거, x-session-token만
   const key3 = makeIdemKey(slug);
-  const h3 = sessionHeaders(slug, { idemKey: key3, useOnlyX: true });
+  const h3 = sessionHeaders({ slug, idemKey: key3, useOnlyX: true });
   res = await fetch(url, { method:'POST', headers: h3, body, credentials: 'include' });
   txt = await res.text(); data = {}; try { data = JSON.parse(txt); } catch {}
   console.log('[createOrder] try3(x-only)', res.status, txt);
