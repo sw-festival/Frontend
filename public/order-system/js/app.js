@@ -199,6 +199,29 @@ document.addEventListener('DOMContentLoaded', () => {
         menuItem.dataset.price = apiMenu.price;
         console.log(`💰 가격 업데이트: ${menuName} ${currentPrice} → ${apiMenu.price}`);
       }
+
+      // 설명 동기화 (서버 필드 다양성 대응)
+      const newDesc = (apiMenu.description || apiMenu.desc || apiMenu.details || apiMenu.content || apiMenu.summary || '').trim();
+      if (newDesc) {
+        const descEl = menuItem.querySelector('.menu-description');
+        if (descEl && descEl.textContent !== newDesc) {
+          descEl.textContent = newDesc;
+          console.log(`📝 설명 업데이트: ${menuName}`);
+        }
+      }
+
+      // 이미지 동기화 (image_url | imageUrl | image | thumbnail_url | photo_url)
+      const imageUrl = apiMenu.image_url || apiMenu.imageUrl || apiMenu.image || apiMenu.thumbnail_url || apiMenu.thumbnailUrl || apiMenu.photo_url || '';
+      if (imageUrl) {
+        const imgWrap = menuItem.querySelector('.menu-image');
+        if (imgWrap) {
+          const curImg = imgWrap.querySelector('img');
+          if (!curImg || curImg.getAttribute('src') !== imageUrl) {
+            imgWrap.innerHTML = `<img src="${imageUrl}" alt="${menuName}">`;
+            console.log(`🖼️ 이미지 업데이트: ${menuName}`);
+          }
+        }
+      }
     });
   }
 
@@ -798,12 +821,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const icon = categoryIcons[currentCategory] || 'fas fa-utensils';
     
-    // 메뉴 설명 생성 (기본값 설정)
-    const description = menu.description || `맛있는 ${menu.name}입니다. 신선한 재료로 만든 인기 메뉴입니다.`;
+    // 메뉴 설명 생성 (서버 다양한 키 지원)
+    const description = (menu.description || menu.desc || menu.details || menu.content || menu.summary || '').trim() || `맛있는 ${menu.name}입니다. 신선한 재료로 만든 인기 메뉴입니다.`;
     
-    // 메뉴 이미지 처리
-    const imageHtml = menu.image_url 
-      ? `<img src="${menu.image_url}" alt="${menu.name}">`
+    // 메뉴 이미지 처리 (서버 다양한 키 지원)
+    const imgUrl = menu.image_url || menu.imageUrl || menu.image || menu.thumbnail_url || menu.thumbnailUrl || menu.photo_url;
+    const imageHtml = imgUrl
+      ? `<img src="${imgUrl}" alt="${menu.name}">`
       : `<div class="menu-img-placeholder"><i class="${icon}"></i></div>`;
     
     return `
