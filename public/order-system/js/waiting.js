@@ -46,7 +46,7 @@ document.addEventListener('DOMContentLoaded', () => {
     modal?.classList.add('hidden');
   });
 
-  // 모달 확인: 현재 slug로 주문 페이지로 이동
+  // 모달 확인: 현재 slug로 주문 페이지로 이동 (세션은 유지)
   confirmBtn?.addEventListener('click', (e) => {
     e.preventDefault();
     try {
@@ -57,6 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
         window.location.href = '/order-system/order.html';
         return;
       }
+      // 세션을 지우지 않고 해당 slug로 이동
       window.location.href = `/order-system/order.html?slug=${encodeURIComponent(slug)}`;
     } finally {
       modal?.classList.add('hidden');
@@ -90,23 +91,32 @@ async function ensureOrderSessionForOrder(orderId, slug) {
     const key   = `ORDER_SESSION_${orderId}`;
     const saved = JSON.parse(localStorage.getItem(key) || 'null');
 
-    // 1) 스냅샷 있으면 무조건 복원
+    // 1) 스냅샷 있으면 복원 (SessionStore 형태 준수, 기존 유효 세션은 덮어쓰지 않음)
     if (saved) {
       const token   = saved.token || Tokens.getSession?.();
       const useSlug = slug || saved.slug || 'legacy';
 
       if (!token) return false; // 토큰 없으면 인증 불가
 
-      // 런타임에 확실히 주입
-      SessionStore.setSession(useSlug, {
-        token,
-        session_id: saved.session_id,
-        table_id: saved.table_id,
-        channel: saved.channel,
-        slug: useSlug,
-        createdAt: saved.createdAt,
-        expiresAt: saved.expiresAt,
-      });
+      // 기존 세션이 유효하면 유지
+      const exist = SessionStore.getSession?.(useSlug);
+      if (!exist || !exist.token) {
+        // abs_ttl_min 계산 (만료 예정 시간이 있으면 남은 분, 없으면 120분 기본)
+        let absMin = 120;
+        if (saved.expiresAt) {
+          const diffMs = new Date(saved.expiresAt).getTime() - Date.now();
+          absMin = Math.max(1, Math.ceil(diffMs / 60000));
+        }
+        SessionStore.setSession(useSlug, {
+          session_token: token,
+          session_id: saved.session_id,
+          table_id: saved.table_id,
+          channel: (saved.channel || 'DINEIN').toUpperCase(),
+          abs_ttl_min: absMin,
+        });
+      }
+
+      // 레거시 토큰/메타는 항상 주입
       Tokens.setSession(token);
       Tokens.setSessionMeta({
         session_id: saved.session_id,
@@ -114,6 +124,7 @@ async function ensureOrderSessionForOrder(orderId, slug) {
         channel: saved.channel,
         slug: useSlug,
         opened_at: saved.createdAt || new Date().toISOString(),
+        token,
       });
 
       // 현재 슬러그 갱신(legacy 분기 방지)
