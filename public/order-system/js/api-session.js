@@ -504,55 +504,47 @@ export async function getWaitingInfo(orderId) {
     
     const currentOrder = orderData.data;
     
-    // 2. 전체 주문 목록에서 대기 번호 계산
-    // 관리자 API를 사용하여 모든 주문을 조회 (인증 없이는 제한적이므로 추정 계산)
+    // 2. 대기 번호 계산 (결정론적, 랜덤 제거)
+    // - 서버에 글로벌 대기열 API가 없으므로, 상태와 경과 시간 기반의 일관된 추정값을 사용
     let waitingPosition = 0;
     let totalWaiting = 0;
-    
     try {
-      // 현재 주문의 생성 시간
-      const currentOrderTime = new Date(currentOrder.created_at).getTime();
-      
-      // 간단한 추정: 현재 시간 기준으로 대략적인 대기 번호 계산
-      // 실제로는 관리자 API나 별도의 대기열 API가 필요하지만, 
-      // 현재는 주문 생성 시간을 기준으로 추정
-      const now = Date.now();
-      const timeDiff = now - currentOrderTime;
-      const estimatedMinutes = Math.floor(timeDiff / (1000 * 60));
-      
-      // 상태에 따른 대기 번호 추정
-      switch (currentOrder.status) {
-        case 'PENDING':
-          waitingPosition = Math.max(1, Math.floor(estimatedMinutes / 5)); // 5분당 1팀 처리 가정
-          totalWaiting = waitingPosition + Math.floor(Math.random() * 3); // 랜덤 추가
-          break;
-        case 'CONFIRMED':
-          waitingPosition = Math.max(1, Math.floor(estimatedMinutes / 10)); // 10분당 1팀 처리
-          totalWaiting = waitingPosition + Math.floor(Math.random() * 2);
-          break;
-        case 'IN_PROGRESS':
-          waitingPosition = 0; // 조리중이면 대기 없음
-          totalWaiting = Math.floor(Math.random() * 5); // 전체 대기팀
-          break;
-        case 'SERVED':
+      const createdAtMs = new Date(currentOrder.created_at || currentOrder.first_order_at || Date.now()).getTime();
+      const mins = Math.max(0, Math.floor((Date.now() - createdAtMs) / 60000));
+
+      // 서버가 제공하면 우선 사용
+      const seq = Number(currentOrder.order_seq || currentOrder.queue_position);
+
+      if (String(currentOrder.status).toUpperCase() === 'IN_PROGRESS' || String(currentOrder.status).toUpperCase() === 'SERVED') {
+        waitingPosition = 0;
+        totalWaiting = 0;
+      } else if (Number.isFinite(seq) && seq > 0) {
+        // order_seq가 있으면 이를 대기 순번으로 사용
+        waitingPosition = Math.max(0, seq - 1);
+        totalWaiting = Math.max(waitingPosition, seq + Math.ceil(seq * 0.4));
+      } else {
+        // 상태별 기본 대기 추정치 + 경과시간 보정
+        const status = String(currentOrder.status || '').toUpperCase();
+        if (status === 'PENDING') {
+          waitingPosition = Math.min(8, 3 + Math.floor(mins / 4));
+        } else if (status === 'CONFIRMED') {
+          waitingPosition = Math.max(1, Math.min(6, 2 + Math.floor(mins / 6)));
+        } else {
           waitingPosition = 0;
-          totalWaiting = Math.floor(Math.random() * 8);
-          break;
-        default:
-          waitingPosition = Math.floor(Math.random() * 5) + 1;
-          totalWaiting = waitingPosition + Math.floor(Math.random() * 3);
+        }
+        totalWaiting = Math.max(waitingPosition, waitingPosition + Math.ceil(waitingPosition * 0.5));
       }
     } catch (e) {
       console.warn('[getWaitingInfo] 대기 번호 계산 실패, 기본값 사용:', e);
-      waitingPosition = Math.floor(Math.random() * 5) + 1;
-      totalWaiting = waitingPosition + Math.floor(Math.random() * 3);
+      waitingPosition = 0;
+      totalWaiting = 0;
     }
     
     return {
       order: currentOrder,
       waitingPosition: Math.max(0, waitingPosition),
       totalWaiting: Math.max(waitingPosition, totalWaiting),
-      estimatedWaitTime: calculateEstimatedWaitTime(currentOrder.status, waitingPosition)
+      estimatedWaitTime: calculateEstimatedWaitTime(currentOrder.status, Math.max(0, waitingPosition))
     };
     
   } catch (error) {

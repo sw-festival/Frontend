@@ -242,7 +242,13 @@ function renderHistoryCard(order) {
   const status = String(order.status || '-');
   const statusKo = mapStatusToKorean(order.status);
   const created = formatOrderTime(order.created_at);
-  const items = (order.items || []).map(it => `${esc(it.name)} × ${it.quantity}`).join('<br>');
+  const items = (order.items || []).map(it => {
+    const name = esc(it?.name || it?.product_name || '-');
+    const rawQty = it?.quantity ?? it?.qty ?? it?.count ?? 1;
+    const qty = Number(rawQty);
+    const showQty = Number.isFinite(qty) && qty > 1;
+    return showQty ? `${name} × ${qty}` : name;
+  }).join('<br>');
   const title = `#${order.id} · ${statusKo}`;
 
   return `

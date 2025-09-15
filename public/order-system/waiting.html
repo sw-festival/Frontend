@@ -441,7 +441,7 @@
         .base-label {
             color: #EDECED;
             font-size: 12px;
-            font-weight: 700;
+            font-weight: 500;
             margin-bottom: 0.1rem;
         }
 
@@ -612,13 +612,15 @@
             color: #EDECED;
             margin-bottom: .75rem;
         }
+
         .history-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
             gap: 1rem;
         }
         .history-card {
-            background: #1C355D;
+            background: #B1B1B1;
+            margin:5%;
             border: 2px solid rgba(255,255,255,.15);
             border-radius: 12px;
             padding: 1rem;
@@ -637,6 +639,7 @@
         .history-items {
             font-size: .9rem;
             line-height: 1.35;
+            font-weight: 300;
         }
 
         @media (max-width: 480px) {
@@ -790,7 +793,7 @@
                 <section class="history-section">
                     <div class="history-header">
                         <i class="fas fa-receipt"></i>
-                        <h3 style="margin:0;">이 테이블의 내 주문 히스토리</h3>
+                        <h3 style="margin-left: 7%; color: #182F5B">🥎 이 테이블의 주문 히스토리</h3>
                     </div>
                     <div id="history-container" class="history-grid">
                         <!-- 카드들이 여기에 렌더링됩니다 -->
