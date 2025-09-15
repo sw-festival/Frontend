@@ -246,6 +246,50 @@
             display: none !important;
         }
 
+        /* 모달 기본 스타일 */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            width: 90%;
+            max-width: 420px;
+            background: #fff;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .modal-header {
+            background: linear-gradient(135deg, #1a5490, #2c3e50);
+            color: #fff;
+            padding: 1rem 1.25rem;
+            font-weight: 700;
+        }
+        .modal-body {
+            padding: 1.25rem;
+            color: #333;
+            line-height: 1.5;
+        }
+        .modal-actions {
+            display: flex;
+            gap: .75rem;
+            padding: 1rem 1.25rem 1.25rem;
+            justify-content: flex-end;
+        }
+        .btn {
+            border: none;
+            border-radius: 8px;
+            padding: .7rem 1rem;
+            cursor: pointer;
+            font-weight: 700;
+        }
+        .btn-primary { background: #1a5490; color: #fff; }
+        .btn-secondary { background: #e9ecef; color: #333; }
+
         /* 반응형 스타일 */
         @media (max-width: 768px) {
             .waiting-number {
@@ -705,6 +749,21 @@
                 </div>
             </section>
         </main>
+    </div>
+
+    <!-- 추가주문 안내 모달 -->
+    <div id="reorder-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="reorder-title">
+        <div class="modal-content">
+            <div class="modal-header" id="reorder-title">추가 주문 안내</div>
+            <div class="modal-body">
+                추가주문시 현재 주문 현황으로 돌아올 수 없습니다.<br>
+                이전 주문 내역은 홀에게 문의해주세요.
+            </div>
+            <div class="modal-actions">
+                <button id="reorder-cancel" class="btn btn-secondary">취소</button>
+                <button id="reorder-confirm" class="btn btn-primary">확인</button>
+            </div>
+        </div>
     </div>
 
     <!-- Firebase SDK (v8) -->

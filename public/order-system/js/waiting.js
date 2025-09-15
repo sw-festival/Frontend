@@ -20,6 +20,48 @@ document.addEventListener('DOMContentLoaded', () => {
     console.error('[waiting] init error', err);
     renderError('초기화 중 오류가 발생했습니다.');
   });
+
+  // 버튼 이벤트 바인딩
+  const refreshBtn = document.getElementById('refresh-btn');
+  const backBtn = document.getElementById('back-btn');
+  const modal = document.getElementById('reorder-modal');
+  const confirmBtn = document.getElementById('reorder-confirm');
+  const cancelBtn = document.getElementById('reorder-cancel');
+
+  // 새로고침: 현재 페이지 단순 리로드
+  refreshBtn?.addEventListener('click', (e) => {
+    e.preventDefault();
+    window.location.reload();
+  });
+
+  // 처음으로: 추가 주문 안내 모달 표시
+  backBtn?.addEventListener('click', (e) => {
+    e.preventDefault();
+    modal?.classList.remove('hidden');
+  });
+
+  // 모달 취소: 닫기
+  cancelBtn?.addEventListener('click', (e) => {
+    e.preventDefault();
+    modal?.classList.add('hidden');
+  });
+
+  // 모달 확인: 현재 slug로 주문 페이지로 이동
+  confirmBtn?.addEventListener('click', (e) => {
+    e.preventDefault();
+    try {
+      const sp = new URL(location.href).searchParams;
+      const slug = (location.pathname.match(/\/t\/([^/]+)/)?.[1]) || sp.get('slug') || '';
+      if (!slug) {
+        // 슬러그가 없으면 루트 주문 페이지로
+        window.location.href = '/order-system/order.html';
+        return;
+      }
+      window.location.href = `/order-system/order.html?slug=${encodeURIComponent(slug)}`;
+    } finally {
+      modal?.classList.add('hidden');
+    }
+  });
 });
 
 /* =========================
