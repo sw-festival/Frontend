@@ -25,6 +25,29 @@ document.addEventListener('DOMContentLoaded', () => {
     'DRINK': 'drink'
   };
 
+  // -----------------------------
+  // 서버에 description/image가 없는 항목용 프론트 기본값
+  // -----------------------------
+  const FALLBACK_DESCRIPTIONS = {
+    'LG라ㄹ면': '구단 감성 듬뿍, 칼칼하고 시원한 라면 한 그릇',
+    '라팍 김치말이국수': '라팍표 김치육수에 쫄깃한 면, 시원함이 한가득',
+    '두산 B볶rs': '두산의 힘! 불향 가득한 든든 볶음밥',
+    '키움쫄?쫄면': '매콤새콤, 쫄깃함으로 기세를 키우는 쫄면',
+    '롯데 자이언츠 화채': '달콤 상큼, 자이언츠처럼 시원하게 즐기는 과일 화채',
+    'KT라찜': '얼큰담백 라면+찜 조합, 만나면 홈런 각',
+    '후리카케크봉밥': '바삭 후리카케와 쫀득 주먹밥의 고소한 조합',
+    '포도맛 (두산/KT/롯데/LG…) 칵테일': '톡 쏘는 포도향이 상큼하게 퍼지는 무알코올 칵테일',
+    '자몽맛 (한화/SSG/기아…) 칵테일': '쌉싸름 달콤 자몽의 매력, 산뜻한 피니시',
+    '소다맛 (NC/삼성) 칵테일': '시원한 소다향과 청량감으로 딱 한 잔 더',
+    '제로콜라': '부담 없이 즐기는 깔끔한 제로 슈가 콜라',
+    '사이다': '톡톡 터지는 청량감, 클래식한 선택',
+    '물': '갈증을 시원하게 해소하는 생수'
+  };
+
+  const FALLBACK_IMAGES = {
+    '물': '/images/water.png'
+  };
+
   // 더 이상 이름 기반 분류 불필요 - 서버에서 type 필드로 관리
 
   // -----------------------------
@@ -211,7 +234,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       // 이미지 동기화 (image_url | imageUrl | image | thumbnail_url | photo_url)
-      const imageUrl = apiMenu.image_url || apiMenu.imageUrl || apiMenu.image || apiMenu.thumbnail_url || apiMenu.thumbnailUrl || apiMenu.photo_url || '';
+      const imageUrl = apiMenu.image_url || apiMenu.imageUrl || apiMenu.image || apiMenu.thumbnail_url || apiMenu.thumbnailUrl || apiMenu.photo_url || FALLBACK_IMAGES[apiMenu.name] || '';
       if (imageUrl) {
         const imgWrap = menuItem.querySelector('.menu-image');
         if (imgWrap) {
@@ -822,10 +845,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const icon = categoryIcons[currentCategory] || 'fas fa-utensils';
     
     // 메뉴 설명 생성 (서버 다양한 키 지원)
-    const description = (menu.description || menu.desc || menu.details || menu.content || menu.summary || '').trim() || `맛있는 ${menu.name}입니다. 신선한 재료로 만든 인기 메뉴입니다.`;
+    const description = (menu.description || menu.desc || menu.details || menu.content || menu.summary || '').trim() || FALLBACK_DESCRIPTIONS[menu.name] || `맛있는 ${menu.name}입니다. 신선한 재료로 만든 인기 메뉴입니다.`;
     
     // 메뉴 이미지 처리 (서버 다양한 키 지원)
-    const imgUrl = menu.image_url || menu.imageUrl || menu.image || menu.thumbnail_url || menu.thumbnailUrl || menu.photo_url;
+    const imgUrl = menu.image_url || menu.imageUrl || menu.image || menu.thumbnail_url || menu.thumbnailUrl || menu.photo_url || FALLBACK_IMAGES[menu.name];
     const imageHtml = imgUrl
       ? `<img src="${imgUrl}" alt="${menu.name}">`
       : `<div class="menu-img-placeholder"><i class="${icon}"></i></div>`;
