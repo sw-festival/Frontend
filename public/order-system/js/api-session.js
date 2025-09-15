@@ -388,7 +388,7 @@ export async function createOrder(order, slug) {
   // --- 초시도 ---
   const key1 = makeIdemKey(slug);
   const h1 = sessionHeaders({ slug, scheme: 'Session', idemKey: key1 });
-  let res = await fetch(url, { method:'POST', headers: h1, body, credentials: 'include' });
+  let res = await fetch(url, { method:'POST', headers: h1, body });
   let txt = await res.text(); let data = {}; try { data = JSON.parse(txt); } catch {}
   console.log('[createOrder] try1', res.status, txt);
 
@@ -414,18 +414,26 @@ export async function createOrder(order, slug) {
   await openTakeoutSession(slug); // 새 토큰 발급
   // 재시도는 반드시 "새 Idempotency-Key"
   const key2 = makeIdemKey(slug);
-
-  // (A) 스킴 폴백: Bearer로 시도
-  const h2 = sessionHeaders({ slug, scheme: 'Bearer', idemKey: key2 });
-  res = await fetch(url, { method:'POST', headers: h2, body, credentials: 'include' });
+  
+  // (A) 새 토큰으로 Session 스킴 재시도 (서버가 Session만 허용하는 경우 우선)
+  const h2 = sessionHeaders({ slug, scheme: 'Session', idemKey: key2 });
+  res = await fetch(url, { method:'POST', headers: h2, body });
   txt = await res.text(); data = {}; try { data = JSON.parse(txt); } catch {}
-  console.log('[createOrder] try2(Bearer)', res.status, txt);
+  console.log('[createOrder] try2(Session)', res.status, txt);
   if (res.ok && data?.success) return data;
 
-  // (B) 그래도 안되면 Authorization 제거, x-session-token만
+  // (B) 폴백: Bearer 스킴 시도
+  const key2b = makeIdemKey(slug);
+  const h2b = sessionHeaders({ slug, scheme: 'Bearer', idemKey: key2b });
+  res = await fetch(url, { method:'POST', headers: h2b, body });
+  txt = await res.text(); data = {}; try { data = JSON.parse(txt); } catch {}
+  console.log('[createOrder] try2b(Bearer)', res.status, txt);
+  if (res.ok && data?.success) return data;
+
+  // (C) 그래도 안되면 Authorization 제거, x-session-token만
   const key3 = makeIdemKey(slug);
   const h3 = sessionHeaders({ slug, idemKey: key3, useOnlyX: true });
-  res = await fetch(url, { method:'POST', headers: h3, body, credentials: 'include' });
+  res = await fetch(url, { method:'POST', headers: h3, body });
   txt = await res.text(); data = {}; try { data = JSON.parse(txt); } catch {}
   console.log('[createOrder] try3(x-only)', res.status, txt);
 
