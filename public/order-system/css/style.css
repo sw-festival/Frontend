@@ -1,19 +1,19 @@
 /* KBO Dia Gothic 폰트 추가 */
 @font-face {
     font-family: "KBO Dia Gothic";
-    src: url("/order-system/fonts/KBODiaGothicTTF/KBODiaGothic_light.ttf") format("truetype");
+    src: url("/order-system/fonts/KBODiaGothicOTF/KBODiaGothic_light.otf") format("opentype");
     font-weight: 300;
     font-style: normal;
 }
 @font-face {
     font-family: "KBO Dia Gothic";
-    src: url("/order-system/fonts/KBODiaGothicTTF/KBODiaGothic_medium.ttf") format("truetype");
+    src: url("/order-system/fonts/KBODiaGothicOTF/KBODiaGothic_medium.otf") format("opentype");
     font-weight: 500;
     font-style: normal;
 }
 @font-face {
     font-family: "KBO Dia Gothic";
-    src: url("/order-system/fonts/KBODiaGothicTTF/KBODiaGothic_bold.ttf") format("truetype");
+    src: url("/order-system/fonts/KBODiaGothicOTF/KBODiaGothic_bold.otf") format("opentype");
     font-weight: 700;
     font-style: normal;
 }
