@@ -371,9 +371,29 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log(`[주문하기] 세션 보장 시작: ${slug}, 채널: ${expectedChannel}`);
     
     try {
-      // 1. 기존 세션 확인
-      const existingSession = SessionStore.getSession(slug);
-      
+      // 1. 기존 세션 확인 (레거시 복원 포함)
+      let existingSession = SessionStore.getSession(slug);
+      if (!existingSession || !existingSession.token) {
+        // 레거시 저장소에서 복원 시도
+        try {
+          const lt = Tokens.getSession?.();
+          const lm = Tokens.getSessionMeta?.() || {};
+          const lslug = lm.slug;
+          const lch = (lm.channel || '').toUpperCase();
+          if (lt && lslug === slug && lch === expectedChannel) {
+            SessionStore.setSession(slug, {
+              session_token: lt,
+              session_id: lm.session_id,
+              table_id: lm.table_id,
+              channel: lch,
+              abs_ttl_min: lm.abs_ttl_min || 120,
+            });
+            existingSession = SessionStore.getSession(slug);
+            Tokens.setSession(lt);
+          }
+        } catch (e) { console.warn('[주문하기] 레거시 복원 실패', e); }
+      }
+
       if (existingSession && existingSession.token && existingSession.channel === expectedChannel) {
         console.log(`[주문하기] 기존 세션 재사용: ${slug}`, {
           channel: existingSession.channel,
@@ -393,11 +413,11 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       
       // TAKEOUT 안전모드: 항상 새 세션 열기 (서버 측 세션 상태 불일치 방지)
-      const options = expectedChannel === 'TAKEOUT' ? { alwaysRefresh: true } : {};
+      const options = {};
       
       // ensureSessionBeforeOrder로 세션 보장
       await ensureSessionBeforeOrder(slug, expectedChannel, options);
-      console.log(`[주문하기] 세션 보장 완료: ${slug}`, { 
+        console.log(`[주문하기] 세션 보장 완료: ${slug}`, { 
         channel: expectedChannel, 
         safeMode: options.alwaysRefresh 
       });

@@ -286,7 +286,35 @@ export async function ensureSessionBeforeOrder(slug, expectedChannel, options = 
     return newSession;
   }
   
-  const session = SessionStore.getSession(slug);
+  let session = SessionStore.getSession(slug);
+
+  // 레거시 토큰 복원 경로: session_store에 token이 없거나 세션 자체가 없지만
+  // 레거시 저장소(localStorage: session_token, session_meta)에 유효 정보가 있으면 복원
+  if ((!session || !session.token) && expectedChannel === 'DINEIN') {
+    try {
+      const legacyToken = Tokens.getSession?.();
+      const legacyMeta  = Tokens.getSessionMeta?.() || {};
+      const legacySlug  = legacyMeta.slug;
+      const legacyCh    = (legacyMeta.channel || 'DINEIN').toUpperCase();
+
+      if (legacyToken && legacySlug === slug && legacyCh === 'DINEIN') {
+        SessionStore.setSession(slug, {
+          session_token: legacyToken,
+          session_id: legacyMeta.session_id,
+          table_id: legacyMeta.table_id,
+          channel: 'DINEIN',
+          abs_ttl_min: legacyMeta.abs_ttl_min || 120,
+        });
+        session = SessionStore.getSession(slug);
+        console.log(`[ensureSessionBeforeOrder] 레거시 토큰으로 세션 복원: ${slug}`, {
+          sessionId: session?.session_id,
+          expiresAt: session?.expiresAt,
+        });
+      }
+    } catch (e) {
+      console.warn('[ensureSessionBeforeOrder] 레거시 복원 실패', e);
+    }
+  }
   
   // 1. 토큰 없음
   if (!session || !session.token) {
@@ -450,11 +478,7 @@ export async function getWaitingInfo(orderId) {
   const token = Tokens.getSession();
   if (!token) throw new Error('세션이 없습니다. 다시 로그인해주세요.');
   
-  const headers = {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
-    'Authorization': token.startsWith('Bearer ') ? token : `Bearer ${token}`
-  };
+  const headers = sessionHeaders({ slug, scheme:'Session' });
   
   try {
     // 1. 현재 주문 정보 조회
@@ -541,6 +565,6 @@ function calculateEstimatedWaitTime(status, waitingPosition) {
     case 'SERVED':
       return 0; // 완료됨
     default:
-      return waitingPosition * 5; // 기본 5분
+      return waitingPosition * 10; // 기본 10분
   }
 }
