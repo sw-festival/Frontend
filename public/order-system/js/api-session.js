@@ -504,8 +504,9 @@ export async function getWaitingInfo(orderId) {
     
     const currentOrder = orderData.data;
     
-    // 2. 대기 번호 계산 (결정론적, 랜덤 제거)
-    // - 서버에 글로벌 대기열 API가 없으므로, 상태와 경과 시간 기반의 일관된 추정값을 사용
+    // 2. 대기 번호 계산 (백엔드 연동 없음 → 일관된 "의사 난수 기반" 추정)
+    //  - 같은 주문에서는 새로고침해도 동일한 숫자가 유지되도록 order.id로 시드 고정
+    //  - 시간이 지날수록 서서히 감소하는 형태로 사용자 경험 개선
     let waitingPosition = 0;
     let totalWaiting = 0;
     try {
@@ -515,24 +516,38 @@ export async function getWaitingInfo(orderId) {
       // 서버가 제공하면 우선 사용
       const seq = Number(currentOrder.order_seq || currentOrder.queue_position);
 
-      if (String(currentOrder.status).toUpperCase() === 'IN_PROGRESS' || String(currentOrder.status).toUpperCase() === 'SERVED') {
+      const toUpper = (v) => String(v || '').toUpperCase();
+      const status = toUpper(currentOrder.status);
+
+      if (status === 'IN_PROGRESS' || status === 'SERVED') {
         waitingPosition = 0;
         totalWaiting = 0;
       } else if (Number.isFinite(seq) && seq > 0) {
-        // order_seq가 있으면 이를 대기 순번으로 사용
         waitingPosition = Math.max(0, seq - 1);
         totalWaiting = Math.max(waitingPosition, seq + Math.ceil(seq * 0.4));
       } else {
-        // 상태별 기본 대기 추정치 + 경과시간 보정
-        const status = String(currentOrder.status || '').toUpperCase();
+        // 시드 고정 의사난수 (주문 id 기반)
+        const oid = Number(currentOrder.id || currentOrder.order_id || 0);
+        const seed = (oid * 9301 + 49297) % 233280; // 간단한 LCG 한 번
+        const rand01 = seed / 233280; // 0..1 고정값
+
+        // 초기 대기 기본값: PENDING 4~7, CONFIRMED 2~4
+        const basePending   = 4 + Math.floor(rand01 * 4); // 4..7
+        const baseConfirmed = 2 + Math.floor(rand01 * 3); // 2..4
+        // 처리 속도(팀/분): 1팀/3분 가정
+        const rate = 3;
+
         if (status === 'PENDING') {
-          waitingPosition = Math.min(8, 3 + Math.floor(mins / 4));
+          waitingPosition = Math.max(1, basePending - Math.floor(mins / rate));
         } else if (status === 'CONFIRMED') {
-          waitingPosition = Math.max(1, Math.min(6, 2 + Math.floor(mins / 6)));
+          waitingPosition = Math.max(1, baseConfirmed - Math.floor(mins / (rate + 1)));
         } else {
           waitingPosition = 0;
         }
-        totalWaiting = Math.max(waitingPosition, waitingPosition + Math.ceil(waitingPosition * 0.5));
+
+        // 총 대기팀은 약간 크게 표시 (고정 오프셋 1~3, 시드 기반)
+        const extra = 1 + Math.floor(rand01 * 3); // 1..3
+        totalWaiting = Math.max(waitingPosition, waitingPosition + extra);
       }
     } catch (e) {
       console.warn('[getWaitingInfo] 대기 번호 계산 실패, 기본값 사용:', e);
