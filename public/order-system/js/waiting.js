@@ -12,6 +12,8 @@ let currentSlug = '';
 let refreshInterval = null;
 let isRefreshing = false;
 
+const HISTORY_KEY_PREFIX = 'ORDER_SESSION_'; // 주문 스냅샷 prefix (app.js에서 저장)
+
 /* =========================
    DOM 로드 후 시작
 ========================= */
@@ -80,6 +82,13 @@ async function init() {
 
   await loadWaitingData();  // 세션 보장 후 호출
   startAutoRefresh();
+
+  // 히스토리도 로드
+  try {
+    await loadMyOrderHistory();
+  } catch (e) {
+    console.warn('[waiting] history load failed', e);
+  }
 }
 
 
@@ -169,6 +178,80 @@ async function ensureOrderSessionForOrder(orderId, slug) {
     console.warn('[ensureOrderSessionForOrder] error', e);
     return false;
   }
+}
+
+/* =========================
+   주문 히스토리 로딩/렌더링
+========================= */
+async function loadMyOrderHistory() {
+  const container = document.getElementById('history-container');
+  if (!container) return;
+
+  // 1) localStorage에서 이 기기에서 생성한 내 주문 id 수집
+  const myOrderIds = collectMyOrderIdsForSlug(currentSlug);
+  if (myOrderIds.length === 0) {
+    container.innerHTML = '<div class="history-card">이 기기에서 만든 주문이 없습니다.</div>';
+    return;
+  }
+
+  // 최신순 정렬
+  myOrderIds.sort((a, b) => Number(b) - Number(a));
+
+  // 2) 각 주문 상세 조회 (세션 인증 필요)
+  const cards = [];
+  for (const oid of myOrderIds) {
+    try {
+      const details = await getUserOrderDetails(oid, currentSlug);
+      cards.push(renderHistoryCard(details?.data || details));
+    } catch (e) {
+      console.warn('[history] order fetch failed', oid, e);
+    }
+  }
+
+  if (cards.length === 0) {
+    container.innerHTML = '<div class="history-card">표시할 주문이 없습니다.</div>';
+  } else {
+    container.innerHTML = cards.join('');
+  }
+}
+
+function collectMyOrderIdsForSlug(slug) {
+  try {
+    const ids = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i) || '';
+      if (!key.startsWith(HISTORY_KEY_PREFIX)) continue; // ORDER_SESSION_
+      const val = localStorage.getItem(key);
+      if (!val) continue;
+      try {
+        const snap = JSON.parse(val);
+        if (!snap?.token) continue;
+        // 같은 slug의 내 주문만 수집
+        if (slug && snap.slug && String(snap.slug) !== String(slug)) continue;
+        ids.push(key.replace(HISTORY_KEY_PREFIX, ''));
+      } catch {}
+    }
+    return ids;
+  } catch {
+    return [];
+  }
+}
+
+function renderHistoryCard(order) {
+  if (!order) return '';
+  const status = String(order.status || '-');
+  const statusKo = mapStatusToKorean(order.status);
+  const created = formatOrderTime(order.created_at);
+  const items = (order.items || []).map(it => `${esc(it.name)} × ${it.quantity}`).join('<br>');
+  const title = `#${order.id} · ${statusKo}`;
+
+  return `
+    <div class="history-card">
+      <div class="title">${title}</div>
+      <div class="meta">${created}</div>
+      <div class="history-items">${items || '항목 없음'}</div>
+    </div>
+  `;
 }
 
 /* =========================

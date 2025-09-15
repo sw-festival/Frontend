@@ -874,6 +874,7 @@ input[type="password"]:focus {
 .waiting-number-container .waiting-number,
 .waiting-number-container .waiting-subtitle {
     position: relative;
+    margin-bottom: 10px;
     z-index: 1;
 }
 

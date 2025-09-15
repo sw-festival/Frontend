@@ -601,6 +601,44 @@
             }
         }
 
+        /* ====== 주문 히스토리 섹션 ====== */
+        .history-section {
+            margin: 2rem 0;
+        }
+        .history-header {
+            display: flex;
+            align-items: center;
+            gap: .5rem;
+            color: #EDECED;
+            margin-bottom: .75rem;
+        }
+        .history-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 1rem;
+        }
+        .history-card {
+            background: #1C355D;
+            border: 2px solid rgba(255,255,255,.15);
+            border-radius: 12px;
+            padding: 1rem;
+            color: #EDECED;
+            box-shadow: 0 6px 18px rgba(0,0,0,.15);
+        }
+        .history-card .title {
+            font-weight: 700;
+            margin-bottom: .25rem;
+        }
+        .history-card .meta {
+            font-size: .9rem;
+            opacity: .9;
+            margin-bottom: .5rem;
+        }
+        .history-items {
+            font-size: .9rem;
+            line-height: 1.35;
+        }
+
         @media (max-width: 480px) {
             .baseball-field {
                 max-width: 280px;
@@ -747,6 +785,17 @@
                     <button id="refresh-btn">새로고침</button>
                     <button id="back-btn">처음으로</button>
                 </div>
+
+                <!-- 주문 히스토리 -->
+                <section class="history-section">
+                    <div class="history-header">
+                        <i class="fas fa-receipt"></i>
+                        <h3 style="margin:0;">이 테이블의 내 주문 히스토리</h3>
+                    </div>
+                    <div id="history-container" class="history-grid">
+                        <!-- 카드들이 여기에 렌더링됩니다 -->
+                    </div>
+                </section>
             </section>
         </main>
     </div>
