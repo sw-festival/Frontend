@@ -830,7 +830,6 @@ input[type="password"]:focus {
     display: flex;
     justify-content: flex-end;
     gap: 12px;
-    justify-content: center;
 }
 
 .action-buttons button {
