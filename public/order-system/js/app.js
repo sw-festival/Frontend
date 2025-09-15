@@ -48,6 +48,14 @@ document.addEventListener('DOMContentLoaded', () => {
     '물': '/images/water.png'
   };
 
+  function getFallbackDescriptionByName(menuName){
+    const name = String(menuName || '');
+    if (name.includes('포도') && name.includes('칵테일')) return '톡 쏘는 포도향이 상큼하게 퍼지는 무알코올 칵테일';
+    if (name.includes('자몽') && name.includes('칵테일')) return '쌉싸름 달콤 자몽의 매력, 산뜻한 피니시';
+    if (name.includes('소다') && name.includes('칵테일')) return '시원한 소다향과 청량감으로 딱 한 잔 더';
+    return FALLBACK_DESCRIPTIONS[menuName];
+  }
+
   // 더 이상 이름 기반 분류 불필요 - 서버에서 type 필드로 관리
 
   // -----------------------------
@@ -224,7 +232,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       // 설명 동기화 (서버 필드 다양성 대응)
-      const newDesc = (apiMenu.description || apiMenu.desc || apiMenu.details || apiMenu.content || apiMenu.summary || '').trim();
+      const newDesc = (apiMenu.description || apiMenu.desc || apiMenu.details || apiMenu.content || apiMenu.summary || '').trim() || getFallbackDescriptionByName(apiMenu.name);
       if (newDesc) {
         const descEl = menuItem.querySelector('.menu-description');
         if (descEl && descEl.textContent !== newDesc) {
@@ -845,7 +853,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const icon = categoryIcons[currentCategory] || 'fas fa-utensils';
     
     // 메뉴 설명 생성 (서버 다양한 키 지원)
-    const description = (menu.description || menu.desc || menu.details || menu.content || menu.summary || '').trim() || FALLBACK_DESCRIPTIONS[menu.name] || `맛있는 ${menu.name}입니다. 신선한 재료로 만든 인기 메뉴입니다.`;
+    const description = (menu.description || menu.desc || menu.details || menu.content || menu.summary || '').trim() || getFallbackDescriptionByName(menu.name) || `맛있는 ${menu.name}입니다. 신선한 재료로 만든 인기 메뉴입니다.`;
     
     // 메뉴 이미지 처리 (서버 다양한 키 지원)
     const imgUrl = menu.image_url || menu.imageUrl || menu.image || menu.thumbnail_url || menu.thumbnailUrl || menu.photo_url || FALLBACK_IMAGES[menu.name];
