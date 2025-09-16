@@ -111,6 +111,67 @@
                 transform: translateY(0);
             }
         }
+
+        /* 공지사항 슬라이딩 컴포넌트 */
+        .notice-component {
+            width: 100%;
+            background: linear-gradient(135deg, #ff6b35, #f7931e);
+            border-radius: 12px;
+            margin: 1rem 0;
+            padding: 0.8rem 0;
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 4px 15px rgba(255, 107, 53, 0.3);
+        }
+
+        .notice-container {
+            width: 100%;
+            overflow: hidden;
+            white-space: nowrap;
+            position: relative;
+        }
+
+        .notice-text {
+            display: inline-block;
+            color: white;
+            font-family: "KBO Dia Gothic", sans-serif;
+            font-size: 1rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            animation: slideLeftToRight 15s linear infinite;
+            padding-left: 100%;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+        }
+
+        @keyframes slideLeftToRight {
+            0% {
+                transform: translateX(0%);
+            }
+            100% {
+                transform: translateX(-100%);
+            }
+        }
+
+        /* 전광판 효과를 위한 추가 스타일 */
+        .notice-component::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, 
+                rgba(255,255,255,0.1) 0%, 
+                transparent 50%, 
+                rgba(255,255,255,0.1) 100%);
+            animation: shimmer 3s ease-in-out infinite;
+            pointer-events: none;
+        }
+
+        @keyframes shimmer {
+            0%, 100% { opacity: 0; }
+            50% { opacity: 1; }
+        }
         
         /* 1단계: 주문 방식 선택 */
         #order-type-section {
@@ -402,7 +463,12 @@
             font-family: "KBO Dia Gothic";
             font-size: 19px;
             font-weight: 700;
-            fill: var(--Linear, linear-gradient(86deg, #FFF 7.15%, #CB8400 90.78%));
+            background: linear-gradient(86deg, #FFF 7.15%, #CB8400 90.78%);
+            -webkit-background-clip: text; /* Safari/Chrome */
+            -webkit-text-fill-color: transparent; /* Safari/Chrome */
+            background-clip: text; /* 표준 */
+            color: transparent; /* Firefox 등 */
+            
             filter: drop-shadow(0 0 10px rgba(0, 0, 0, 0.30));
             text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
             text-align: center;
@@ -1342,6 +1408,15 @@
                         </div>
                         <div class="popular-item third-rank" data-rank="3">
                             <div class="popular-name">-</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 공지사항 슬라이딩 컴포넌트 -->
+                <div class="notice-component">
+                    <div class="notice-container">
+                        <div class="notice-text">
+                            금일 후리카케 크봉밥 품절로 인해 주문이 불가합니다. 후리카케 크봉밥은 금일 주문할 수 없습니다. 죄송합니다.
                         </div>
                     </div>
                 </div>
