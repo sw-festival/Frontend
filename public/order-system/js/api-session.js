@@ -112,26 +112,6 @@ export async function getUserOrderDetails(orderId, slug) {
   return json?.data || json;
 }
 
-// function sessionHeaders({ scheme='Session', idemKey, useOnlyX=false, slug } = {}) {
-//   const store = JSON.parse(localStorage.getItem('session_store') || '{}');
-//   const meta  = JSON.parse(localStorage.getItem('session_meta')  || '{}');
-
-//   const s = (slug && store[slug]) ? store[slug] : meta;      // slug 우선
-//   const token = (s && s.token) || (window.Tokens?.getSession?.() || '');
-
-//   const h = { 'Content-Type':'application/json', 'Accept':'application/json' };
-//   if (token) {
-//     if (!useOnlyX) h.Authorization = `${scheme} ${token}`;   // 반드시 Session 스킴
-//     h['X-Session-Token'] = token;
-//     if (s?.session_id) h['X-Session-Id'] = String(s.session_id);
-//     if (s?.table_id)   h['X-Table-Id']   = String(s.table_id);
-//     if (s?.channel)    h['X-Channel']    = String(s.channel);
-//     if (s?.slug)       h['X-Table-Slug'] = String(s.slug);
-//   }
-//   if (idemKey) h['X-Idempotency-Key'] = idemKey;
-//   return h;
-// }
-
 // slug로 세션 열기
 // 사용자로부터 받은 code가 없으면 요청 자체를 막는다.
 export async function openSessionBySlug(slug, codeFromUser) {
@@ -306,7 +286,35 @@ export async function ensureSessionBeforeOrder(slug, expectedChannel, options = 
     return newSession;
   }
   
-  const session = SessionStore.getSession(slug);
+  let session = SessionStore.getSession(slug);
+
+  // 레거시 토큰 복원 경로: session_store에 token이 없거나 세션 자체가 없지만
+  // 레거시 저장소(localStorage: session_token, session_meta)에 유효 정보가 있으면 복원
+  if ((!session || !session.token) && expectedChannel === 'DINEIN') {
+    try {
+      const legacyToken = Tokens.getSession?.();
+      const legacyMeta  = Tokens.getSessionMeta?.() || {};
+      const legacySlug  = legacyMeta.slug;
+      const legacyCh    = (legacyMeta.channel || 'DINEIN').toUpperCase();
+
+      if (legacyToken && legacySlug === slug && legacyCh === 'DINEIN') {
+        SessionStore.setSession(slug, {
+          session_token: legacyToken,
+          session_id: legacyMeta.session_id,
+          table_id: legacyMeta.table_id,
+          channel: 'DINEIN',
+          abs_ttl_min: legacyMeta.abs_ttl_min || 120,
+        });
+        session = SessionStore.getSession(slug);
+        console.log(`[ensureSessionBeforeOrder] 레거시 토큰으로 세션 복원: ${slug}`, {
+          sessionId: session?.session_id,
+          expiresAt: session?.expiresAt,
+        });
+      }
+    } catch (e) {
+      console.warn('[ensureSessionBeforeOrder] 레거시 복원 실패', e);
+    }
+  }
   
   // 1. 토큰 없음
   if (!session || !session.token) {
@@ -379,8 +387,8 @@ export async function createOrder(order, slug) {
 
   // --- 초시도 ---
   const key1 = makeIdemKey(slug);
-  const h1   = sessionHeaders(slug, { scheme: 'Session', idemKey: key1 });
-  let res = await fetch(url, { method:'POST', headers: h1, body, credentials: 'include' });
+  const h1 = sessionHeaders({ slug, scheme: 'Session', idemKey: key1 });
+  let res = await fetch(url, { method:'POST', headers: h1, body });
   let txt = await res.text(); let data = {}; try { data = JSON.parse(txt); } catch {}
   console.log('[createOrder] try1', res.status, txt);
 
@@ -406,18 +414,26 @@ export async function createOrder(order, slug) {
   await openTakeoutSession(slug); // 새 토큰 발급
   // 재시도는 반드시 "새 Idempotency-Key"
   const key2 = makeIdemKey(slug);
-
-  // (A) 스킴 폴백: Bearer로 시도
-  const h2 = sessionHeaders(slug, { scheme: 'Bearer', idemKey: key2 });
-  res = await fetch(url, { method:'POST', headers: h2, body, credentials: 'include' });
+  
+  // (A) 새 토큰으로 Session 스킴 재시도 (서버가 Session만 허용하는 경우 우선)
+  const h2 = sessionHeaders({ slug, scheme: 'Session', idemKey: key2 });
+  res = await fetch(url, { method:'POST', headers: h2, body });
   txt = await res.text(); data = {}; try { data = JSON.parse(txt); } catch {}
-  console.log('[createOrder] try2(Bearer)', res.status, txt);
+  console.log('[createOrder] try2(Session)', res.status, txt);
   if (res.ok && data?.success) return data;
 
-  // (B) 그래도 안되면 Authorization 제거, x-session-token만
+  // (B) 폴백: Bearer 스킴 시도
+  const key2b = makeIdemKey(slug);
+  const h2b = sessionHeaders({ slug, scheme: 'Bearer', idemKey: key2b });
+  res = await fetch(url, { method:'POST', headers: h2b, body });
+  txt = await res.text(); data = {}; try { data = JSON.parse(txt); } catch {}
+  console.log('[createOrder] try2b(Bearer)', res.status, txt);
+  if (res.ok && data?.success) return data;
+
+  // (C) 그래도 안되면 Authorization 제거, x-session-token만
   const key3 = makeIdemKey(slug);
-  const h3 = sessionHeaders(slug, { idemKey: key3, useOnlyX: true });
-  res = await fetch(url, { method:'POST', headers: h3, body, credentials: 'include' });
+  const h3 = sessionHeaders({ slug, idemKey: key3, useOnlyX: true });
+  res = await fetch(url, { method:'POST', headers: h3, body });
   txt = await res.text(); data = {}; try { data = JSON.parse(txt); } catch {}
   console.log('[createOrder] try3(x-only)', res.status, txt);
 
@@ -470,11 +486,7 @@ export async function getWaitingInfo(orderId) {
   const token = Tokens.getSession();
   if (!token) throw new Error('세션이 없습니다. 다시 로그인해주세요.');
   
-  const headers = {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
-    'Authorization': token.startsWith('Bearer ') ? token : `Bearer ${token}`
-  };
+  const headers = sessionHeaders({ slug, scheme:'Session' });
   
   try {
     // 1. 현재 주문 정보 조회
@@ -492,55 +504,62 @@ export async function getWaitingInfo(orderId) {
     
     const currentOrder = orderData.data;
     
-    // 2. 전체 주문 목록에서 대기 번호 계산
-    // 관리자 API를 사용하여 모든 주문을 조회 (인증 없이는 제한적이므로 추정 계산)
+    // 2. 대기 번호 계산 (백엔드 연동 없음 → 일관된 "의사 난수 기반" 추정)
+    //  - 같은 주문에서는 새로고침해도 동일한 숫자가 유지되도록 order.id로 시드 고정
+    //  - 시간이 지날수록 서서히 감소하는 형태로 사용자 경험 개선
     let waitingPosition = 0;
     let totalWaiting = 0;
-    
     try {
-      // 현재 주문의 생성 시간
-      const currentOrderTime = new Date(currentOrder.created_at).getTime();
-      
-      // 간단한 추정: 현재 시간 기준으로 대략적인 대기 번호 계산
-      // 실제로는 관리자 API나 별도의 대기열 API가 필요하지만, 
-      // 현재는 주문 생성 시간을 기준으로 추정
-      const now = Date.now();
-      const timeDiff = now - currentOrderTime;
-      const estimatedMinutes = Math.floor(timeDiff / (1000 * 60));
-      
-      // 상태에 따른 대기 번호 추정
-      switch (currentOrder.status) {
-        case 'PENDING':
-          waitingPosition = Math.max(1, Math.floor(estimatedMinutes / 5)); // 5분당 1팀 처리 가정
-          totalWaiting = waitingPosition + Math.floor(Math.random() * 3); // 랜덤 추가
-          break;
-        case 'CONFIRMED':
-          waitingPosition = Math.max(1, Math.floor(estimatedMinutes / 10)); // 10분당 1팀 처리
-          totalWaiting = waitingPosition + Math.floor(Math.random() * 2);
-          break;
-        case 'IN_PROGRESS':
-          waitingPosition = 0; // 조리중이면 대기 없음
-          totalWaiting = Math.floor(Math.random() * 5); // 전체 대기팀
-          break;
-        case 'SERVED':
+      const createdAtMs = new Date(currentOrder.created_at || currentOrder.first_order_at || Date.now()).getTime();
+      const mins = Math.max(0, Math.floor((Date.now() - createdAtMs) / 60000));
+
+      // 서버가 제공하면 우선 사용
+      const seq = Number(currentOrder.order_seq || currentOrder.queue_position);
+
+      const toUpper = (v) => String(v || '').toUpperCase();
+      const status = toUpper(currentOrder.status);
+
+      if (status === 'IN_PROGRESS' || status === 'SERVED') {
+        waitingPosition = 0;
+        totalWaiting = 0;
+      } else if (Number.isFinite(seq) && seq > 0) {
+        waitingPosition = Math.max(0, seq - 1);
+        totalWaiting = Math.max(waitingPosition, seq + Math.ceil(seq * 0.4));
+      } else {
+        // 시드 고정 의사난수 (주문 id 기반)
+        const oid = Number(currentOrder.id || currentOrder.order_id || 0);
+        const seed = (oid * 9301 + 49297) % 233280; // 간단한 LCG 한 번
+        const rand01 = seed / 233280; // 0..1 고정값
+
+        // 초기 대기 기본값: PENDING 4~7, CONFIRMED 2~4
+        const basePending   = 4 + Math.floor(rand01 * 4); // 4..7
+        const baseConfirmed = 2 + Math.floor(rand01 * 3); // 2..4
+        // 처리 속도(팀/분): 1팀/3분 가정
+        const rate = 3;
+
+        if (status === 'PENDING') {
+          waitingPosition = Math.max(1, basePending - Math.floor(mins / rate));
+        } else if (status === 'CONFIRMED') {
+          waitingPosition = Math.max(1, baseConfirmed - Math.floor(mins / (rate + 1)));
+        } else {
           waitingPosition = 0;
-          totalWaiting = Math.floor(Math.random() * 8);
-          break;
-        default:
-          waitingPosition = Math.floor(Math.random() * 5) + 1;
-          totalWaiting = waitingPosition + Math.floor(Math.random() * 3);
+        }
+
+        // 총 대기팀은 약간 크게 표시 (고정 오프셋 1~3, 시드 기반)
+        const extra = 1 + Math.floor(rand01 * 3); // 1..3
+        totalWaiting = Math.max(waitingPosition, waitingPosition + extra);
       }
     } catch (e) {
       console.warn('[getWaitingInfo] 대기 번호 계산 실패, 기본값 사용:', e);
-      waitingPosition = Math.floor(Math.random() * 5) + 1;
-      totalWaiting = waitingPosition + Math.floor(Math.random() * 3);
+      waitingPosition = 0;
+      totalWaiting = 0;
     }
     
     return {
       order: currentOrder,
       waitingPosition: Math.max(0, waitingPosition),
       totalWaiting: Math.max(waitingPosition, totalWaiting),
-      estimatedWaitTime: calculateEstimatedWaitTime(currentOrder.status, waitingPosition)
+      estimatedWaitTime: calculateEstimatedWaitTime(currentOrder.status, Math.max(0, waitingPosition))
     };
     
   } catch (error) {
@@ -561,6 +580,6 @@ function calculateEstimatedWaitTime(status, waitingPosition) {
     case 'SERVED':
       return 0; // 완료됨
     default:
-      return waitingPosition * 5; // 기본 5분
+      return waitingPosition * 10; // 기본 10분
   }
 }

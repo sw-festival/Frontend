@@ -16,6 +16,7 @@ const PRODUCTS = {
   14: { name: '제로콜라',                price: 3000  },
   15: { name: '사이다',                  price: 3000  },
   16: { name: '물',                      price: 2000  },
+  17: { name: '한화e글스-ㅔ트', price: 149000}
 };
 
 // product_id로 가격을 찾는 테이블

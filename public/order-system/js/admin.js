@@ -719,7 +719,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     const itemsHtml = (order.items || [])
       .map(item => `
-        <div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid #ecf0f1;">
+        <div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid #1C355D;">
           <span>${item.name} × ${item.quantity}개</span>
           <span>${Number(item.line_total || 0).toLocaleString()}원</span>
         </div>

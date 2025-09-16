@@ -17,33 +17,68 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentCategory = 'set';
   let isProcessing = false;
 
-  const CATEGORY_BY_ID = {
-  1: 'main', 2: 'main', 3: 'main', // 메인메뉴
-  4: 'side', 5: 'side', 6: 'side',
-  7: 'side', 8: 'side', 9: 'side',
-  10: 'side', // 사이드메뉴
-  11: 'drink', 12: 'drink', 13: 'drink',
-  14: 'drink', 15: 'drink', 16: 'drink' // 음료
+  // 서버 ENUM 타입에 맞는 카테고리 매핑 (더 이상 ID 기반 매핑 불필요)
+  const SERVER_CATEGORY_TO_CLIENT = {
+    'SET': 'set',
+    'MAIN': 'main', 
+    'SIDE': 'side',
+    'DRINK': 'drink'
   };
 
-  const CATEGORY_BY_NAME_CONTAINS = [
-    { key: '문학철판구이', cat: 'main' },
-    { key: '빙하기공룡고기', cat: 'main' },
-    { key: '호랑이 생고기', cat: 'main' },
+  // -----------------------------
+  // 서버에 description/image가 없는 항목용 프론트 기본값
+  // -----------------------------
+  const FALLBACK_DESCRIPTIONS = {
+    'LG라ㄹ면': '구단 감성 듬뿍,\n칼칼하고 시원한 라면 한 그릇',
+    '라팍 김치말이국수': '라팍표 김치육수에 쫄깃한 면,\n시원함이 한가득',
+    '두산 B볶rs': '두산의 힘!\n불향 가득한 든든 볶음밥',
+    '키움쫄?쫄면': '매콤새콤, 쫄깃함으로\n기세를 키우는 쫄면',
+    '롯데 자이언츠 화채': '달콤 상큼, 자이언츠처럼\n시원하게 즐기는 과일 화채',
+    'KT란찜': '위즈가 낳은 계란,\n쪄서 먹었더니 홈런 각',
+    '후리카케크봉밥': '바삭 후리카케와 쫀득 주먹밥의\n고소한 조합',
+    '포도맛 (두산/KT/롯데/LG…) 칵테일': '톡 쏘는 포도향이 상큼하게 퍼지는\n무알코올 칵테일',
+    '자몽맛 (한화/SSG/기아…) 칵테일': '쌉싸름 달콤 자몽의 매력,\n산뜻한 피니시',
+    '소다맛 (NC/삼성) 칵테일': '시원한 소다향과 청량감으로\n딱 한 잔 더',
+    '제로콜라': '부담 없이 즐기는\n깔끔한 제로 슈가 콜라',
+    '사이다': '톡톡 터지는 청량감,\n클래식한 선택',
+    '물': 'kia~~ 갈증을 시원하게\n해소하는 생수'
+  };
 
-    { key: 'LG라면', cat: 'side' },
-    { key: '김치말이국수', cat: 'side' },
-    { key: '볶음', cat: 'side' },
-    { key: '쫄', cat: 'side' },
-    { key: '화채', cat: 'side' }, // 기존 규칙에선 drink였지만, 요청에 따라 side로 고정
-    { key: '랍찜', cat: 'side' },
-    { key: '크봉밥', cat: 'side' },
+  const FALLBACK_IMAGES = {
+    '물': '/images/water.png'
+  };
 
-    { key: '칵테일', cat: 'drink' },
-    { key: '콜라', cat: 'drink' },
-    { key: '사이다', cat: 'drink' },
-    { key: '물', cat: 'drink' }
-  ];
+  // 볶음밥 품절 강제 처리(백엔드 연동 전 임시 정책)
+  function isFriedRiceMenu(name) {
+    const n = String(name || '');
+    // 일반적인 한글 표기 및 변형(띄어쓰기/오타)과 기존 메뉴명 변형까지 포괄
+    return /볶.?음?밥/.test(n) || /볶밥/.test(n) || /B볶/i.test(n);
+  }
+
+  // -----------------------------
+  // 알림 유틸 (최초 +1 때 1회만 안내)
+  // -----------------------------
+  function hasShownNotice(key){ try{ return localStorage.getItem(key)==='1'; }catch{return false;} }
+  function setShownNotice(key){ try{ localStorage.setItem(key,'1'); }catch{} }
+  function isDelayedMenu(name){
+    const n = String(name || '');
+    // 예: SSG 문학철판구이(400g) 등
+    return /철판구이/.test(n) || /문학철판구이/.test(n);
+  }
+  function isCocktailMenu(name){
+    const n = String(name || '');
+    return n.includes('칵테일');
+  }
+
+  function getFallbackDescriptionByName(menuName){
+    const name = String(menuName || '');
+    if (name.includes('포도') && name.includes('칵테일')) return '톡 쏘는 포도향이 상큼하게 퍼지는\n무알코올 칵테일';
+    if (name.includes('자몽') && name.includes('칵테일')) return '쌉싸름 달콤 자몽의 매력,\n산뜻한 피니시';
+    if (name.includes('소다') && name.includes('칵테일')) return '시원한 소다향과 청량감으로\n딱 한 잔 더';
+    return FALLBACK_DESCRIPTIONS[menuName];
+  }
+
+  // 더 이상 이름 기반 분류 불필요 - 서버에서 type 필드로 관리
 
   // -----------------------------
   // slug 추출
@@ -61,6 +96,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const slug = extractSlug();
   console.log('Slug:', slug || '(없음)');
 
+  trackPage({ page_title: 'Order Page', page_path: '/order', slug, channel: 'TAKEOUT', step: 'loaded' });
   // -----------------------------
   // slug → 주문유형 결정 (RUNTIME 우선, 없으면 JSON)
   // -----------------------------
@@ -152,24 +188,35 @@ document.addEventListener('DOMContentLoaded', () => {
   codeInput?.addEventListener('keypress', (e) => { if (e.key === 'Enter' && !verifyBtn?.classList.contains('disabled')) verifyBtn?.click(); });
   
   // 코드 입력 실시간 유효성 검사
+  const VALID_CODE = String(window.RUNTIME?.TEST_VERIFY_CODE || 'sC2mj4Kgp');
   codeInput?.addEventListener('input', (e) => {
-    const code = e.target.value.trim();
+    const raw = String(e.target.value || '');
+    const code = raw.trim();
     const validationMessage = document.getElementById('code-validation-message');
-    
-    if (code.length >= 3) { // 최소 3자리 이상
-      // 유효한 코드 상태
+
+    // 기본: 버튼 비활성화
+    verifyBtn?.classList.add('disabled');
+
+    if (!code) {
+      if (validationMessage) {
+        validationMessage.className = 'validation-message error';
+        validationMessage.innerHTML = '<i class="fas fa-exclamation-circle"></i> 접속 코드를 입력해주세요';
+      }
+      return;
+    }
+
+    if (code === VALID_CODE) {
       verifyBtn?.classList.remove('disabled');
       if (validationMessage) {
         validationMessage.className = 'validation-message success';
         validationMessage.innerHTML = '<i class="fas fa-check-circle"></i> 접속하기 버튼을 클릭해주세요';
       }
-    } else {
-      // 비활성 상태
-      verifyBtn?.classList.add('disabled');
-      if (validationMessage) {
-        validationMessage.className = 'validation-message error';
-        validationMessage.innerHTML = '<i class="fas fa-exclamation-circle"></i> 올바른 코드를 입력해주세요';
-      }
+      return;
+    }
+
+    if (validationMessage) {
+      validationMessage.className = 'validation-message error';
+      validationMessage.innerHTML = '<i class="fas fa-exclamation-circle"></i> 올바른 코드를 입력해주세요';
     }
   });
 
@@ -185,12 +232,14 @@ document.addEventListener('DOMContentLoaded', () => {
   function updateMenuAvailability(apiMenuData) {
     const menuItems = document.querySelectorAll('.menu-item');
     menuItems.forEach(menuItem => {
-      const menuName = menuItem.querySelector('.menu-name')?.textContent || '';
+      const menuNameElement = menuItem.querySelector('.menu-title');
+      const menuName = menuNameElement?.textContent || '';
       const apiMenu = apiMenuData.find(item => item.name === menuName);
       if (!apiMenu) return;
 
-      // 품절
-      if (apiMenu.is_sold_out) {
+      // 품절 (볶음밥은 프론트 강제 품절 포함)
+      const soldOut = apiMenu.is_sold_out || isFriedRiceMenu(menuName);
+      if (soldOut) {
         menuItem.classList.add('sold-out');
         menuItem.style.opacity = '0.5';
         if (!menuItem.querySelector('.sold-out-label')) {
@@ -206,6 +255,8 @@ document.addEventListener('DOMContentLoaded', () => {
       } else {
         menuItem.classList.remove('sold-out');
         menuItem.style.opacity = '1';
+        const label = menuItem.querySelector('.sold-out-label');
+        if (label) label.remove();
       }
 
       // 가격 동기화
@@ -215,6 +266,29 @@ document.addEventListener('DOMContentLoaded', () => {
         if (priceEl) priceEl.textContent = `${apiMenu.price.toLocaleString()}원`;
         menuItem.dataset.price = apiMenu.price;
         console.log(`💰 가격 업데이트: ${menuName} ${currentPrice} → ${apiMenu.price}`);
+      }
+
+      // 설명 동기화 (서버 필드 다양성 대응)
+      const newDesc = (apiMenu.description || apiMenu.desc || apiMenu.details || apiMenu.content || apiMenu.summary || '').trim() || getFallbackDescriptionByName(apiMenu.name);
+      if (newDesc) {
+        const descEl = menuItem.querySelector('.menu-description');
+        if (descEl && descEl.textContent !== newDesc) {
+          descEl.textContent = newDesc;
+          console.log(`📝 설명 업데이트: ${menuName}`);
+        }
+      }
+
+      // 이미지 동기화 (image_url | imageUrl | image | thumbnail_url | photo_url)
+      const imageUrl = apiMenu.image_url || apiMenu.imageUrl || apiMenu.image || apiMenu.thumbnail_url || apiMenu.thumbnailUrl || apiMenu.photo_url || FALLBACK_IMAGES[apiMenu.name] || '';
+      if (imageUrl) {
+        const imgWrap = menuItem.querySelector('.menu-image');
+        if (imgWrap) {
+          const curImg = imgWrap.querySelector('img');
+          if (!curImg || curImg.getAttribute('src') !== imageUrl) {
+            imgWrap.innerHTML = `<img src="${imageUrl}" alt="${menuName}">`;
+            console.log(`🖼️ 이미지 업데이트: ${menuName}`);
+          }
+        }
       }
     });
   }
@@ -305,6 +379,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
       handleOrderSuccess(result.data.order_id);
     } catch (e) {
+      trackOrderFail({
+        reason: String(e?.message || e),
+        slug,
+        channel: expectedChannel
+      });
+
       console.error(`[주문 진행] 주문 실패 (${slug}):`, e);
       const msg = String(e?.message || e);
       
@@ -329,10 +409,18 @@ document.addEventListener('DOMContentLoaded', () => {
         // TAKEOUT은 이미 ensureSessionBeforeOrder에서 자동 재시도했으므로 여기까지 오면 진짜 실패
       }
       
-      alert('주문 중 오류가 발생했습니다: ' + msg);
+      alert('주문 중 오류가 발생했습니다: ' + '품절된 상품 주문' + msg);
     } finally {
       isProcessing = false;
     }
+  }
+
+  // [GA] 결제 합계(포장 10% 할인 반영)
+  function getCartTotalForGA() {
+    let total = 0;
+    Object.values(cart).forEach(it => { total += it.price * it.quantity; });
+    if (orderType === 'takeout') total = Math.floor(total * 0.9); // 포장 할인
+    return total;
   }
 
   function handleOrderSuccess(orderId) {
@@ -358,12 +446,25 @@ document.addEventListener('DOMContentLoaded', () => {
             })
             );
         }
+
         const map = JSON.parse(localStorage.getItem('LAST_ORDER_BY_SLUG') || '{}');
         map[slug] = orderId;
         localStorage.setItem('LAST_ORDER_BY_SLUG', JSON.stringify(map));
+        
         } catch (e) {
         console.warn('[handleOrderSuccess] 세션 스냅샷 저장 실패', e);
     }
+    // 스냅샷 성공/실패와 무관하게 GA 전송
+    try {
+          trackOrderSuccess({
+            order_id: orderId,
+            value: getCartTotalForGA(),                         // 합계(할인 반영)
+            slug,                                              // 현재 슬러그
+            channel: (orderType === 'takeout' ? 'TAKEOUT' : 'DINEIN'),
+          });
+        } catch (e) {
+          console.warn('[GA] trackOrderSuccess 오류', e);
+        }
 
     // 알림 문구
     let successMessage = '주문이 성공적으로 완료되었습니다!';
@@ -374,6 +475,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 루트 waiting.html로 보내고 slug는 쿼리로 전달
     const waitingUrl = `/waiting.html?orderId=${orderId}&slug=${encodeURIComponent(slug)}`;
+    setTimeout(() => { window.location.href = url; }, 200);
     window.location.href = waitingUrl;
   }
 
@@ -388,12 +490,53 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log(`[주문하기] 세션 보장 시작: ${slug}, 채널: ${expectedChannel}`);
     
     try {
+      // 1. 기존 세션 확인 (레거시 복원 포함)
+      let existingSession = SessionStore.getSession(slug);
+      if (!existingSession || !existingSession.token) {
+        // 레거시 저장소에서 복원 시도
+        try {
+          const lt = Tokens.getSession?.();
+          const lm = Tokens.getSessionMeta?.() || {};
+          const lslug = lm.slug;
+          const lch = (lm.channel || '').toUpperCase();
+          if (lt && lslug === slug && lch === expectedChannel) {
+            SessionStore.setSession(slug, {
+              session_token: lt,
+              session_id: lm.session_id,
+              table_id: lm.table_id,
+              channel: lch,
+              abs_ttl_min: lm.abs_ttl_min || 120,
+            });
+            existingSession = SessionStore.getSession(slug);
+            Tokens.setSession(lt);
+          }
+        } catch (e) { console.warn('[주문하기] 레거시 복원 실패', e); }
+      }
+
+      if (existingSession && existingSession.token && existingSession.channel === expectedChannel) {
+        console.log(`[주문하기] 기존 세션 재사용: ${slug}`, {
+          channel: existingSession.channel,
+          sessionId: existingSession.session_id,
+          remainingTime: Math.floor((new Date(existingSession.expiresAt) - new Date()) / 60000) + '분'
+        });
+        
+        // 기존 세션으로 바로 주문 진행
+        await placeOrderWithNewSession(slug, expectedChannel);
+        return;
+      }
+      
+      // 2. 세션이 없거나 만료된 경우 새로 생성
+      console.log(`[주문하기] 새 세션 필요: ${slug}`, { 
+        hasSession: !!existingSession, 
+        channelMatch: existingSession?.channel === expectedChannel 
+      });
+      
       // TAKEOUT 안전모드: 항상 새 세션 열기 (서버 측 세션 상태 불일치 방지)
-      const options = expectedChannel === 'TAKEOUT' ? { alwaysRefresh: true } : {};
+      const options = {};
       
       // ensureSessionBeforeOrder로 세션 보장
       await ensureSessionBeforeOrder(slug, expectedChannel, options);
-      console.log(`[주문하기] 세션 보장 완료: ${slug}`, { 
+        console.log(`[주문하기] 세션 보장 완료: ${slug}`, { 
         channel: expectedChannel, 
         safeMode: options.alwaysRefresh 
       });
@@ -453,6 +596,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
       codeLoading?.classList.add('hidden');
 
+      // 세션 상태 표시기 업데이트
+      const newSession = SessionStore.getSession(slug);
+      if (newSession) {
+        updateSessionStatusDisplay(newSession);
+      }
+
       // 모달 가이드 메시지 표시
       const modalGuideMessage = document.querySelector('.modal-guide-message');
       if (modalGuideMessage) {
@@ -489,10 +638,14 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // -----------------------------
-  // 초기 주문유형 결정 → 화면 진입 → API 로드
+  // 초기화: 기존 세션 확인 → 주문유형 결정 → 화면 진입 → API 로드
   // -----------------------------
   (async () => {
     try {
+      // 1. 기존 세션 확인 및 복원
+      await checkAndRestoreExistingSession();
+
+      // 2. 주문 유형 결정
       const cfgSet = new Set(window.RUNTIME?.TAKEOUT_SLUGS || []);
       if (cfgSet.size > 0) {
         orderType = (slug && cfgSet.has(slug)) ? 'takeout' : 'dine-in';
@@ -501,9 +654,10 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       discountRate = (orderType === 'takeout') ? 0.1 : 0;
 
+      // 3. 화면 진입
       goToMenuStep(orderType);
 
-      // 인기/메뉴 병렬 로드 (한쪽 실패해도 나머지 진행)
+      // 4. 인기/메뉴 병렬 로드 (한쪽 실패해도 나머지 진행)
       const [topRes, menuRes] = await Promise.allSettled([ getTopMenu(3), getPublicMenu() ]);
 
       // 인기 메뉴 TOP3 포디움
@@ -526,6 +680,130 @@ document.addEventListener('DOMContentLoaded', () => {
       console.error('초기화 중 오류:', e);
     }
   })();
+
+  // -----------------------------
+  // 기존 세션 확인 및 복원 함수
+  // -----------------------------
+  async function checkAndRestoreExistingSession() {
+    if (!slug) {
+      console.log('[세션 복원] slug가 없어 세션 복원 생략');
+      return;
+    }
+
+    try {
+      // SessionStore에서 기존 세션 확인
+      const existingSession = SessionStore.getSession(slug);
+      
+      if (existingSession && existingSession.token) {
+        console.log(`[세션 복원] 기존 세션 발견: ${slug}`, {
+          channel: existingSession.channel,
+          sessionId: existingSession.session_id,
+          expiresAt: existingSession.expiresAt,
+          remainingTime: Math.floor((new Date(existingSession.expiresAt) - new Date()) / 60000) + '분'
+        });
+
+        // 레거시 호환성을 위해 토큰 설정
+        Tokens.setSession(existingSession.token);
+        
+        // 세션 메타데이터도 설정
+        const legacyMeta = {
+          session_id: existingSession.session_id,
+          table_id: existingSession.table_id,
+          channel: existingSession.channel,
+          slug: slug,
+          token: existingSession.token
+        };
+        Tokens.setSessionMeta(legacyMeta);
+
+        // 세션 상태 표시기 업데이트
+        updateSessionStatusDisplay(existingSession);
+
+        console.log(`[세션 복원] 기존 ${existingSession.channel} 세션 복원 완료: ${slug}`);
+        return existingSession;
+      } else {
+        console.log(`[세션 복원] 유효한 기존 세션이 없음: ${slug}`);
+        
+        // 레거시 토큰 정리
+        Tokens.clearSession();
+        hideSessionStatusDisplay();
+        return null;
+      }
+    } catch (error) {
+      console.error(`[세션 복원] 오류 발생: ${slug}`, error);
+      
+      // 오류 발생 시 세션 정리
+      SessionStore.removeSession(slug);
+      Tokens.clearSession();
+      hideSessionStatusDisplay();
+      return null;
+    }
+  }
+
+  // -----------------------------
+  // 세션 상태 표시기 관리 함수들
+  // -----------------------------
+  function updateSessionStatusDisplay(session) {
+    const statusEl = document.getElementById('session-status');
+    const messageEl = document.getElementById('session-message');
+    const detailsEl = document.getElementById('session-details');
+    
+    if (!statusEl || !messageEl || !detailsEl) return;
+
+    const now = new Date();
+    const expiresAt = new Date(session.expiresAt);
+    const remainingMinutes = Math.floor((expiresAt - now) / 60000);
+    
+    // 상태에 따른 클래스 및 메시지 설정
+    statusEl.className = 'session-status';
+    
+    if (remainingMinutes <= 0) {
+      statusEl.classList.add('expired');
+      messageEl.innerHTML = '<i class="fas fa-exclamation-triangle"></i> 세션이 만료되었습니다';
+      detailsEl.textContent = '다시 인증해주세요';
+    } else if (remainingMinutes <= 10) {
+      statusEl.classList.add('warning');
+      messageEl.innerHTML = '<i class="fas fa-clock"></i> 세션이 곧 만료됩니다';
+      detailsEl.textContent = `남은 시간: ${remainingMinutes}분`;
+    } else {
+      messageEl.innerHTML = `<i class="fas fa-check-circle"></i> ${session.channel === 'DINEIN' ? '매장' : '포장'} 주문 인증 완료`;
+      detailsEl.textContent = `남은 시간: ${remainingMinutes}분`;
+    }
+    
+    statusEl.classList.remove('hidden');
+    
+    // 주기적 업데이트 시작
+    startSessionStatusTimer(session);
+  }
+
+  function hideSessionStatusDisplay() {
+    const statusEl = document.getElementById('session-status');
+    if (statusEl) {
+      statusEl.classList.add('hidden');
+    }
+    
+    // 타이머 정리
+    if (window.sessionStatusTimer) {
+      clearInterval(window.sessionStatusTimer);
+      window.sessionStatusTimer = null;
+    }
+  }
+
+  function startSessionStatusTimer(session) {
+    // 기존 타이머 정리
+    if (window.sessionStatusTimer) {
+      clearInterval(window.sessionStatusTimer);
+    }
+    
+    // 1분마다 세션 상태 업데이트
+    window.sessionStatusTimer = setInterval(() => {
+      const currentSession = SessionStore.getSession(slug);
+      if (currentSession && currentSession.token) {
+        updateSessionStatusDisplay(currentSession);
+      } else {
+        hideSessionStatusDisplay();
+      }
+    }, 60000); // 60초마다 업데이트
+  }
 
   // -----------------------------
   // 새로운 탭 기반 메뉴 시스템 함수들
@@ -560,55 +838,35 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // 메뉴를 카테고리별로 분류
-// 카테고리 분류 함수
-function categorizeMenus(menuData) {
-  const categories = { set: [], main: [], side: [], drink: [] };
+  // 서버 데이터 기반 카테고리 분류 함수
+  function categorizeMenus(menuData) {
+    console.log('서버에서 받은 메뉴 데이터:', menuData);
+    const categories = { set: [], main: [], side: [], drink: [] };
 
-  // 한화 세트 고정 추가
-  const hanwhaSet = {
-    id: 'hanwha-set-001',
-    name: '한화e글스-ㅔ트',
-    description: '(회장이 한화 팬이라.. 절대적 권력에 의하여 세트 이름이 선정되었습니다...)',
-    price: 149000,
-    image_url: '/images/eagles.png',
-    category: 'set'
-  };
-  categories.set.push(hanwhaSet);
+    menuData.forEach((menu) => {
+      // 서버에서 type 필드로 카테고리 정보 제공
+      const serverCategory = menu.type || menu.category; // type 또는 category 필드 확인
+      const clientCategory = SERVER_CATEGORY_TO_CLIENT[serverCategory];
+      
+      if (clientCategory && categories[clientCategory]) {
+        categories[clientCategory].push(menu);
+        console.log(`메뉴 분류: ${menu.name} -> ${serverCategory} -> ${clientCategory}`);
+      } else {
+        // 폴백: 알 수 없는 카테고리는 main으로 분류
+        console.warn(`알 수 없는 카테고리: ${menu.name} (${serverCategory}), main으로 분류`);
+        categories.main.push(menu);
+      }
+    });
 
-  menuData.forEach((menu) => {
-    const rawName = (menu.name || '').toString();
-    const name = rawName.toLowerCase();
-    const id = typeof menu.id === 'number' ? menu.id : (menu.id ? Number(menu.id) : null);
-    const priceNum = typeof menu.price === 'number' ? menu.price : Number(menu.price);
+    console.log('카테고리별 메뉴 분류 결과:', {
+      set: categories.set.length,
+      main: categories.main.length, 
+      side: categories.side.length,
+      drink: categories.drink.length
+    });
 
-    // 1) ID 기반 매핑
-    if (id && CATEGORY_BY_ID[id]) {
-      categories[CATEGORY_BY_ID[id]].push(menu);
-      return;
-    }
-
-    // 2) 이름 포함 규칙
-    const hit = CATEGORY_BY_NAME_CONTAINS.find(rule => rawName.includes(rule.key));
-    if (hit) {
-      categories[hit.cat].push(menu);
-      return;
-    }
-
-    // 3) 폴백: 기존 휴리스틱
-    if (name.includes('세트') || name.includes('set') || (Number.isFinite(priceNum) && priceNum >= 15000)) {
-      categories.set.push(menu);
-    } else if (name.includes('콜라') || name.includes('사이다') || name.includes('물') || name.includes('칵테일')) {
-      categories.drink.push(menu);
-    } else if (name.includes('밥') || name.includes('면') || (Number.isFinite(priceNum) && priceNum <= 8000)) {
-      categories.side.push(menu);
-    } else {
-      categories.main.push(menu);
-    }
-  });
-
-  return categories;
-}
+    return categories;
+  }
 
   // 카테고리별 메뉴 로드 (수량 유지)
   function loadMenusByCategory(category) {
@@ -659,12 +917,13 @@ function categorizeMenus(menuData) {
 
     const icon = categoryIcons[currentCategory] || 'fas fa-utensils';
     
-    // 메뉴 설명 생성 (기본값 설정)
-    const description = menu.description || `맛있는 ${menu.name}입니다. 신선한 재료로 만든 인기 메뉴입니다.`;
+    // 메뉴 설명 생성 (서버 다양한 키 지원)
+    const description = (menu.description || menu.desc || menu.details || menu.content || menu.summary || '').trim() || getFallbackDescriptionByName(menu.name) || `맛있는 ${menu.name}입니다.\n신선한 재료로 만든 인기 메뉴입니다.`;
     
-    // 메뉴 이미지 처리
-    const imageHtml = menu.image_url 
-      ? `<img src="${menu.image_url}" alt="${menu.name}">`
+    // 메뉴 이미지 처리 (서버 다양한 키 지원)
+    const imgUrl = menu.image_url || menu.imageUrl || menu.image || menu.thumbnail_url || menu.thumbnailUrl || menu.photo_url || FALLBACK_IMAGES[menu.name];
+    const imageHtml = imgUrl
+      ? `<img src="${imgUrl}" alt="${menu.name}">`
       : `<div class="menu-img-placeholder"><i class="${icon}"></i></div>`;
     
     return `
@@ -714,8 +973,9 @@ function categorizeMenus(menuData) {
     const menuList = document.getElementById('menu-list');
     if (!menuList) return;
     
-    // 기존 이벤트 리스너 제거
+    // 기존 이벤트 리스너 제거를 위해 새로운 요소로 교체
     const newMenuList = menuList.cloneNode(true);
+    newMenuList.id = 'menu-list'; // ID 유지
     menuList.parentNode.replaceChild(newMenuList, menuList);
     
     // 이벤트 위임으로 단일 이벤트 리스너 등록
@@ -730,14 +990,37 @@ function categorizeMenus(menuData) {
       const menuItem = btn.closest('.menu-item');
       const menuId = menuItem.dataset.menuId;
       const price = parseInt(menuItem.dataset.price);
-      const menuName = menuItem.querySelector('.menu-name').textContent;
+      const menuNameElement = menuItem.querySelector('.menu-title');
+      if (!menuNameElement) {
+        console.error('메뉴 이름 요소를 찾을 수 없습니다:', menuItem);
+        return;
+      }
+      const menuName = menuNameElement.textContent;
       const quantitySpan = menuItem.querySelector('.quantity');
       
       let currentQuantity = parseInt(quantitySpan.textContent) || 0;
       
+      console.log(`메뉴 수량 변경: ${menuName}, 현재: ${currentQuantity}, 액션: ${action}`);
+      
       if (action === 'plus') {
         currentQuantity++;
         updateCart(menuId, menuName, price, currentQuantity);
+
+        // 최초 +1 안내 팝업들
+        try {
+          if (currentQuantity === 1) {
+            // 철판구이 안내 (15분 소요)
+            if (isDelayedMenu(menuName) && !hasShownNotice('NOTICE_STEEL_PLATE')) {
+              alert('해당 메뉴는 약 15분정도 소요될 수 있음을 안내드립니다. 이 점 양해 부탁드립니다.');
+              setShownNotice('NOTICE_STEEL_PLATE');
+            }
+            // 칵테일 안내 (칵테일 존 수령 및 스티커 이벤트)
+            if (isCocktailMenu(menuName) && !hasShownNotice('NOTICE_COCKTAIL')) {
+              alert('칵테일은 현수막 아래 칵테일 존에서 직접 수령가능합니다.\n칵테일 존에서 칵테일과 우리 구단 응원 스티커 받아 자신이 응원하는 구단에 투표 해주세요!\n(해당 이벤트는 칵테일 메뉴 구매자만 참여 가능합니다)');
+              setShownNotice('NOTICE_COCKTAIL');
+            }
+          }
+        } catch {}
       } else if (action === 'minus' && currentQuantity > 0) {
         currentQuantity--;
         if (currentQuantity === 0) {
@@ -748,34 +1031,44 @@ function categorizeMenus(menuData) {
       }
       
       quantitySpan.textContent = currentQuantity;
+      console.log(`수량 업데이트 완료: ${currentQuantity}`);
     });
   }
 
   // 장바구니 업데이트
   function updateCart(menuId, menuName, price, quantity) {
+    console.log(`장바구니 업데이트: ${menuName} (ID: ${menuId}), 가격: ${price}, 수량: ${quantity}`);
     cart[menuId] = {
       name: menuName,
       price: price,
       quantity: quantity
     };
     
+    console.log('현재 장바구니 상태:', cart);
     renderCart();
     updateTotalAmount();
   }
 
   // 장바구니에서 제거
   function removeFromCart(menuId) {
+    console.log(`장바구니에서 제거: ${menuId}`);
     delete cart[menuId];
+    console.log('제거 후 장바구니 상태:', cart);
     renderCart();
     updateTotalAmount();
   }
 
   // 장바구니 렌더링
   function renderCart() {
+    console.log('장바구니 렌더링 시작');
     const cartItems = document.getElementById('cart-items');
-    if (!cartItems) return;
+    if (!cartItems) {
+      console.error('cart-items 요소를 찾을 수 없습니다');
+      return;
+    }
 
     const cartKeys = Object.keys(cart);
+    console.log('장바구니 아이템 수:', cartKeys.length);
     
     if (cartKeys.length === 0) {
       cartItems.innerHTML = `
@@ -784,11 +1077,13 @@ function categorizeMenus(menuData) {
           <p>장바구니가 비어있습니다</p>
         </div>
       `;
+      console.log('빈 장바구니 표시');
       return;
     }
 
     cartItems.innerHTML = cartKeys.map(menuId => {
       const item = cart[menuId];
+      console.log(`장바구니 아이템 렌더링: ${item.name} x ${item.quantity}`);
       return `
         <div class="cart-item" data-menu-id="${menuId}">
           <div class="cart-item-info">
@@ -801,33 +1096,49 @@ function categorizeMenus(menuData) {
         </div>
       `;
     }).join('');
+    console.log('장바구니 렌더링 완료');
   }
 
   // 총 금액 업데이트
   function updateTotalAmount() {
+    console.log('총 금액 업데이트 시작');
     const totalPriceElement = document.getElementById('total-price');
     const summaryElement = document.getElementById('selected-items-summary');
     
-    if (!totalPriceElement || !summaryElement) return;
+    if (!totalPriceElement || !summaryElement) {
+      console.error('총 금액 또는 요약 요소를 찾을 수 없습니다', {
+        totalPriceElement: !!totalPriceElement,
+        summaryElement: !!summaryElement
+      });
+      return;
+    }
 
     let totalAmount = 0;
     const cartKeys = Object.keys(cart);
+    console.log('총 금액 계산 중, 아이템 수:', cartKeys.length);
     
     cartKeys.forEach(menuId => {
       const item = cart[menuId];
-      totalAmount += item.price * item.quantity;
+      const itemTotal = item.price * item.quantity;
+      totalAmount += itemTotal;
+      console.log(`${item.name}: ${item.price} x ${item.quantity} = ${itemTotal}`);
     });
+
+    console.log('할인 전 총액:', totalAmount);
 
     // 포장 주문 할인 적용
     if (orderType === 'takeout') {
       totalAmount = Math.floor(totalAmount * 0.9);
+      console.log('포장 할인 적용 후:', totalAmount);
     }
 
     totalPriceElement.textContent = `${totalAmount.toLocaleString()}원`;
+    console.log('총 금액 표시 업데이트:', totalPriceElement.textContent);
     
     // 선택된 메뉴 요약 (메뉴명만 표시, 가격 숨김)
     if (cartKeys.length === 0) {
       summaryElement.textContent = '선택한 메뉴가 없습니다';
+      console.log('빈 메뉴 요약 표시');
     } else {
       const summary = cartKeys.map(menuId => {
         const item = cart[menuId];
@@ -839,7 +1150,9 @@ function categorizeMenus(menuData) {
         <div style="font-size: 0.9em; line-height: 1.4;">${summary}</div>
         ${orderType === 'takeout' ? '<div style="margin-top: 0.5rem; color: #28a745; font-weight: bold;">포장 주문 10% 할인 적용</div>' : ''}
       `;
+      console.log('메뉴 요약 업데이트:', summary);
     }
+    console.log('총 금액 업데이트 완료');
   }
 
   // 장바구니 이벤트 설정

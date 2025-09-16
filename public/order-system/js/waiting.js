@@ -12,6 +12,8 @@ let currentSlug = '';
 let refreshInterval = null;
 let isRefreshing = false;
 
+const HISTORY_KEY_PREFIX = 'ORDER_SESSION_'; // 주문 스냅샷 prefix (app.js에서 저장)
+
 /* =========================
    DOM 로드 후 시작
 ========================= */
@@ -19,6 +21,49 @@ document.addEventListener('DOMContentLoaded', () => {
   init().catch(err => {
     console.error('[waiting] init error', err);
     renderError('초기화 중 오류가 발생했습니다.');
+  });
+
+  // 버튼 이벤트 바인딩
+  const refreshBtn = document.getElementById('refresh-btn');
+  const backBtn = document.getElementById('back-btn');
+  const modal = document.getElementById('reorder-modal');
+  const confirmBtn = document.getElementById('reorder-confirm');
+  const cancelBtn = document.getElementById('reorder-cancel');
+
+  // 새로고침: 현재 페이지 단순 리로드
+  refreshBtn?.addEventListener('click', (e) => {
+    e.preventDefault();
+    window.location.reload();
+  });
+
+  // 처음으로: 추가 주문 안내 모달 표시
+  backBtn?.addEventListener('click', (e) => {
+    e.preventDefault();
+    modal?.classList.remove('hidden');
+  });
+
+  // 모달 취소: 닫기
+  cancelBtn?.addEventListener('click', (e) => {
+    e.preventDefault();
+    modal?.classList.add('hidden');
+  });
+
+  // 모달 확인: 현재 slug로 주문 페이지로 이동 (세션은 유지)
+  confirmBtn?.addEventListener('click', (e) => {
+    e.preventDefault();
+    try {
+      const sp = new URL(location.href).searchParams;
+      const slug = (location.pathname.match(/\/t\/([^/]+)/)?.[1]) || sp.get('slug') || '';
+      if (!slug) {
+        // 슬러그가 없으면 루트 주문 페이지로
+        window.location.href = '/order-system/order.html';
+        return;
+      }
+      // 세션을 지우지 않고 해당 slug로 이동
+      window.location.href = `/order-system/order.html?slug=${encodeURIComponent(slug)}`;
+    } finally {
+      modal?.classList.add('hidden');
+    }
   });
 });
 
@@ -34,9 +79,24 @@ async function init() {
 
   const ok = await ensureOrderSessionForOrder(currentOrderId, currentSlug);
   if (!ok) return renderError('세션이 만료되었거나 찾을 수 없습니다.');
+  const ch = (SessionStore.getSession?.(currentSlug)?.channel || 'TAKEOUT');
+  trackPage({
+    page_title: 'Waiting Page',
+    page_path: '/waiting',
+    slug: currentSlug,
+    channel: String(ch).toUpperCase(),
+    step: 'loaded',
+  });
 
   await loadWaitingData();  // 세션 보장 후 호출
   startAutoRefresh();
+
+  // 히스토리도 로드
+  try {
+    await loadMyOrderHistory();
+  } catch (e) {
+    console.warn('[waiting] history load failed', e);
+  }
 }
 
 
@@ -48,23 +108,32 @@ async function ensureOrderSessionForOrder(orderId, slug) {
     const key   = `ORDER_SESSION_${orderId}`;
     const saved = JSON.parse(localStorage.getItem(key) || 'null');
 
-    // 1) 스냅샷 있으면 무조건 복원
+    // 1) 스냅샷 있으면 복원 (SessionStore 형태 준수, 기존 유효 세션은 덮어쓰지 않음)
     if (saved) {
       const token   = saved.token || Tokens.getSession?.();
       const useSlug = slug || saved.slug || 'legacy';
 
       if (!token) return false; // 토큰 없으면 인증 불가
 
-      // 런타임에 확실히 주입
-      SessionStore.setSession(useSlug, {
-        token,
-        session_id: saved.session_id,
-        table_id: saved.table_id,
-        channel: saved.channel,
-        slug: useSlug,
-        createdAt: saved.createdAt,
-        expiresAt: saved.expiresAt,
-      });
+      // 기존 세션이 유효하면 유지
+      const exist = SessionStore.getSession?.(useSlug);
+      if (!exist || !exist.token) {
+        // abs_ttl_min 계산 (만료 예정 시간이 있으면 남은 분, 없으면 120분 기본)
+        let absMin = 120;
+        if (saved.expiresAt) {
+          const diffMs = new Date(saved.expiresAt).getTime() - Date.now();
+          absMin = Math.max(1, Math.ceil(diffMs / 60000));
+        }
+        SessionStore.setSession(useSlug, {
+          session_token: token,
+          session_id: saved.session_id,
+          table_id: saved.table_id,
+          channel: (saved.channel || 'DINEIN').toUpperCase(),
+          abs_ttl_min: absMin,
+        });
+      }
+
+      // 레거시 토큰/메타는 항상 주입
       Tokens.setSession(token);
       Tokens.setSessionMeta({
         session_id: saved.session_id,
@@ -72,6 +141,7 @@ async function ensureOrderSessionForOrder(orderId, slug) {
         channel: saved.channel,
         slug: useSlug,
         opened_at: saved.createdAt || new Date().toISOString(),
+        token,
       });
 
       // 현재 슬러그 갱신(legacy 분기 방지)
@@ -119,6 +189,86 @@ async function ensureOrderSessionForOrder(orderId, slug) {
 }
 
 /* =========================
+   주문 히스토리 로딩/렌더링
+========================= */
+async function loadMyOrderHistory() {
+  const container = document.getElementById('history-container');
+  if (!container) return;
+
+  // 1) localStorage에서 이 기기에서 생성한 내 주문 id 수집
+  const myOrderIds = collectMyOrderIdsForSlug(currentSlug);
+  if (myOrderIds.length === 0) {
+    container.innerHTML = '<div class="history-card">이 기기에서 만든 주문이 없습니다.</div>';
+    return;
+  }
+
+  // 최신순 정렬
+  myOrderIds.sort((a, b) => Number(b) - Number(a));
+
+  // 2) 각 주문 상세 조회 (세션 인증 필요)
+  const cards = [];
+  for (const oid of myOrderIds) {
+    try {
+      const details = await getUserOrderDetails(oid, currentSlug);
+      cards.push(renderHistoryCard(details?.data || details));
+    } catch (e) {
+      console.warn('[history] order fetch failed', oid, e);
+    }
+  }
+
+  if (cards.length === 0) {
+    container.innerHTML = '<div class="history-card">표시할 주문이 없습니다.</div>';
+  } else {
+    container.innerHTML = cards.join('');
+  }
+}
+
+function collectMyOrderIdsForSlug(slug) {
+  try {
+    const ids = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i) || '';
+      if (!key.startsWith(HISTORY_KEY_PREFIX)) continue; // ORDER_SESSION_
+      const val = localStorage.getItem(key);
+      if (!val) continue;
+      try {
+        const snap = JSON.parse(val);
+        if (!snap?.token) continue;
+        // 같은 slug의 내 주문만 수집
+        if (slug && snap.slug && String(snap.slug) !== String(slug)) continue;
+        ids.push(key.replace(HISTORY_KEY_PREFIX, ''));
+      } catch {}
+    }
+    return ids;
+  } catch {
+    return [];
+  }
+}
+
+function renderHistoryCard(order) {
+  if (!order) return '';
+  const status = String(order.status || '-');
+  const statusKo = mapStatusToKorean(order.status);
+  const created = formatOrderTime(order.created_at);
+  const items = (order.items || []).map(it => {
+    const name = esc(it?.name || it?.product_name || '-');
+    const rawQty = it?.quantity ?? it?.qty ?? it?.count ?? 1;
+    const qty = Number(rawQty);
+    const showQty = Number.isFinite(qty) && qty > 1;
+    return showQty ? `${name} × ${qty}` : name;
+  }).join('<br>');
+  const title = `#${order.id} · ${statusKo}`;
+
+  return `
+    <div class="history-card">
+      <div class="title">${title}</div>
+      <div class="meta">${created}</div>
+      <div class="history-items">${items || '항목 없음'}</div>
+    </div>
+  `;
+}
+
+/* =========================
    데이터 로드
 ========================= */
 async function loadWaitingData() {
@@ -141,7 +291,14 @@ async function loadWaitingData() {
 
     // 간이 대기 수치(서버 대기열 API가 없어서 추정)
     const wait = estimateWaiting(order);
-
+    const ch2 = (SessionStore.getSession?.(currentSlug)?.channel || order?.order_type || 'TAKEOUT');
+    trackQueue({
+      position: wait.waitingPosition,
+      est_ms: wait.estimatedWaitTime * 60 * 1000,
+      slug: currentSlug,
+      channel: String(ch2).toUpperCase(),
+    });
+    
     // 렌더링
     renderSummary($summary, order);
     renderStatusBoard($sectionStatus, order.status, wait.waitingPosition, wait.totalWaiting, wait.estimatedWaitTime);
@@ -244,47 +401,113 @@ function renderStatusBoard($sectionStatus, status, waitingPosition, totalWaiting
   if (!$sectionStatus) return;
 
   const statusUpper = String(status || '').toUpperCase();
+  console.log('[야구 베이스] 상태 업데이트:', statusUpper);
 
-  // 새로운 상태 시스템에 맞춘 단계 활성화
-  const receivedOn = !!status; // 상태가 있으면 접수됨
-  const paymentOn = ['CONFIRMED', 'IN_PROGRESS', 'SERVED'].includes(statusUpper);
-  const preparingOn = ['IN_PROGRESS', 'SERVED'].includes(statusUpper);
-  const completeOn = ['SERVED'].includes(statusUpper);
+  // 야구 베이스 시스템에 맞춘 단계 활성화
+  const firstBaseOn = !!status; // PENDING - 1루 (주문 접수)
+  const secondBaseOn = ['CONFIRMED', 'IN_PROGRESS', 'SERVED'].includes(statusUpper); // 2루 (입금 확인)
+  const thirdBaseOn = ['IN_PROGRESS', 'SERVED'].includes(statusUpper); // 3루 (조리중)
+  const homeBaseOn = ['SERVED'].includes(statusUpper); // 홈 (완료)
 
-  // 상태 단계 업데이트
-  const steps = [
-    ['status-received', receivedOn],
-    ['status-payment', paymentOn],
-    ['status-preparing', preparingOn],
-    ['status-complete', completeOn],
+  // 야구 베이스 단계 업데이트
+  const bases = [
+    ['base-first', firstBaseOn],
+    ['base-second', secondBaseOn], 
+    ['base-third', thirdBaseOn],
+    ['base-home', homeBaseOn],
   ];
 
-  steps.forEach(([id, isActive]) => {
+  bases.forEach(([id, isActive]) => {
     const el = document.getElementById(id);
     if (!el) return;
     el.classList.toggle('active', !!isActive);
     el.classList.toggle('current', false); // 일단 current 제거
   });
 
-  // 현재 단계 표시
-  let currentStepId = '';
-  if (completeOn) {
-    currentStepId = 'status-complete';
-  } else if (preparingOn) {
-    currentStepId = 'status-preparing';
-  } else if (paymentOn) {
-    currentStepId = 'status-payment';
-  } else if (receivedOn) {
-    currentStepId = 'status-received';
+  // 베이스 설명 텍스트도 함께 업데이트
+  const descriptions = [
+    ['first-desc', firstBaseOn],
+    ['second-desc', secondBaseOn],
+    ['third-desc', thirdBaseOn], 
+    ['home-desc', homeBaseOn],
+  ];
+
+  descriptions.forEach(([className, isActive]) => {
+    const el = document.querySelector(`.${className}`);
+    if (!el) return;
+    el.classList.toggle('active', !!isActive);
+  });
+
+  // 현재 베이스 표시 (야구선수가 서있는 위치)
+  let currentBaseId = '';
+  if (homeBaseOn) {
+    currentBaseId = 'base-home'; // 홈베이스 - 완료
+  } else if (thirdBaseOn) {
+    currentBaseId = 'base-third'; // 3루 - 조리중
+  } else if (secondBaseOn) {
+    currentBaseId = 'base-second'; // 2루 - 입금 확인
+  } else if (firstBaseOn) {
+    currentBaseId = 'base-first'; // 1루 - 주문 접수
   }
 
-  if (currentStepId) {
-    const currentEl = document.getElementById(currentStepId);
-    if (currentEl) currentEl.classList.add('current');
+  if (currentBaseId) {
+    const currentEl = document.getElementById(currentBaseId);
+    if (currentEl) {
+      currentEl.classList.add('current');
+      console.log('[야구 베이스] 현재 위치:', currentBaseId);
+    }
   }
+
+  // 베이스 연결선 활성화
+  updateBaseLines(statusUpper);
 
   // 대기 번호 및 정보 업데이트
   updateWaitingNumbers(waitingPosition, totalWaiting, estimatedWaitTime, statusUpper);
+}
+
+// 야구 베이스 연결선 업데이트 함수
+function updateBaseLines(status) {
+  const statusUpper = String(status || '').toUpperCase();
+  
+  // 연결선 요소들
+  const lines = {
+    'line-home-1': document.querySelector('.line-home-1'),
+    'line-1-2': document.querySelector('.line-1-2'),
+    'line-2-3': document.querySelector('.line-2-3'),
+    'line-3-home': document.querySelector('.line-3-home'),
+  };
+
+  // 모든 연결선 비활성화
+  Object.values(lines).forEach(line => {
+    if (line) line.classList.remove('active');
+  });
+
+  // 상태에 따른 연결선 활성화
+  switch (statusUpper) {
+    case 'PENDING':
+      // 1루까지 - 홈에서 1루로 가는 선
+      if (lines['line-home-1']) lines['line-home-1'].classList.add('active');
+      break;
+    case 'CONFIRMED':
+      // 2루까지 - 홈→1루→2루
+      if (lines['line-home-1']) lines['line-home-1'].classList.add('active');
+      if (lines['line-1-2']) lines['line-1-2'].classList.add('active');
+      break;
+    case 'IN_PROGRESS':
+      // 3루까지 - 홈→1루→2루→3루
+      if (lines['line-home-1']) lines['line-home-1'].classList.add('active');
+      if (lines['line-1-2']) lines['line-1-2'].classList.add('active');
+      if (lines['line-2-3']) lines['line-2-3'].classList.add('active');
+      break;
+    case 'SERVED':
+      // 홈런! 모든 연결선 활성화
+      Object.values(lines).forEach(line => {
+        if (line) line.classList.add('active');
+      });
+      break;
+  }
+
+  console.log('[야구 베이스] 연결선 업데이트:', statusUpper);
 }
 
 function updateWaitingNumbers(waitingPosition, totalWaiting, estimatedWaitTime, status) {
@@ -342,20 +565,20 @@ function updateScoreboard(status, waitingPosition, estimatedWaitTime) {
 
   switch (statusUpper) {
     case 'PENDING':
-      message = `💰 입금 확인 대기중 (${waitingPosition}번째)`;
+      message = `⚾ 1루 진출! 입금 확인 대기중 (${waitingPosition}번째)`;
       break;
     case 'CONFIRMED':
-      message = `✅ 입금 확인 완료! 조리 대기 (${waitingPosition}번째)`;
+      message = `⚾ 2루 진출! 입금 확인 완료, 조리 대기 (${waitingPosition}번째)`;
       break;
     case 'IN_PROGRESS':
-      message = `👨‍🍳 현재 조리중! ${estimatedWaitTime}분 후 완료 예정`;
+      message = `⚾ 3루 진출! 현재 조리중, ${estimatedWaitTime}분 후 홈런 예정`;
       break;
     case 'SERVED':
-      message = '🎉 조리 완료! 픽업 가능합니다';
+      message = '🏆 홈런! 조리 완료, 픽업 가능합니다';
       stopAutoRefresh();
       break;
     default:
-      message = '주문 처리중입니다';
+      message = '⚾ 타석 준비중입니다';
   }
 
   scoreboardEl.textContent = message;
@@ -404,12 +627,12 @@ document.addEventListener('visibilitychange', () => {
 function mapStatusToKorean(status) {
   const statusUpper = String(status || '').toUpperCase();
   switch (statusUpper) {
-    case 'PENDING': return '💰 입금 대기중';
-    case 'CONFIRMED': return '✅ 입금 확인됨';
-    case 'IN_PROGRESS': return '👨‍🍳 조리중';
-    case 'SERVED': return '🎉 완료';
-    case 'CANCELED': return '❌ 취소됨';
-    default: return status || '처리중';
+    case 'PENDING': return '⚾ 1루 - 입금 대기중';
+    case 'CONFIRMED': return '⚾ 2루 - 입금 확인됨';
+    case 'IN_PROGRESS': return '⚾ 3루 - 조리중';
+    case 'SERVED': return '🏆 홈런 - 완료';
+    case 'CANCELED': return '❌ 아웃 - 취소됨';
+    default: return status || '⚾ 타석 준비중';
   }
 }
 

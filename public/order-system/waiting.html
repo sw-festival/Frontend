@@ -2,30 +2,34 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
+    <script src="/js/analytics.js"></script> <script>initGA('G-LELW69Y19E');</script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>대기 순번 확인 - MEMORY 주점</title>
     <link rel="stylesheet" href="/css/baseball-theme.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="icon" type="image/png" href="/icons/icon.png">
+    <link rel="icon" type="image/png" href="/images/icon.png">
     <style>
         /* KBO Dia Gothic 폰트 추가 */
         @font-face {
             font-family: "KBO Dia Gothic";
-            src: url("../../../src/fonts/KBODiaGothicTTF/KBODiaGothic_light.ttf") format("truetype");
+            src: url("/order-system/fonts/KBODiaGothicTTF/KBODiaGothic_light.ttf") format("truetype");
             font-weight: 300;
             font-style: normal;
+            font-display: swap;
         }
         @font-face {
             font-family: "KBO Dia Gothic";
-            src: url("../../../src/fonts/KBODiaGothicTTF/KBODiaGothic_medium.ttf") format("truetype");
+            src: url("/order-system/fonts/KBODiaGothicTTF/KBODiaGothic_medium.ttf") format("truetype");
             font-weight: 500;
             font-style: normal;
+            font-display: swap;
         }
         @font-face {
             font-family: "KBO Dia Gothic";
-            src: url("../../../src/fonts/KBODiaGothicTTF/KBODiaGothic_bold.ttf") format("truetype");
+            src: url("/order-system/fonts/KBODiaGothicTTF/KBODiaGothic_bold.ttf") format("truetype");
             font-weight: 700;
             font-style: normal;
+            font-display: swap;
         }
 
         /* 전체 페이지에 KBO Dia Gothic 폰트 기본 적용 */
@@ -58,19 +62,6 @@
             margin: 0 !important;
         }
 
-        /* 대기 페이지 전용 스타일 */
-        .waiting-number-container {
-            background: url('/images/basic-bg.png') no-repeat center center;
-            background-size: cover;
-            border-radius: 20px;
-            padding: 3rem 2rem;
-            margin: 2rem 0;
-            text-align: center;
-            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
-            position: relative;
-            overflow: hidden;
-        }
-
         .waiting-title {
             color: #EDECED;
             font-size: 18px;
@@ -92,22 +83,11 @@
             font-weight: 300;
         }
 
-        .status-progress {
-            background: url('/images/basic-bg.png') no-repeat center center;
-            background-size: cover;
-            border-radius: 20px;
-            padding: 2rem;
-            margin: 2rem 0;
-            position: relative;
-            overflow: hidden;
-        }
-
         .progress-header {
             color: #EDECED;
             font-size: 20px;
             font-weight: 700;
             text-align: center;
-            margin-bottom: 2rem;
         }
 
         .progress-steps {
@@ -174,17 +154,18 @@
         .estimated-time {
             text-align: center;
             margin-top: 2rem;
+            margin-bottom: 4rem;
         }
 
         .time-label {
-            color: #EDECED;
+            color: #182F5B;
             font-size: 16px;
             font-weight: 500;
             margin-bottom: 0.5rem;
         }
 
         .time-value {
-            color: #EDECED;
+            color: #182F5B;
             font-size: 2rem;
             font-weight: 700;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
@@ -233,7 +214,6 @@
         }
 
         .score-info {
-            display: flex;
             flex-direction: column;
             align-items: flex-end;
         }
@@ -270,18 +250,54 @@
             display: none !important;
         }
 
+        /* 모달 기본 스타일 */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            width: 90%;
+            max-width: 420px;
+            background: #fff;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .modal-header {
+            background: linear-gradient(135deg, #f5c0bb, #F24F41);
+            color: #fff;
+            padding: 1rem 1.25rem;
+            font-weight: 700;
+        }
+        .modal-body {
+            padding: 1.25rem;
+            color: #333;
+            line-height: 1.5;
+        }
+        .modal-actions {
+            display: flex;
+            gap: .75rem;
+            padding: 1rem 1.25rem 1.25rem;
+            justify-content: flex-end;
+        }
+        .btn {
+            border: none;
+            border-radius: 8px;
+            padding: .7rem 1rem;
+            cursor: pointer;
+            font-weight: 700;
+        }
+        .btn-primary { background: #F24F41; color: #fff; }
+        .btn-secondary { background: #e9ecef; color: #333; }
+
         /* 반응형 스타일 */
         @media (max-width: 768px) {
             .waiting-number {
                 font-size: 3rem;
-            }
-
-            .waiting-number-container {
-                padding: 2rem 1rem;
-            }
-
-            .status-progress {
-                padding: 1.5rem;
             }
 
             .progress-steps {
@@ -325,6 +341,352 @@
                 font-size: 14px;
             }
         }
+
+        /* ====== 야구 베이스 상태 표시기 스타일 ====== */
+        .baseball-status-indicator {
+            margin: 0rem 2rem 2rem 2rem;
+            padding: 2rem;
+            background: linear-gradient(135deg, #1a5490 0%, #2c3e50 100%);
+            border-radius: 20px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+        }
+
+        .baseball-field {
+            position: relative;
+            width: 100%;
+            max-width: 500px;
+            margin: 0 auto;
+            aspect-ratio: 1;
+        }
+
+        .diamond {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transform: rotate(45deg);
+        }
+
+        /* 베이스 공통 스타일 */
+        .base {
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transform: rotate(-45deg);
+            transition: all 0.4s ease;
+            backdrop-filter: blur(5px);
+        }
+
+        .base.active {
+            background: rgba(26, 84, 144, 0.8);
+            border-color: #FFD700;
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+            transform: rotate(-45deg) scale(1.1);
+        }
+
+        .base.current {
+            background: rgba(40, 167, 69, 0.9);
+            border-color: #28a745;
+            box-shadow: 0 0 25px rgba(40, 167, 69, 0.7);
+            animation: currentBasePulse 2s infinite;
+        }
+
+        @keyframes currentBasePulse {
+            0%, 100% { transform: rotate(-45deg) scale(1.1); }
+            50% { transform: rotate(-45deg) scale(1.15); }
+        }
+
+        /* 베이스 위치 */
+        .first-base {
+            top: 50%;
+            right: 0;
+            transform: translate(50%, -50%) rotate(-45deg);
+        }
+
+        .second-base {
+            top: 0;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-45deg);
+        }
+
+        .third-base {
+            top: 50%;
+            left: 0;
+            transform: translate(-50%, -50%) rotate(-45deg);
+        }
+
+        .home-base {
+            bottom: 0;
+            left: 50%;
+            transform: translate(-50%, 50%) rotate(-45deg);
+            background: rgba(255, 215, 0, 0.2);
+            border-color: #FFD700;
+        }
+
+        .home-base.active,
+        .home-base.current {
+            background: rgba(255, 215, 0, 0.9);
+            border-color: #FFD700;
+            box-shadow: 0 0 30px rgba(255, 215, 0, 0.8);
+        }
+
+        /* 베이스 아이콘 */
+        .base-icon {
+            font-size: 1.5rem;
+            margin-bottom: 0.2rem;
+        }
+
+        .base-label {
+            color: #EDECED;
+            font-size: 12px;
+            font-weight: 500;
+            margin-bottom: 0.1rem;
+        }
+
+        /* 베이스 설명 텍스트 (베이스 외부에 배치) */
+        .base-description {
+            position: absolute;
+            color: #EDECED;
+            font-size: 14px;
+            font-weight: 500;
+            text-align: center;
+            white-space: nowrap;
+            z-index: 5;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            transition: all 0.4s ease;
+        }
+
+        .base-description.active {
+            color: #FFD700;
+            font-weight: 700;
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+        }
+
+        /* 각 베이스별 설명 위치 */
+        .first-desc {
+            top: 50%;
+            right: -60px;
+            transform: translateY(-50%);
+        }
+
+        .second-desc {
+            top: -40px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .third-desc {
+            top: 50%;
+            left: -60px;
+            transform: translateY(-50%);
+        }
+
+        .home-desc {
+            bottom: -40px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        /* 야구선수 */
+        .player {
+            position: absolute;
+            top: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 1.8rem;
+            opacity: 0;
+            transition: all 0.4s ease;
+            z-index: 10;
+        }
+
+        .base.current .player {
+            opacity: 1;
+            animation: playerBounce 1s infinite alternate;
+        }
+
+        @keyframes playerBounce {
+            0% { transform: translateX(-50%) translateY(0); }
+            100% { transform: translateX(-50%) translateY(-5px); }
+        }
+
+        /* 베이스 연결선 */
+        .base-line {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.2);
+            height: 2px;
+            transition: all 0.4s ease;
+        }
+
+        .base-line.active {
+            background: #FFD700;
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+        }
+
+        .line-1-2 {
+            top: 25%;
+            right: 25%;
+            width: 25%;
+            transform: rotate(-45deg);
+            transform-origin: right center;
+        }
+
+        .line-2-3 {
+            top: 25%;
+            left: 25%;
+            width: 25%;
+            transform: rotate(45deg);
+            transform-origin: left center;
+        }
+
+        .line-3-home {
+            bottom: 25%;
+            left: 25%;
+            width: 25%;
+            transform: rotate(-45deg);
+            transform-origin: left center;
+        }
+
+        .line-home-1 {
+            bottom: 25%;
+            right: 25%;
+            width: 25%;
+            transform: rotate(45deg);
+            transform-origin: right center;
+        }
+
+        /* 반응형 디자인 */
+        @media (max-width: 768px) {
+            .baseball-field {
+                max-width: 350px;
+            }
+
+            .base {
+                width: 60px;
+                height: 60px;
+            }
+
+            .base-icon {
+                font-size: 1.2rem;
+            }
+
+            .base-label {
+                font-size: 10px;
+            }
+
+            .player {
+                font-size: 1.4rem;
+                top: -20px;
+            }
+
+            .base-description {
+                font-size: 12px;
+            }
+
+            .first-desc {
+                right: -50px;
+            }
+
+            .second-desc {
+                top: -35px;
+            }
+
+            .third-desc {
+                left: -50px;
+            }
+
+            .home-desc {
+                bottom: -35px;
+            }
+        }
+
+        /* ====== 주문 히스토리 섹션 ====== */
+        .history-section {
+            margin: 2rem 0;
+        }
+        .history-header {
+            display: flex;
+            align-items: center;
+            gap: .5rem;
+            color: #EDECED;
+        }
+
+        .history-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        }
+        .history-card {
+            background: linear-gradient(135deg, #B1B1B1 100%, #1a2332 100%);
+            margin:5%;
+            border: 2px solid #182F5B;
+            border-radius: 12px;
+            padding: 1rem;
+            color: #EDECED;
+            box-shadow: 0 6px 18px rgba(0,0,0,.15);
+        }
+        .history-card .title {
+            font-weight: 700;
+            margin-bottom: .25rem;
+        }
+        .history-card .meta {
+            font-size: .9rem;
+            opacity: .9;
+            margin-bottom: .5rem;
+        }
+        .history-items {
+            font-size: .9rem;
+            line-height: 1.35;
+            font-weight: 300;
+        }
+
+        @media (max-width: 480px) {
+            .baseball-field {
+                max-width: 280px;
+            }
+
+            .base {
+                width: 50px;
+                height: 50px;
+            }
+
+            .base-icon {
+                font-size: 1rem;
+            }
+
+            .base-label {
+                font-size: 9px;
+            }
+
+            .player {
+                font-size: 1.2rem;
+                top: -15px;
+            }
+
+            .base-description {
+                font-size: 10px;
+            }
+
+            .first-desc {
+                right: -40px;
+            }
+
+            .second-desc {
+                top: -30px;
+            }
+
+            .third-desc {
+                left: -40px;
+            }
+
+            .home-desc {
+                bottom: -30px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -337,7 +699,6 @@
                 <div class="score-info">
                     <div class="news-text">
                         <p class="main-news">대기 순번 확인 - 실시간 주문 현황을 확인하세요</p>
-                        <p class="news-source">-한양대 ERICA MEMORY 디자인국 보도-</p>
                     </div>
                     <div class="live-indicator">
                         <span class="live-dot"></span>
@@ -367,38 +728,54 @@
                     
                     <div class="status-progress">
                         <div class="progress-header">
-                            <h3>📍 주문 진행 상황</h3>
+                            <h3>📍 현재 주문 진행 상황</h3>
                             <div class="auto-refresh-indicator">
                                 <span class="refresh-dot"></span>
                                 <span>30초마다 자동 새로고침</span>
                             </div>
                     </div>
                     
-                    <div class="status-indicator">
-                        <div class="status-item" id="status-received">
-                            <div class="status-icon">📝</div>
-                            <div class="status-text">주문 접수</div>
-                                <div class="status-time"></div>
-                        </div>
-                            <div class="status-connector"></div>
-                        <div class="status-item" id="status-payment">
-                            <div class="status-icon">💳</div>
-                            <div class="status-text">입금 확인</div>
-                                <div class="status-time"></div>
-                        </div>
-                            <div class="status-connector"></div>
-                        <div class="status-item" id="status-preparing">
-                            <div class="status-icon">👨‍🍳</div>
-                            <div class="status-text">조리중</div>
-                                <div class="status-time"></div>
+                    <!-- 야구 베이스 상태 표시기 -->
+                    <div class="baseball-status-indicator">
+                        <div class="baseball-field">
+                            <!-- 야구장 다이아몬드 -->
+                            <div class="diamond">
+                                <!-- 1루 베이스 -->
+                                <div class="base first-base" id="base-first">
+                                    <div class="base-icon">⚾</div>
+                                    <div class="base-label">주문 접수</div>
+                                    <div class="player" id="player-first">🧢</div>
+                                </div>
+                                
+                                <!-- 2루 베이스 -->
+                                <div class="base second-base" id="base-second">
+                                    <div class="base-icon">⚾</div>
+                                    <div class="base-label">입금 확인</div>
+                                    <div class="player" id="player-second">🧢</div>
+                                </div>
+                                
+                                <!-- 3루 베이스 -->
+                                <div class="base third-base" id="base-third">
+                                    <div class="base-icon">⚾</div>
+                                    <div class="base-label">조리 시작</div>
+                                    <div class="player" id="player-third">🧢</div>
+                                </div>
+                                
+                                <!-- 홈베이스 -->
+                                <div class="base home-base" id="base-home">
+                                    <div class="base-icon">🏠</div>
+                                    <div class="base-label">완료</div>
+                                    <div class="player" id="player-home">🎉</div>
+                                </div>
+                                
+                                <!-- 베이스 연결선 -->
+                                <div class="base-line line-1-2"></div>
+                                <div class="base-line line-2-3"></div>
+                                <div class="base-line line-3-home"></div>
+                                <div class="base-line line-home-1"></div>
                             </div>
-                            <div class="status-connector"></div>
-                            <div class="status-item" id="status-complete">
-                                <div class="status-icon">🎉</div>
-                                <div class="status-text">완료</div>
-                                <div class="status-time"></div>
-                            </div>
                         </div>
+                    </div>
                         
                         <div class="estimated-time">
                             <div class="time-info">
@@ -410,11 +787,37 @@
                 </div>
 
                 <div class="action-buttons">
-                    <button id="refresh-btn">🔄 새로고침</button>
-                    <button id="back-btn">🏠 처음으로</button>
+                    <button id="refresh-btn">새로고침</button>
+                    <button id="back-btn">처음으로</button>
                 </div>
+
+                <!-- 주문 히스토리 -->
+                <section class="history-section">
+                    <div class="history-header">
+                        <i class="fas fa-receipt"></i>
+                        <h3 style="margin-left: 7%; color: #182F5B">🥎 이 테이블의 주문 히스토리</h3>
+                    </div>
+                    <div id="history-container" class="history-grid">
+                        <!-- 카드들이 여기에 렌더링됩니다 -->
+                    </div>
+                </section>
             </section>
         </main>
+    </div>
+
+    <!-- 추가주문 안내 모달 -->
+    <div id="reorder-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="reorder-title">
+        <div class="modal-content">
+            <div class="modal-header" id="reorder-title">추가 주문 안내</div>
+            <div class="modal-body">
+                추가주문시 현재 주문 현황으로 돌아올 수 없습니다.<br>
+                이전 주문 내역은 홀에게 문의해주세요.
+            </div>
+            <div class="modal-actions">
+                <button id="reorder-cancel" class="btn btn-secondary">취소</button>
+                <button id="reorder-confirm" class="btn btn-primary">확인</button>
+            </div>
+        </div>
     </div>
 
     <!-- Firebase SDK (v8) -->
