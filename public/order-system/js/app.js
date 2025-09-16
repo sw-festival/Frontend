@@ -48,6 +48,28 @@ document.addEventListener('DOMContentLoaded', () => {
     '물': '/images/water.png'
   };
 
+  // 볶음밥 품절 강제 처리(백엔드 연동 전 임시 정책)
+  function isFriedRiceMenu(name) {
+    const n = String(name || '');
+    // 일반적인 한글 표기 및 변형(띄어쓰기/오타)과 기존 메뉴명 변형까지 포괄
+    return /볶.?음?밥/.test(n) || /볶밥/.test(n) || /B볶/i.test(n);
+  }
+
+  // -----------------------------
+  // 알림 유틸 (최초 +1 때 1회만 안내)
+  // -----------------------------
+  function hasShownNotice(key){ try{ return localStorage.getItem(key)==='1'; }catch{return false;} }
+  function setShownNotice(key){ try{ localStorage.setItem(key,'1'); }catch{} }
+  function isDelayedMenu(name){
+    const n = String(name || '');
+    // 예: SSG 문학철판구이(400g) 등
+    return /철판구이/.test(n) || /문학철판구이/.test(n);
+  }
+  function isCocktailMenu(name){
+    const n = String(name || '');
+    return n.includes('칵테일');
+  }
+
   function getFallbackDescriptionByName(menuName){
     const name = String(menuName || '');
     if (name.includes('포도') && name.includes('칵테일')) return '톡 쏘는 포도향이 상큼하게 퍼지는 무알코올 칵테일';
@@ -204,8 +226,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const apiMenu = apiMenuData.find(item => item.name === menuName);
       if (!apiMenu) return;
 
-      // 품절
-      if (apiMenu.is_sold_out) {
+      // 품절 (볶음밥은 프론트 강제 품절 포함)
+      const soldOut = apiMenu.is_sold_out || isFriedRiceMenu(menuName);
+      if (soldOut) {
         menuItem.classList.add('sold-out');
         menuItem.style.opacity = '0.5';
         if (!menuItem.querySelector('.sold-out-label')) {
@@ -221,6 +244,8 @@ document.addEventListener('DOMContentLoaded', () => {
       } else {
         menuItem.classList.remove('sold-out');
         menuItem.style.opacity = '1';
+        const label = menuItem.querySelector('.sold-out-label');
+        if (label) label.remove();
       }
 
       // 가격 동기화
@@ -969,6 +994,22 @@ document.addEventListener('DOMContentLoaded', () => {
       if (action === 'plus') {
         currentQuantity++;
         updateCart(menuId, menuName, price, currentQuantity);
+
+        // 최초 +1 안내 팝업들
+        try {
+          if (currentQuantity === 1) {
+            // 철판구이 안내 (15분 소요)
+            if (isDelayedMenu(menuName) && !hasShownNotice('NOTICE_STEEL_PLATE')) {
+              alert('해당 메뉴는 약 15분정도 소요될 수 있음을 안내드립니다. 이 점 양해 부탁드립니다.');
+              setShownNotice('NOTICE_STEEL_PLATE');
+            }
+            // 칵테일 안내 (칵테일 존 수령 및 스티커 이벤트)
+            if (isCocktailMenu(menuName) && !hasShownNotice('NOTICE_COCKTAIL')) {
+              alert('칵테일은 현수막 아래 칵테일 존에서 직접 수령가능합니다.\n칵테일 존에서 칵테일과 우리 구단 응원 스티커 받아 자신이 응원하는 구단에 투표 해주세요!\n(해당 이벤트는 칵테일 메뉴 구매자만 참여 가능합니다)');
+              setShownNotice('NOTICE_COCKTAIL');
+            }
+          }
+        } catch {}
       } else if (action === 'minus' && currentQuantity > 0) {
         currentQuantity--;
         if (currentQuantity === 0) {
