@@ -74,6 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const slug = extractSlug();
   console.log('Slug:', slug || '(없음)');
 
+  trackPage({ page_title: 'Order Page', page_path: '/order', slug, channel: 'TAKEOUT', step: 'loaded' });
   // -----------------------------
   // slug → 주문유형 결정 (RUNTIME 우선, 없으면 JSON)
   // -----------------------------
@@ -342,6 +343,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
       handleOrderSuccess(result.data.order_id);
     } catch (e) {
+      trackOrderFail({
+        reason: String(e?.message || e),
+        slug,
+        channel: expectedChannel
+      });
+
       console.error(`[주문 진행] 주문 실패 (${slug}):`, e);
       const msg = String(e?.message || e);
       
@@ -372,6 +379,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // [GA] 결제 합계(포장 10% 할인 반영)
+  function getCartTotalForGA() {
+    let total = 0;
+    Object.values(cart).forEach(it => { total += it.price * it.quantity; });
+    if (orderType === 'takeout') total = Math.floor(total * 0.9); // 포장 할인
+    return total;
+  }
+
   function handleOrderSuccess(orderId) {
     console.log('주문 성공 처리:', orderId, 'orderType:', orderType);
     hideCodeModal();
@@ -395,12 +410,25 @@ document.addEventListener('DOMContentLoaded', () => {
             })
             );
         }
+
         const map = JSON.parse(localStorage.getItem('LAST_ORDER_BY_SLUG') || '{}');
         map[slug] = orderId;
         localStorage.setItem('LAST_ORDER_BY_SLUG', JSON.stringify(map));
+        
         } catch (e) {
         console.warn('[handleOrderSuccess] 세션 스냅샷 저장 실패', e);
     }
+    // 스냅샷 성공/실패와 무관하게 GA 전송
+    try {
+          trackOrderSuccess({
+            order_id: orderId,
+            value: getCartTotalForGA(),                         // 합계(할인 반영)
+            slug,                                              // 현재 슬러그
+            channel: (orderType === 'takeout' ? 'TAKEOUT' : 'DINEIN'),
+          });
+        } catch (e) {
+          console.warn('[GA] trackOrderSuccess 오류', e);
+        }
 
     // 알림 문구
     let successMessage = '주문이 성공적으로 완료되었습니다!';
@@ -411,6 +439,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 루트 waiting.html로 보내고 slug는 쿼리로 전달
     const waitingUrl = `/waiting.html?orderId=${orderId}&slug=${encodeURIComponent(slug)}`;
+    setTimeout(() => { window.location.href = url; }, 200);
     window.location.href = waitingUrl;
   }
 

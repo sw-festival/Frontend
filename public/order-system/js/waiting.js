@@ -79,6 +79,14 @@ async function init() {
 
   const ok = await ensureOrderSessionForOrder(currentOrderId, currentSlug);
   if (!ok) return renderError('세션이 만료되었거나 찾을 수 없습니다.');
+  const ch = (SessionStore.getSession?.(currentSlug)?.channel || 'TAKEOUT');
+  trackPage({
+    page_title: 'Waiting Page',
+    page_path: '/waiting',
+    slug: currentSlug,
+    channel: String(ch).toUpperCase(),
+    step: 'loaded',
+  });
 
   await loadWaitingData();  // 세션 보장 후 호출
   startAutoRefresh();
@@ -283,7 +291,14 @@ async function loadWaitingData() {
 
     // 간이 대기 수치(서버 대기열 API가 없어서 추정)
     const wait = estimateWaiting(order);
-
+    const ch2 = (SessionStore.getSession?.(currentSlug)?.channel || order?.order_type || 'TAKEOUT');
+    trackQueue({
+      position: wait.waitingPosition,
+      est_ms: wait.estimatedWaitTime * 60 * 1000,
+      slug: currentSlug,
+      channel: String(ch2).toUpperCase(),
+    });
+    
     // 렌더링
     renderSummary($summary, order);
     renderStatusBoard($sectionStatus, order.status, wait.waitingPosition, wait.totalWaiting, wait.estimatedWaitTime);
