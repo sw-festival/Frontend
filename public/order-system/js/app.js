@@ -409,7 +409,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // TAKEOUT은 이미 ensureSessionBeforeOrder에서 자동 재시도했으므로 여기까지 오면 진짜 실패
       }
       
-      alert('주문 중 오류가 발생했습니다: ' + msg);
+      alert('주문 중 오류가 발생했습니다: ' + '품절된 상품 주문' + msg);
     } finally {
       isProcessing = false;
     }
