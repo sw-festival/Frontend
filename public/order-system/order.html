@@ -400,9 +400,10 @@
         /* 메뉴 제목 (오버레이 상단) */
         .menu-title {
             font-family: "KBO Dia Gothic";
-            font-size: 18px;
+            font-size: 19px;
             font-weight: 700;
-            color: white;
+            fill: var(--Linear, linear-gradient(86deg, #FFF 7.15%, #CB8400 90.78%));
+            filter: drop-shadow(0 0 10px rgba(0, 0, 0, 0.30));
             text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
             text-align: center;
             margin-bottom: auto;
@@ -846,11 +847,7 @@
                 gap: 1rem;
                 padding: 0;
             }
-            
-            .menu-title {
-                font-size: 16px;
-            }
-            
+
             .quantity-btn {
                 width: 25px;
                 height: 25px;
@@ -1188,11 +1185,7 @@
             }
             
             .menu-overlay {
-                padding: 10px;
-            }
-            
-            .menu-title {
-                font-size: 22px;
+                padding: 26px;
             }
             
             .menu-image img, .menu-img-placeholder {
@@ -1295,7 +1288,7 @@
         }
 
         /* 포디움 위치: 1위 중앙, 2위 좌하, 3위 우하 (배경 일러스트 기준) */
-        .popular-item.first-rank   { top: 48%; left: 50%; transform: translate(-50%, -50%); }
+        .popular-item.first-rank   { top: 48%; left: 50%; transform: translate(-50%, -50%); z-index:999; }
         .popular-item.second-rank  { top: 65%; left: 21%; transform: translate(-50%, -50%); }
         .popular-item.third-rank   { top: 65%; left: 79%; transform: translate(-50%, -50%); }
 
