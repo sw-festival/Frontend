@@ -188,24 +188,35 @@ document.addEventListener('DOMContentLoaded', () => {
   codeInput?.addEventListener('keypress', (e) => { if (e.key === 'Enter' && !verifyBtn?.classList.contains('disabled')) verifyBtn?.click(); });
   
   // 코드 입력 실시간 유효성 검사
+  const VALID_CODE = String(window.RUNTIME?.TEST_VERIFY_CODE || 'sC2mj4Kgp');
   codeInput?.addEventListener('input', (e) => {
-    const code = e.target.value.trim();
+    const raw = String(e.target.value || '');
+    const code = raw.trim();
     const validationMessage = document.getElementById('code-validation-message');
-    
-    if (code.length >= 3) { // 최소 3자리 이상
-      // 유효한 코드 상태
+
+    // 기본: 버튼 비활성화
+    verifyBtn?.classList.add('disabled');
+
+    if (!code) {
+      if (validationMessage) {
+        validationMessage.className = 'validation-message error';
+        validationMessage.innerHTML = '<i class="fas fa-exclamation-circle"></i> 접속 코드를 입력해주세요';
+      }
+      return;
+    }
+
+    if (code === VALID_CODE) {
       verifyBtn?.classList.remove('disabled');
       if (validationMessage) {
         validationMessage.className = 'validation-message success';
         validationMessage.innerHTML = '<i class="fas fa-check-circle"></i> 접속하기 버튼을 클릭해주세요';
       }
-    } else {
-      // 비활성 상태
-      verifyBtn?.classList.add('disabled');
-      if (validationMessage) {
-        validationMessage.className = 'validation-message error';
-        validationMessage.innerHTML = '<i class="fas fa-exclamation-circle"></i> 올바른 코드를 입력해주세요';
-      }
+      return;
+    }
+
+    if (validationMessage) {
+      validationMessage.className = 'validation-message error';
+      validationMessage.innerHTML = '<i class="fas fa-exclamation-circle"></i> 올바른 코드를 입력해주세요';
     }
   });
 
