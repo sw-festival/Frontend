@@ -563,8 +563,16 @@
         }
         
         .menu-description {
-            line-height: 1.5;
+            line-height: 1.4;
             margin: 0;
+            white-space: pre-line; /* 줄바꿈 문자(\n)를 실제 줄바꿈으로 표시 */
+            word-wrap: break-word; /* 긴 단어 자동 줄바꿈 */
+            max-height: 3em; /* 최대 2줄 높이 */
+            overflow: hidden; /* 넘치는 내용 숨김 */
+            display: -webkit-box;
+            -webkit-line-clamp: 2; /* 최대 2줄까지만 표시 */
+            line-clamp: 2; /* 표준 속성 */
+            -webkit-box-orient: vertical;
         }
         
         .menu-price {
@@ -1483,7 +1491,7 @@
                         <i class="fas fa-info-circle"></i>
                         <span>
                             주문시 입금자명을 정확히 입력해주세요.<br>
-                            입금 확인 후 주문이 접수됩니다. (매장이용 2시간 제한)
+                            입금 확인 후 주문이 접수됩니다.<br> (매장이용 2시간 제한)
                         </span>
                         </div>
                     </div>

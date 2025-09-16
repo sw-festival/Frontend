@@ -29,19 +29,19 @@ document.addEventListener('DOMContentLoaded', () => {
   // 서버에 description/image가 없는 항목용 프론트 기본값
   // -----------------------------
   const FALLBACK_DESCRIPTIONS = {
-    'LG라ㄹ면': '구단 감성 듬뿍, 칼칼하고 시원한 라면 한 그릇',
-    '라팍 김치말이국수': '라팍표 김치육수에 쫄깃한 면, 시원함이 한가득',
-    '두산 B볶rs': '두산의 힘! 불향 가득한 든든 볶음밥',
-    '키움쫄?쫄면': '매콤새콤, 쫄깃함으로 기세를 키우는 쫄면',
-    '롯데 자이언츠 화채': '달콤 상큼, 자이언츠처럼 시원하게 즐기는 과일 화채',
-    'KT란찜': '얼큰담백 라면+찜 조합, 만나면 홈런 각',
-    '후리카케크봉밥': '바삭 후리카케와 쫀득 주먹밥의 고소한 조합',
-    '포도맛 (두산/KT/롯데/LG…) 칵테일': '톡 쏘는 포도향이 상큼하게 퍼지는 무알코올 칵테일',
-    '자몽맛 (한화/SSG/기아…) 칵테일': '쌉싸름 달콤 자몽의 매력, 산뜻한 피니시',
-    '소다맛 (NC/삼성) 칵테일': '시원한 소다향과 청량감으로 딱 한 잔 더',
-    '제로콜라': '부담 없이 즐기는 깔끔한 제로 슈가 콜라',
-    '사이다': '톡톡 터지는 청량감, 클래식한 선택',
-    '물': 'kia~~ 갈증을 시원하게 해소하는 생수'
+    'LG라ㄹ면': '구단 감성 듬뿍,\n칼칼하고 시원한 라면 한 그릇',
+    '라팍 김치말이국수': '라팍표 김치육수에 쫄깃한 면,\n시원함이 한가득',
+    '두산 B볶rs': '두산의 힘!\n불향 가득한 든든 볶음밥',
+    '키움쫄?쫄면': '매콤새콤, 쫄깃함으로\n기세를 키우는 쫄면',
+    '롯데 자이언츠 화채': '달콤 상큼, 자이언츠처럼\n시원하게 즐기는 과일 화채',
+    'KT란찜': '얼큰담백 라면+찜 조합,\n만나면 홈런 각',
+    '후리카케크봉밥': '바삭 후리카케와 쫀득 주먹밥의\n고소한 조합',
+    '포도맛 (두산/KT/롯데/LG…) 칵테일': '톡 쏘는 포도향이 상큼하게 퍼지는\n무알코올 칵테일',
+    '자몽맛 (한화/SSG/기아…) 칵테일': '쌉싸름 달콤 자몽의 매력,\n산뜻한 피니시',
+    '소다맛 (NC/삼성) 칵테일': '시원한 소다향과 청량감으로\n딱 한 잔 더',
+    '제로콜라': '부담 없이 즐기는\n깔끔한 제로 슈가 콜라',
+    '사이다': '톡톡 터지는 청량감,\n클래식한 선택',
+    '물': 'kia~~ 갈증을 시원하게\n해소하는 생수'
   };
 
   const FALLBACK_IMAGES = {
@@ -72,9 +72,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function getFallbackDescriptionByName(menuName){
     const name = String(menuName || '');
-    if (name.includes('포도') && name.includes('칵테일')) return '톡 쏘는 포도향이 상큼하게 퍼지는 무알코올 칵테일';
-    if (name.includes('자몽') && name.includes('칵테일')) return '쌉싸름 달콤 자몽의 매력, 산뜻한 피니시';
-    if (name.includes('소다') && name.includes('칵테일')) return '시원한 소다향과 청량감으로 딱 한 잔 더';
+    if (name.includes('포도') && name.includes('칵테일')) return '톡 쏘는 포도향이 상큼하게 퍼지는\n무알코올 칵테일';
+    if (name.includes('자몽') && name.includes('칵테일')) return '쌉싸름 달콤 자몽의 매력,\n산뜻한 피니시';
+    if (name.includes('소다') && name.includes('칵테일')) return '시원한 소다향과 청량감으로\n딱 한 잔 더';
     return FALLBACK_DESCRIPTIONS[menuName];
   }
 
@@ -918,7 +918,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const icon = categoryIcons[currentCategory] || 'fas fa-utensils';
     
     // 메뉴 설명 생성 (서버 다양한 키 지원)
-    const description = (menu.description || menu.desc || menu.details || menu.content || menu.summary || '').trim() || getFallbackDescriptionByName(menu.name) || `맛있는 ${menu.name}입니다. 신선한 재료로 만든 인기 메뉴입니다.`;
+    const description = (menu.description || menu.desc || menu.details || menu.content || menu.summary || '').trim() || getFallbackDescriptionByName(menu.name) || `맛있는 ${menu.name}입니다.\n신선한 재료로 만든 인기 메뉴입니다.`;
     
     // 메뉴 이미지 처리 (서버 다양한 키 지원)
     const imgUrl = menu.image_url || menu.imageUrl || menu.image || menu.thumbnail_url || menu.thumbnailUrl || menu.photo_url || FALLBACK_IMAGES[menu.name];
